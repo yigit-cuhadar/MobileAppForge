@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' as rc;
 
@@ -23,23 +24,29 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
   Future<Result<void>> configure() => _guard(() async {
     await rc.Purchases.configure(rc.PurchasesConfiguration(_apiKey));
     rc.Purchases.addCustomerInfoUpdateListener(_publish);
-    _publish(await rc.Purchases.getCustomerInfo());
   });
 
   @override
-  Future<Result<void>> identify(String userId) => _guard(
-    () async => _publish((await rc.Purchases.logIn(userId)).customerInfo),
+  Future<Result<Entitlement>> identify(String userId) =>
+      _switchUser(() async => (await rc.Purchases.logIn(userId)).customerInfo);
+
+  @override
+  Future<Result<Entitlement>> reset() => _switchUser(
+    // A cold start resumes the cached signed-in user, which must be logged
+    // out; logOut throws for a user who is already anonymous.
+    () async => await rc.Purchases.isAnonymous
+        ? rc.Purchases.getCustomerInfo()
+        : rc.Purchases.logOut(),
   );
 
   @override
-  Future<Result<void>> reset() => _guard(() async {
-    // logOut throws for a user who is already anonymous.
-    if (await rc.Purchases.isAnonymous) return;
-    _publish(await rc.Purchases.logOut());
-  });
+  Stream<Entitlement> watchEntitlement() => _channel.stream;
 
   @override
-  Stream<Entitlement> watchEntitlement() => _channel.stream;
+  Future<Result<Entitlement>> refresh() => _guard(() async {
+    await rc.Purchases.invalidateCustomerInfoCache();
+    return _publish(await rc.Purchases.getCustomerInfo());
+  });
 
   @override
   Future<Result<Offering>> offering() => _guard(_loadOffering);
@@ -51,17 +58,11 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
     if (package == null) {
       throw const PurchaseFailure(PurchaseFailureReason.productNotAvailable);
     }
-    final current = _channel.latest;
-    // Google Play keeps both subscriptions unless told it is a plan change.
-    final changeFrom =
-        current != null &&
-            current.isActive &&
-            current.store == PurchaseStore.playStore &&
-            current.productId != plan.id
-        ? rc.StoreProductChangeInfo(current.productId!)
-        : null;
     final result = await rc.Purchases.purchase(
-      rc.PurchaseParams.package(package, productChangeInfo: changeFrom),
+      rc.PurchaseParams.package(
+        package,
+        productChangeInfo: productChangeFor(_channel.latest, plan),
+      ),
     );
     return _publish(result.customerInfo);
   });
@@ -76,15 +77,28 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
     return url == null ? storeSubscriptionsUrl() : Uri.parse(url);
   });
 
+  Future<Result<Entitlement>> _switchUser(
+    Future<rc.CustomerInfo> Function() body,
+  ) {
+    _channel.close();
+    return _guard(
+      () async => _channel.open(entitlementFrom(await body(), _entitlementId)),
+    );
+  }
+
   Future<Offering> _loadOffering() async {
-    final current = (await rc.Purchases.getOfferings()).current;
+    final packages =
+        (await rc.Purchases.getOfferings()).current?.availablePackages ??
+        const <rc.Package>[];
+    final eligible = await _introEligibleProducts(packages);
     final plans = <Plan>[];
     _packages.clear();
-    for (final package in current?.availablePackages ?? <rc.Package>[]) {
-      final plan = planFrom(package);
+    for (final package in packages) {
+      final id = package.storeProduct.identifier;
+      final plan = planFrom(package, introEligible: eligible(id));
       if (plan == null) continue;
       plans.add(plan);
-      _packages[plan.id] = package;
+      _packages[id] = package;
     }
     if (plans.isEmpty) {
       throw const PurchaseFailure(
@@ -95,9 +109,40 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
     return Offering(plans);
   }
 
+  /// Google Play lists only offers the user is eligible for; the App Store
+  /// lists them for everyone, so they are kept only when confirmed eligible.
+  Future<bool Function(String productId)> _introEligibleProducts(
+    List<rc.Package> packages,
+  ) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.macOS) {
+      return (_) => true;
+    }
+    final ids = [
+      for (final package in packages)
+        if (package.storeProduct.introductoryPrice != null)
+          package.storeProduct.identifier,
+    ];
+    if (ids.isEmpty) return (_) => false;
+    final eligibility =
+        await rc.Purchases.checkTrialOrIntroductoryPriceEligibility(ids);
+    return (id) =>
+        eligibility[id]?.status ==
+        rc.IntroEligibilityStatus.introEligibilityStatusEligible;
+  }
+
   Entitlement _publish(rc.CustomerInfo info) =>
       _channel.add(entitlementFrom(info, _entitlementId));
 
-  Future<Result<T>> _guard<T>(Future<T> Function() body) =>
-      guard(body, mapper: mapPurchasesError);
+  /// Expected outcomes are thrown as failures, which `guard` returns without
+  /// error-logging; everything else goes through its logging mapper.
+  Future<Result<T>> _guard<T>(Future<T> Function() body) => guard(() async {
+    try {
+      return await body();
+    } catch (error) {
+      final failure = mapPurchasesError(error);
+      if (failure != null && isExpectedFailure(failure)) throw failure;
+      rethrow;
+    }
+  }, mapper: mapPurchasesError);
 }

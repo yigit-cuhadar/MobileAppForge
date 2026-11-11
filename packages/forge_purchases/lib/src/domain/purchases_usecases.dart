@@ -12,21 +12,31 @@ class ConfigurePurchases implements UseCase<void, NoParams> {
       _repository.configure();
 }
 
-class IdentifyPurchaser implements UseCase<void, String> {
+class IdentifyPurchaser implements UseCase<Entitlement, String> {
   const IdentifyPurchaser(this._repository);
   final PurchasesRepository _repository;
 
   @override
-  Future<Result<void>> call(String params) => _repository.identify(params);
+  Future<Result<Entitlement>> call(String params) =>
+      _repository.identify(params);
 }
 
-class ResetPurchaser implements UseCase<void, NoParams> {
+class ResetPurchaser implements UseCase<Entitlement, NoParams> {
   const ResetPurchaser(this._repository);
   final PurchasesRepository _repository;
 
   @override
-  Future<Result<void>> call([NoParams params = const NoParams()]) =>
+  Future<Result<Entitlement>> call([NoParams params = const NoParams()]) =>
       _repository.reset();
+}
+
+class RefreshEntitlement implements UseCase<Entitlement, NoParams> {
+  const RefreshEntitlement(this._repository);
+  final PurchasesRepository _repository;
+
+  @override
+  Future<Result<Entitlement>> call([NoParams params = const NoParams()]) =>
+      _repository.refresh();
 }
 
 class WatchEntitlement {

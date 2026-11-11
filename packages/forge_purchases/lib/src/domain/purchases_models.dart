@@ -45,7 +45,9 @@ class Plan extends Equatable {
     this.intro,
   });
 
-  /// Store product id.
+  /// Store product id as RevenueCat reports it: `productId` on the App
+  /// Store, `subscriptionId:basePlanId` on Google Play. It differs per
+  /// platform, so match plans by [period] in app code.
   final String id;
   final PlanPeriod period;
 
@@ -56,9 +58,10 @@ class Plan extends Equatable {
   /// ISO 4217, e.g. `EUR`.
   final String currencyCode;
 
-  /// Free trial offered with the plan. The store decides eligibility at
-  /// purchase time; a user who already had a trial pays immediately.
+  /// Free trial; only present when the user is eligible for it.
   final OfferPeriod? trial;
+
+  /// Paid introductory price; only present when the user is eligible.
   final IntroOffer? intro;
 
   @override
@@ -103,7 +106,7 @@ class Entitlement extends Equatable {
 
   final bool isActive;
 
-  /// The product that grants (or last granted) it.
+  /// The product that grants (or last granted) it, in the form of [Plan.id].
   final String? productId;
 
   /// Null for lifetime purchases.

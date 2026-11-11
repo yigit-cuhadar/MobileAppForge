@@ -4,15 +4,30 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/purchases_models.dart';
 
-/// Broadcasts entitlement updates and replays the latest one to each new
-/// listener.
+/// Broadcasts the current user's entitlement and replays the latest one to
+/// each new listener. Closed while a user switch is unresolved, so the
+/// previous user's values never reach the next user.
 class EntitlementChannel {
   final _controller = StreamController<Entitlement>.broadcast();
   Entitlement? _latest;
+  bool _open = false;
 
   Entitlement? get latest => _latest;
 
+  /// Call before switching users; [open] once the switch succeeded.
+  void close() {
+    _open = false;
+    _latest = null;
+  }
+
+  Entitlement open(Entitlement entitlement) {
+    _open = true;
+    return add(entitlement);
+  }
+
+  /// Ignored while closed.
   Entitlement add(Entitlement entitlement) {
+    if (!_open) return entitlement;
     _latest = entitlement;
     _controller.add(entitlement);
     return entitlement;

@@ -25,18 +25,29 @@ const lifetime = Plan(
   currencyCode: 'USD',
 );
 
+PurchaseFailureReason? reasonOf(Result<Object?> result) =>
+    switch (result.failureOrNull) {
+      PurchaseFailure(:final reason) => reason,
+      _ => null,
+    };
+
 void main() {
   late DateTime now;
   late FakePurchasesRepository repository;
 
+  FakePurchasesRepository build({String? cachedUserId}) =>
+      FakePurchasesRepository(
+        plans: const [monthly, yearly, lifetime],
+        purchaseDelay: Duration.zero,
+        cachedUserId: cachedUserId,
+        clock: () => now,
+      );
+
   setUp(() async {
     now = DateTime.utc(2026, 1, 1);
-    repository = FakePurchasesRepository(
-      plans: const [monthly, yearly, lifetime],
-      purchaseDelay: Duration.zero,
-      clock: () => now,
-    );
+    repository = build();
     await repository.configure();
+    await repository.identify('a');
   });
 
   Future<Entitlement> buy(Plan plan) async =>
@@ -44,18 +55,23 @@ void main() {
 
   Future<Entitlement> current() => repository.watchEntitlement().first;
 
-  group('stream', () {
-    test('emits nothing before configure', () async {
-      final fresh = FakePurchasesRepository(plans: const [monthly]);
-      final values = <Entitlement>[];
-      final subscription = fresh.watchEntitlement().listen(values.add);
-      await pumpEventQueue();
-      expect(values, isEmpty);
+  Future<List<Entitlement>> emitted(Future<void> Function() act) async {
+    final values = <Entitlement>[];
+    final subscription = repository.watchEntitlement().listen(values.add);
+    await act();
+    await pumpEventQueue();
+    await subscription.cancel();
+    return values;
+  }
 
-      await fresh.configure();
-      await pumpEventQueue();
-      expect(values, [const Entitlement.none()]);
-      await subscription.cancel();
+  group('stream', () {
+    test('emits nothing until a user is identified or reset', () async {
+      repository = build();
+      await repository.configure();
+      expect(await emitted(() async {}), isEmpty);
+      expect(await emitted(() => repository.reset()), [
+        const Entitlement.none(),
+      ]);
     });
 
     test('a late listener gets the latest value first', () async {
@@ -64,15 +80,60 @@ void main() {
     });
 
     test('listeners see every change in order', () async {
-      final values = <bool>[];
-      final subscription = repository.watchEntitlement().listen(
-        (e) => values.add(e.isActive),
-      );
+      final values = await emitted(() async {
+        await buy(monthly);
+        await repository.reset();
+      });
+      expect(values.map((e) => e.isActive), [false, true, false]);
+    });
+
+    test('a failed switch replays nothing of the previous user', () async {
       await buy(monthly);
-      await repository.reset();
-      await pumpEventQueue();
-      expect(values, [false, true, false]);
-      await subscription.cancel();
+      repository.sessionFailure = const NetworkFailure();
+      expect((await repository.identify('b')).failureOrNull, isNotNull);
+
+      expect(
+        await emitted(() async {
+          repository.cancelRenewal();
+          await repository.refresh();
+        }),
+        isEmpty,
+      );
+    });
+  });
+
+  group('session', () {
+    test('switches fail while the session switch is set', () async {
+      repository.sessionFailure = const NetworkFailure();
+      expect(
+        (await repository.identify('b')).failureOrNull,
+        const NetworkFailure(),
+      );
+      expect((await repository.reset()).failureOrNull, isNotNull);
+      final fresh = build()..sessionFailure = const NetworkFailure();
+      expect((await fresh.configure()).failureOrNull, isNotNull);
+
+      repository.sessionFailure = null;
+      expect((await repository.identify('b')).isOk, isTrue);
+    });
+
+    test('a cold start resumes the cached user until reset', () async {
+      repository = build(cachedUserId: 'a');
+      await repository.configure();
+      await buy(monthly);
+
+      expect((await repository.reset()).valueOrNull, const Entitlement.none());
+      expect((await repository.identify('a')).valueOrNull!.isActive, isTrue);
+    });
+
+    test('entitlements stay with the user who bought them', () async {
+      await buy(monthly);
+      expect((await repository.reset()).valueOrNull, const Entitlement.none());
+      expect(
+        (await repository.identify('b')).valueOrNull,
+        const Entitlement.none(),
+      );
+      expect((await repository.identify('a')).valueOrNull!.isActive, isTrue);
     });
   });
 
@@ -96,9 +157,8 @@ void main() {
     test('lifetime never expires or renews', () async {
       await buy(lifetime);
       now = DateTime.utc(2040, 1, 1);
-      repository.refresh();
 
-      final entitlement = await current();
+      final entitlement = (await repository.refresh()).valueOrNull!;
       expect(entitlement.isActive, isTrue);
       expect(entitlement.expiresAt, isNull);
       expect(entitlement.willRenew, isFalse);
@@ -114,18 +174,25 @@ void main() {
           currencyCode: 'USD',
         ),
       );
+      expect(reasonOf(result), PurchaseFailureReason.productNotAvailable);
+    });
+
+    test('buying the own active plan again is already owned', () async {
+      await buy(monthly);
       expect(
-        (result.failureOrNull! as PurchaseFailure).reason,
-        PurchaseFailureReason.productNotAvailable,
+        reasonOf(await repository.purchase(monthly)),
+        PurchaseFailureReason.alreadyOwned,
       );
     });
 
-    test('buying the active plan again is already owned', () async {
+    test('buying a plan another user holds transfers it', () async {
       await buy(monthly);
-      final result = await repository.purchase(monthly);
+      await repository.identify('b');
+
+      expect((await buy(monthly)).isActive, isTrue);
       expect(
-        (result.failureOrNull! as PurchaseFailure).reason,
-        PurchaseFailureReason.alreadyOwned,
+        (await repository.identify('a')).valueOrNull,
+        const Entitlement.none(),
       );
     });
 
@@ -138,7 +205,6 @@ void main() {
 
     for (final failure in const [
       PurchaseFailure(PurchaseFailureReason.cancelled),
-      PurchaseFailure(PurchaseFailureReason.pending),
       PurchaseFailure(PurchaseFailureReason.storeUnavailable),
       NetworkFailure(),
     ]) {
@@ -153,6 +219,18 @@ void main() {
         expect((await repository.purchase(monthly)).isOk, isTrue);
       });
     }
+
+    test('a pending purchase resolves later through the stream', () async {
+      repository.failure = const PurchaseFailure(PurchaseFailureReason.pending);
+      expect(
+        reasonOf(await repository.purchase(monthly)),
+        PurchaseFailureReason.pending,
+      );
+      repository.failure = null;
+
+      final values = await emitted(() async => repository.approvePending());
+      expect(values.map((e) => e.isActive), [false, true]);
+    });
   });
 
   group('trial and renewal', () {
@@ -164,8 +242,7 @@ void main() {
         expect(trial.expiresAt, DateTime.utc(2026, 1, 8));
 
         now = DateTime.utc(2026, 1, 8);
-        repository.refresh();
-        final paid = await current();
+        final paid = (await repository.refresh()).valueOrNull!;
         expect(paid.isActive, isTrue);
         expect(paid.isInTrial, isFalse);
         expect(paid.expiresAt, DateTime.utc(2027, 1, 8));
@@ -175,8 +252,21 @@ void main() {
     test('renews over several periods', () async {
       await buy(monthly);
       now = DateTime.utc(2026, 4, 15);
-      repository.refresh();
-      expect((await current()).expiresAt, DateTime.utc(2026, 5, 1));
+      expect(
+        (await repository.refresh()).valueOrNull!.expiresAt,
+        DateTime.utc(2026, 5, 1),
+      );
+    });
+
+    test('renewals clamp to month ends and keep the original day', () async {
+      now = DateTime.utc(2026, 1, 31);
+      expect((await buy(monthly)).expiresAt, DateTime.utc(2026, 2, 28));
+
+      now = DateTime.utc(2026, 2, 28);
+      expect(
+        (await repository.refresh()).valueOrNull!.expiresAt,
+        DateTime.utc(2026, 3, 31),
+      );
     });
 
     test('a cancelled renewal expires at the end of the period', () async {
@@ -185,13 +275,11 @@ void main() {
       expect((await current()).willRenew, isFalse);
 
       now = DateTime.utc(2026, 1, 31);
-      repository.refresh();
-      expect((await current()).isActive, isTrue);
+      expect((await repository.refresh()).valueOrNull!.isActive, isTrue);
 
       now = DateTime.utc(2026, 2, 1);
-      repository.refresh();
       expect(
-        await current(),
+        (await repository.refresh()).valueOrNull,
         Entitlement(
           isActive: false,
           productId: monthly.id,
@@ -201,43 +289,43 @@ void main() {
       );
     });
 
-    test('a trial is granted only once', () async {
-      await buy(yearly);
-      repository.cancelRenewal();
-      now = DateTime.utc(2026, 2, 1);
+    test(
+      'trials are offered per user until their first subscription',
+      () async {
+        Future<OfferPeriod?> offeredTrial() async =>
+            (await repository.offering()).valueOrNull!.plans
+                .singleWhere((p) => p.id == yearly.id)
+                .trial;
 
-      final again = await buy(yearly);
-      expect(again.isInTrial, isFalse);
-      expect(again.expiresAt, DateTime.utc(2027, 2, 1));
-    });
+        expect(await offeredTrial(), yearly.trial);
+        await buy(yearly);
+        repository.cancelRenewal();
+        now = DateTime.utc(2026, 2, 1);
+        expect(await offeredTrial(), isNull);
+
+        final again = await buy(yearly);
+        expect(again.isInTrial, isFalse);
+        expect(again.expiresAt, DateTime.utc(2027, 2, 1));
+
+        await repository.identify('b');
+        expect(await offeredTrial(), yearly.trial);
+      },
+    );
   });
 
-  group('users', () {
-    test('entitlements stay with the user who bought them', () async {
-      await repository.identify('a');
-      await buy(monthly);
-
-      await repository.reset();
-      expect(await current(), const Entitlement.none());
-      await repository.identify('b');
-      expect(await current(), const Entitlement.none());
-      await repository.identify('a');
-      expect((await current()).isActive, isTrue);
-    });
-
-    test('restore moves the store purchase to the current user', () async {
-      await repository.identify('a');
+  group('restore', () {
+    test('moves the store purchase to the current user', () async {
       await buy(monthly);
       await repository.identify('b');
 
-      final restored = await repository.restore();
-      expect(restored.valueOrNull!.isActive, isTrue);
-
-      await repository.identify('a');
-      expect(await current(), const Entitlement.none());
+      expect((await repository.restore()).valueOrNull!.isActive, isTrue);
+      expect(
+        (await repository.identify('a')).valueOrNull,
+        const Entitlement.none(),
+      );
     });
 
-    test('restore without purchases is not entitled', () async {
+    test('without purchases is not entitled', () async {
       expect(
         (await repository.restore()).valueOrNull,
         const Entitlement.none(),

@@ -8,9 +8,13 @@ Entitlement entitlementFrom(rc.CustomerInfo info, String entitlementId) {
   final entitlement = info.entitlements.all[entitlementId];
   if (entitlement == null) return const Entitlement.none();
   final expiration = entitlement.expirationDate;
+  final basePlan = entitlement.productPlanIdentifier;
   return Entitlement(
     isActive: entitlement.isActive,
-    productId: entitlement.productIdentifier,
+    // Play reports the subscription and base plan apart; products join them.
+    productId: basePlan == null
+        ? entitlement.productIdentifier
+        : '${entitlement.productIdentifier}:$basePlan',
     expiresAt: expiration == null ? null : DateTime.parse(expiration),
     willRenew: entitlement.willRenew,
     isInTrial: entitlement.periodType == rc.PeriodType.trial,
@@ -25,8 +29,9 @@ Entitlement entitlementFrom(rc.CustomerInfo info, String entitlementId) {
   );
 }
 
-/// Null for packages that are not monthly, yearly or lifetime.
-Plan? planFrom(rc.Package package) {
+/// Null for packages that are not monthly, yearly or lifetime. Without
+/// [introEligible] the plan carries no trial or intro offer.
+Plan? planFrom(rc.Package package, {required bool introEligible}) {
   final product = package.storeProduct;
   final period = switch (package.packageType) {
     rc.PackageType.monthly => PlanPeriod.monthly,
@@ -39,7 +44,7 @@ Plan? planFrom(rc.Package package) {
     },
   };
   if (period == null) return null;
-  final intro = product.introductoryPrice;
+  final intro = introEligible ? product.introductoryPrice : null;
   final unit = intro == null ? null : _unitFrom(intro.periodUnit);
   final isFree = intro != null && intro.price == 0;
   return Plan(
@@ -68,6 +73,21 @@ PeriodUnit? _unitFrom(rc.PeriodUnit unit) => switch (unit) {
   rc.PeriodUnit.year => PeriodUnit.year,
   rc.PeriodUnit.unknown => null,
 };
+
+/// Google Play keeps both subscriptions unless a switch to another plan is
+/// sent as a product change from the active one.
+rc.StoreProductChangeInfo? productChangeFor(Entitlement? current, Plan plan) {
+  final from = current?.productId;
+  if (current == null ||
+      !current.isActive ||
+      current.store != PurchaseStore.playStore ||
+      from == null ||
+      from == plan.id) {
+    return null;
+  }
+  // The SDK wants the subscription id without the base plan.
+  return rc.StoreProductChangeInfo(from.split(':').first);
+}
 
 /// [FailureMapper] for RevenueCat SDK errors. Pass to `guard(mapper:)`.
 Failure? mapPurchasesError(Object error) {
@@ -108,3 +128,15 @@ Failure? mapPurchasesError(Object error) {
     _ => UnknownFailure(message, error),
   };
 }
+
+/// Outcomes of normal use rather than defects; they are not error-logged.
+bool isExpectedFailure(Failure failure) => switch (failure) {
+  NetworkFailure() => true,
+  PurchaseFailure(:final reason) => switch (reason) {
+    PurchaseFailureReason.cancelled ||
+    PurchaseFailureReason.pending ||
+    PurchaseFailureReason.alreadyOwned => true,
+    _ => false,
+  },
+  _ => false,
+};
