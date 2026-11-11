@@ -1,5 +1,5 @@
 /// A domain-level error. Data sources throw; repositories return these.
-sealed class Failure {
+abstract class Failure {
   const Failure(this.message, {this.cause});
 
   /// Developer-facing description. UI maps the failure *type* to user text.
