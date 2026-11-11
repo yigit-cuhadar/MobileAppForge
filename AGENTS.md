@@ -90,8 +90,9 @@ package before the app PR that needs it.
 ## Tests
 
 Unit-test use cases with logic, repositories and cubits (`mocktail`,
-`bloc_test`, `fake_cloud_firestore`). No widget or integration tests before
-the design phase; verify screens on the simulator instead.
+`bloc_test`, `fake_cloud_firestore`). No widget or integration tests of app
+screens before the design phase; verify screens on the simulator instead.
+Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
 
 ## Git
 

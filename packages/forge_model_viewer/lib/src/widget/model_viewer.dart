@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,15 +7,20 @@ import '../model.dart';
 import '../render/mesh_renderer.dart';
 import '../render/model_painter.dart';
 import 'model_viewer_controller.dart';
+import 'viewer_gesture_recognizer.dart';
 
 /// Shows a [Model3D], lit from the camera, filling its parent.
 ///
-/// When [interactive], one finger rotates, a pinch zooms, a double tap
-/// returns to the controller's initial view, a tap reports the part under the
-/// finger to [onPartTap], and a long press followed by a slide reports the
-/// part under the finger to [onScrub] each time it changes (starting from
-/// none) and to [onScrubEnd] on release. Only parts accepted by [selectable]
-/// are reported; the others still hide the parts behind them.
+/// When [interactive], gestures that start on the viewer belong to it, even
+/// inside a scrollable: one finger rotates, a pinch zooms, a tap reports the
+/// part under the finger to [onPartTap] on release, and a long press followed
+/// by a slide reports the part under the finger to [onScrub] each time it
+/// changes (starting from none) and, exactly once, to [onScrubEnd] when the
+/// scrub ends for any reason. Only parts accepted by [selectable] are
+/// reported; the others still hide the parts behind them.
+///
+/// Screen readers get only [semanticLabel]; apps that let users pick parts
+/// should also offer them as a list.
 ///
 /// When not [interactive] the viewer takes no gestures at all, for static
 /// previews; a [controller] can still move the camera.
@@ -69,28 +75,35 @@ class ModelViewer extends StatefulWidget {
 }
 
 class _ModelViewerState extends State<ModelViewer> {
-  late MeshRenderer _renderer = MeshRenderer(widget.model);
+  late MeshRenderer _renderer = MeshRenderer(meshOf(widget.model));
   ModelViewerController? _ownController;
-  double _scaleStartZoom = 1;
+  double _pinchStartZoom = 1;
+  bool _scrubbing = false;
   String? _scrubPart;
 
   ModelViewerController get _controller =>
       widget.controller ?? (_ownController ??= ModelViewerController());
 
+  bool get _scrubs => widget.onScrub != null || widget.onScrubEnd != null;
+
   @override
   void didUpdateWidget(ModelViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.model != oldWidget.model) {
-      _renderer = MeshRenderer(widget.model);
+      _renderer = MeshRenderer(meshOf(widget.model));
     }
     if (widget.controller != null && _ownController != null) {
       _ownController!.dispose();
       _ownController = null;
     }
+    if (!widget.interactive || !_scrubs) {
+      _endScrub(widget.onScrubEnd ?? oldWidget.onScrubEnd, deferred: true);
+    }
   }
 
   @override
   void dispose() {
+    _endScrub(widget.onScrubEnd, deferred: true);
     _ownController?.dispose();
     super.dispose();
   }
@@ -114,24 +127,49 @@ class _ModelViewerState extends State<ModelViewer> {
 
   static bool _selectAll(String part) => true;
 
-  void _onScaleUpdate(ScaleUpdateDetails details) {
-    final controller = _controller;
-    if (details.pointerCount > 1) {
-      controller.zoom = _scaleStartZoom * details.scale;
-      return;
-    }
-    // Dragging across the shorter side turns the model half way round.
-    final radiansPerPixel = math.pi / context.size!.shortestSide;
-    controller
-      ..yaw += details.focalPointDelta.dx * radiansPerPixel
-      ..pitch += details.focalPointDelta.dy * radiansPerPixel;
+  void _onTap(Offset position) {
+    final onPartTap = widget.onPartTap;
+    if (onPartTap == null) return;
+    final part = _partAt(position);
+    if (part != null) onPartTap(part);
   }
 
-  void _scrubTo(Offset position) {
+  void _onRotate(Offset delta) {
+    // Dragging across the shorter side turns the model half way round.
+    final radiansPerPixel = math.pi / context.size!.shortestSide;
+    _controller
+      ..yaw += delta.dx * radiansPerPixel
+      ..pitch += delta.dy * radiansPerPixel;
+  }
+
+  void _onScrubStart(Offset position) {
+    if (!_scrubs) return;
+    _scrubbing = true;
+    _scrubPart = null;
+    _onScrubUpdate(position);
+  }
+
+  void _onScrubUpdate(Offset position) {
+    if (!_scrubbing) return;
     final part = _partAt(position);
     if (part == _scrubPart) return;
     _scrubPart = part;
     widget.onScrub?.call(part);
+  }
+
+  /// Ends a running scrub. [deferred] delays the callback past the current
+  /// build or unmount, where the app could not call setState.
+  void _endScrub(ValueChanged<String?>? onScrubEnd, {bool deferred = false}) {
+    if (!_scrubbing) return;
+    _scrubbing = false;
+    final part = _scrubPart;
+    _scrubPart = null;
+    if (onScrubEnd == null) return;
+    if (deferred) {
+      scheduleMicrotask(() => onScrubEnd(part));
+    } else {
+      onScrubEnd(part);
+    }
   }
 
   @override
@@ -151,34 +189,25 @@ class _ModelViewerState extends State<ModelViewer> {
       ),
     );
     if (widget.interactive) {
-      final scrubs = widget.onScrub != null || widget.onScrubEnd != null;
-      viewer = GestureDetector(
+      final scrubs = _scrubs;
+      viewer = RawGestureDetector(
         behavior: HitTestBehavior.opaque,
-        onScaleStart: (_) => _scaleStartZoom = _controller.zoom,
-        onScaleUpdate: _onScaleUpdate,
-        onDoubleTap: () => _controller.animateTo(
-          _controller.initialYaw,
-          _controller.initialPitch,
-          _controller.initialZoom,
-        ),
-        onTapUp: widget.onPartTap == null
-            ? null
-            : (details) {
-                final part = _partAt(details.localPosition);
-                if (part != null) widget.onPartTap!(part);
-              },
-        onLongPressStart: scrubs
-            ? (details) {
-                _scrubPart = null;
-                _scrubTo(details.localPosition);
-              }
-            : null,
-        onLongPressMoveUpdate: scrubs
-            ? (details) => _scrubTo(details.localPosition)
-            : null,
-        onLongPressEnd: scrubs
-            ? (_) => widget.onScrubEnd?.call(_scrubPart)
-            : null,
+        excludeFromSemantics: true,
+        gestures: {
+          ViewerGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<ViewerGestureRecognizer>(
+                () => ViewerGestureRecognizer(debugOwner: this),
+                (recognizer) => recognizer
+                  ..onTap = _onTap
+                  ..onRotate = _onRotate
+                  ..onZoomStart = (() => _pinchStartZoom = _controller.zoom)
+                  ..onZoom = ((scale) =>
+                      _controller.zoom = _pinchStartZoom * scale)
+                  ..onScrubStart = scrubs ? _onScrubStart : null
+                  ..onScrubUpdate = _onScrubUpdate
+                  ..onScrubEnd = (() => _endScrub(widget.onScrubEnd)),
+              ),
+        },
         child: viewer,
       );
     }

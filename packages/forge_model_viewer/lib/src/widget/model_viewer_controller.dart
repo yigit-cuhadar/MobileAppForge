@@ -10,7 +10,7 @@ import 'package:flutter/scheduler.dart';
 ///
 /// Yaw is free; pitch is clamped to ±[maxPitch] and zoom to
 /// [minZoom]..[maxZoom]. The values given to the constructor are the view
-/// that [reset] and a double tap return to.
+/// that [reset] returns to.
 class ModelViewerController extends ChangeNotifier {
   ModelViewerController({
     double yaw = 0,

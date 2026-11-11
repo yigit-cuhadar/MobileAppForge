@@ -1,12 +1,48 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forge_model_viewer/forge_model_viewer.dart';
 import 'package:forge_model_viewer/src/gltf/glb_parser.dart';
+import 'package:forge_model_viewer/src/model.dart';
 import 'package:forge_model_viewer/src/render/mesh_renderer.dart';
 
 import 'glb_builder.dart';
 
 bool _all(String part) => true;
+
+/// A 2 x 2 x 2 cube: one +z face reused by six rotated nodes.
+MeshData _cube() {
+  final b = GlbBuilder();
+  final positions = b.addVec3(quad(-1, -1, 1, 1, 1));
+  final indices = b.addIndices(quadIndices);
+  const h = math.sqrt1_2;
+  final rotations = [
+    [0.0, 0.0, 0.0, 1.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, h, 0.0, h],
+    [0.0, -h, 0.0, h],
+    [-h, 0.0, 0.0, h],
+    [h, 0.0, 0.0, h],
+  ];
+  return parseGlb(
+    b.build(
+      nodes: [
+        for (final rotation in rotations)
+          {'name': 'cube', 'mesh': 0, 'rotation': rotation},
+      ],
+      meshes: [
+        {
+          'primitives': [
+            {
+              'attributes': {'POSITION': positions},
+              'indices': indices,
+            },
+          ],
+        },
+      ],
+    ),
+  );
+}
 
 void main() {
   // A small quad in front of a large one; both face the camera.
@@ -46,6 +82,17 @@ void main() {
       final turned = renderer.screen[0];
       renderer.update(size, size, 0, 0, 1);
       expect(turned, greaterThan(renderer.screen[0]));
+    });
+
+    test('keeps a deep model whole at maximum zoom', () {
+      final controller = ModelViewerController();
+      final renderer = MeshRenderer(_cube())
+        ..update(size, size, 0.6, 0.5, controller.maxZoom);
+      // Three faces turn to the camera; none is lost to the camera
+      // entering the model.
+      expect(renderer.drawIndexCount, 3 * 2 * 3);
+      expect(renderer.screen.every((v) => v.isFinite), isTrue);
+      controller.dispose();
     });
 
     test('culls back faces', () {

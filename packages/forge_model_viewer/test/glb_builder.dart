@@ -16,6 +16,45 @@ class GlbBuilder {
     });
   }
 
+  /// Interleaves float VEC3 [attributes] of equal length in one buffer view
+  /// with a byteStride, each element preceded by [leadingPadding] bytes, and
+  /// returns one accessor per attribute, located by its byteOffset.
+  List<int> addInterleaved(
+    List<List<double>> attributes, {
+    int leadingPadding = 0,
+  }) {
+    final count = attributes.first.length ~/ 3;
+    final stride = leadingPadding + 12 * attributes.length;
+    final data = ByteData(stride * count);
+    for (var v = 0; v < count; v++) {
+      for (final (a, values) in attributes.indexed) {
+        for (var c = 0; c < 3; c++) {
+          data.setFloat32(
+            v * stride + leadingPadding + a * 12 + c * 4,
+            values[v * 3 + c],
+            Endian.little,
+          );
+        }
+      }
+    }
+    _add(data.buffer.asUint8List(), const {});
+    final view = bufferViews.length - 1;
+    bufferViews[view]['byteStride'] = stride;
+    accessors.removeLast();
+    final ids = <int>[];
+    for (var a = 0; a < attributes.length; a++) {
+      accessors.add({
+        'bufferView': view,
+        'byteOffset': leadingPadding + a * 12,
+        'componentType': 5126,
+        'type': 'VEC3',
+        'count': count,
+      });
+      ids.add(accessors.length - 1);
+    }
+    return ids;
+  }
+
   /// [componentType]: 5121 (u8), 5123 (u16) or 5125 (u32).
   int addIndices(List<int> values, {int componentType = 5123}) {
     final TypedData data = switch (componentType) {

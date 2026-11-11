@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forge_model_viewer/forge_model_viewer.dart';
 import 'package:forge_model_viewer/src/gltf/glb_parser.dart';
+import 'package:forge_model_viewer/src/model.dart';
 
 import 'glb_builder.dart';
 
@@ -68,6 +68,17 @@ Uint8List _twoPartGlb() {
   );
 }
 
+Uint8List _build(GlbBuilder b, Map<String, Object?> primitive) => b.build(
+  nodes: [
+    {'mesh': 0},
+  ],
+  meshes: [
+    {
+      'primitives': [primitive],
+    },
+  ],
+);
+
 Uint8List _singlePrimitive(
   Map<String, Object?> Function(GlbBuilder b) primitive, {
   Map<String, Object?> node = const {},
@@ -90,8 +101,8 @@ Uint8List _singlePrimitive(
 
 void main() {
   group('parseGlb', () {
-    test('reads parts, node transforms and bounds', () async {
-      final model = await Model3D.fromGlb(_twoPartGlb());
+    test('reads parts, node transforms and bounds', () {
+      final model = parseGlb(_twoPartGlb());
 
       expect(model.partNames, ['left', 'right']);
       expect(model.vertexCount, 8);
@@ -99,8 +110,7 @@ void main() {
       // left: x -2..0, right: x 0..2 after ROOT scale; y 1..3 after ROOT.
       expect(_vertex(model.positions, 0), _closeList([-2, 1, 0]));
       expect(_vertex(model.positions, 4), _closeList([0, 1, 0]));
-      expect(model.bounds.min.storage, _closeList([-2, 1, 0]));
-      expect(model.bounds.max.storage, _closeList([2, 3, 0]));
+      expect(model.bounds, _closeList([-2, 1, 0, 2, 3, 0]));
       expect(model.vertexParts, [0, 0, 0, 0, 1, 1, 1, 1]);
       expect(model.indices, [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
     });
@@ -196,6 +206,95 @@ void main() {
       expect(model.vertexCount, 6);
     });
 
+    test('reads interleaved attributes with byteStride and byteOffset', () {
+      final b = GlbBuilder();
+      // Per vertex: 4 padding bytes, position, normal.
+      final [positions, normals] = b.addInterleaved([
+        [0, 0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 1, 0, 0, 1],
+      ], leadingPadding: 4);
+      final model = parseGlb(
+        b.build(
+          nodes: [
+            {'name': 'part', 'mesh': 0},
+          ],
+          meshes: [
+            {
+              'primitives': [
+                {
+                  'attributes': {'POSITION': positions, 'NORMAL': normals},
+                },
+              ],
+            },
+          ],
+        ),
+      );
+      expect(_vertex(model.positions, 1), _closeList([1, 0, 0]));
+      expect(_vertex(model.positions, 2), _closeList([0, 1, 0]));
+      expect(_vertex(model.normals, 2), _closeList([0, 0, 1]));
+    });
+
+    test('transforms normals by the inverse transpose', () {
+      Float32List normalUnder(List<double> normal, List<double> scale) =>
+          parseGlb(
+            _singlePrimitive(
+              (b) => {
+                'attributes': {
+                  'POSITION': b.addVec3([0, 0, 0, 1, -1, 0, 0, 0, 1]),
+                  'NORMAL': b.addVec3([...normal, ...normal, ...normal]),
+                },
+              },
+              node: {'scale': scale},
+            ),
+          ).normals;
+
+      const r = math.sqrt1_2;
+      // Plane x + y = 0 stretched along x: its normal leans toward y.
+      final stretched = normalUnder([r, r, 0], [2, 1, 1]);
+      expect(
+        _vertex(stretched, 0),
+        _closeList([1 / math.sqrt(5), 2 / math.sqrt(5), 0]),
+      );
+      final mirrored = normalUnder([1, 0, 0], [-1, 1, 1]);
+      expect(_vertex(mirrored, 0), _closeList([-1, 0, 0]));
+    });
+
+    test('parses large files on a background isolate', () async {
+      // 8,000 separate triangles: about 288 KB, over the isolate threshold.
+      final b = GlbBuilder();
+      final positions = <double>[
+        for (var t = 0; t < 8000; t++) ...[
+          t * 1.0,
+          0,
+          0,
+          t + 1.0,
+          0,
+          0,
+          t * 1.0,
+          1,
+          0,
+        ],
+      ];
+      final bytes = b.build(
+        nodes: [
+          {'name': 'strip', 'mesh': 0},
+        ],
+        meshes: [
+          {
+            'primitives': [
+              {
+                'attributes': {'POSITION': b.addVec3(positions)},
+              },
+            ],
+          },
+        ],
+      );
+      expect(bytes.length, greaterThan(isolateThreshold));
+      final model = await Model3D.fromGlb(bytes);
+      expect(model.partNames, ['strip']);
+      expect(meshOf(model).triangleCount, 8000);
+    });
+
     group('rejects', () {
       Matcher fails(String message) => throwsA(
         isA<FormatException>().having(
@@ -287,6 +386,106 @@ void main() {
         expect(
           () => parseGlb(GlbBuilder().build(nodes: [{}], meshes: [])),
           fails('no triangles'),
+        );
+      });
+
+      test('accessors past their buffer view', () {
+        final b = GlbBuilder();
+        final primitive = triangle(b);
+        b.accessors[0]['byteOffset'] = 4;
+        expect(() => parseGlb(_build(b, primitive)), fails('past its buffer'));
+      });
+
+      test('buffer views past the binary chunk', () {
+        final b = GlbBuilder();
+        final primitive = triangle(b);
+        b.bufferViews[0]['byteLength'] = 4096;
+        expect(() => parseGlb(_build(b, primitive)), fails('past its buffer'));
+      });
+
+      for (final stride in [8, 14, 256]) {
+        test('byteStride $stride', () {
+          final b = GlbBuilder();
+          final primitive = triangle(b);
+          b.bufferViews[0]['byteStride'] = stride;
+          expect(
+            () => parseGlb(_build(b, primitive)),
+            fails('Invalid byteStride'),
+          );
+        });
+      }
+
+      test('more than 65,536 vertices', () {
+        final b = GlbBuilder();
+        final primitive = triangle(b);
+        // Checked before any decoding, so the count need not be backed.
+        b.accessors[0]['count'] = 70000;
+        expect(() => parseGlb(_build(b, primitive)), fails('more than 65536'));
+      });
+
+      test('node cycles and shared nodes', () {
+        final b = GlbBuilder();
+        final primitive = triangle(b);
+        Uint8List withNodes(List<Map<String, Object?>> nodes) => b.build(
+          sceneNodes: [0],
+          nodes: nodes,
+          meshes: [
+            {
+              'primitives': [primitive],
+            },
+          ],
+        );
+        expect(
+          () => parseGlb(
+            withNodes([
+              {
+                'children': [1],
+              },
+              {
+                'mesh': 0,
+                'children': [0],
+              },
+            ]),
+          ),
+          fails('reachable more than once'),
+        );
+        expect(
+          () => parseGlb(
+            withNodes([
+              {
+                'children': [1, 1],
+              },
+              {'mesh': 0},
+            ]),
+          ),
+          fails('reachable more than once'),
+        );
+      });
+
+      test('non-finite positions', () {
+        expect(
+          () => parseGlb(
+            _singlePrimitive(
+              (b) => {
+                'attributes': {
+                  'POSITION': b.addVec3([0, 0, 0, double.nan, 0, 0, 0, 1, 0]),
+                },
+              },
+            ),
+          ),
+          fails('finite'),
+        );
+        expect(
+          () => parseGlb(
+            _singlePrimitive(
+              triangle,
+              node: {
+                'scale': [1e38, 1e38, 1e38],
+                'translation': [3e38, 0, 0],
+              },
+            ),
+          ),
+          fails('finite'),
         );
       });
 

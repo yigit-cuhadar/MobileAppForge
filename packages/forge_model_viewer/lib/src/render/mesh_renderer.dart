@@ -1,12 +1,9 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart';
-
 import '../model.dart';
 
 const _fieldOfView = 35 * math.pi / 180;
-const _near = 0.01;
 const _ambient = 0.4;
 const _diffuse = 0.6;
 // Light direction in view space: from the camera, slightly up and left.
@@ -15,13 +12,14 @@ final _lightLength = math.sqrt(
   _lightX * _lightX + _lightY * _lightY + _lightZ * _lightZ,
 );
 
-/// Projects, culls, depth-sorts and shades a [Model3D] on the CPU into
+/// Projects, culls, depth-sorts and shades [MeshData] on the CPU into
 /// buffers ready for `Canvas.drawVertices`. All buffers are allocated once;
 /// [update] and [shade] allocate nothing.
 ///
 /// The model is centred on its bounds and scaled to a unit bounding sphere.
 /// The camera looks down -z; yaw turns the model around y, then pitch tilts it
-/// around x. At zoom 1 the whole sphere fits the shorter side of the view.
+/// around x. The camera stays outside the sphere; zoom scales the projection,
+/// and at zoom 1 the whole sphere fits the shorter side of the view.
 class MeshRenderer {
   MeshRenderer(this.model)
     : screen = Float32List(model.vertexCount * 2),
@@ -33,15 +31,21 @@ class MeshRenderer {
       _orderTmp = Int32List(model.triangleCount),
       _keys = Uint16List(model.triangleCount),
       _keysTmp = Uint16List(model.triangleCount),
-      _cx = (model.bounds.min.x + model.bounds.max.x) / 2,
-      _cy = (model.bounds.min.y + model.bounds.max.y) / 2,
-      _cz = (model.bounds.min.z + model.bounds.max.z) / 2,
-      _scale = _unitScale(model.bounds.max - model.bounds.min);
+      _cx = (model.bounds[0] + model.bounds[3]) / 2,
+      _cy = (model.bounds[1] + model.bounds[4]) / 2,
+      _cz = (model.bounds[2] + model.bounds[5]) / 2,
+      _scale = _unitScale(model.bounds);
 
-  static double _unitScale(Vector3 size) =>
-      size.length > 0 ? 2 / size.length : 1;
+  static double _unitScale(Float64List b) {
+    final dx = b[3] - b[0], dy = b[4] - b[1], dz = b[5] - b[2];
+    final diagonal = math.sqrt(dx * dx + dy * dy + dz * dz);
+    return diagonal > 0 ? 2 / diagonal : 1;
+  }
 
-  final Model3D model;
+  // Camera distance at which the unit sphere fits the field of view.
+  static final _distance = 1 / math.sin(_fieldOfView / 2);
+
+  final MeshData model;
 
   /// Screen x, y per vertex, from the last [update].
   final Float32List screen;
@@ -101,8 +105,9 @@ class MeshRenderer {
     _lmy = r11 * ly + r21 * lz;
     _lmz = r02 * lx + r12 * ly + r22 * lz;
 
-    final distance = 1 / math.sin(_fieldOfView / 2) / zoom;
-    final focal = math.min(width, height) / 2 / math.tan(_fieldOfView / 2);
+    final distance = _distance;
+    final focal =
+        zoom * math.min(width, height) / 2 / math.tan(_fieldOfView / 2);
     final halfW = width / 2, halfH = height / 2;
     // Centring, scaling and rotation folded into one affine map per axis.
     final k = _scale, cx = _cx, cy0 = _cy, cz = _cz;
@@ -119,14 +124,13 @@ class MeshRenderer {
       final px = positions[p], py = positions[p + 1], pz = positions[p + 2];
       final d = zt - z0 * px - z1 * py - z2 * pz;
       depth[v] = d;
-      // Vertices behind the near plane are never drawn; keep them finite.
-      final f = d > _near ? focal / d : 0.0;
+      final f = focal / d;
       screen[v * 2] = halfW + (x0 * px + x2 * pz + xt) * f;
       screen[v * 2 + 1] = halfH - (y0 * px + y1 * py + y2 * pz + yt) * f;
     }
 
-    // Cull back faces and triangles crossing the near plane; key the rest by
-    // centroid depth, quantised over the model's depth range, far first.
+    // Cull back faces; key the rest by centroid depth, quantised over the
+    // model's depth range, far first.
     final indices = model.indices;
     final indexCount = indices.length;
     final order = _order, keys = _keys;
@@ -135,7 +139,6 @@ class MeshRenderer {
     for (var t = 0, i = 0; i < indexCount; t++, i += 3) {
       final a = indices[i], b = indices[i + 1], c = indices[i + 2];
       final da = depth[a], db = depth[b], dc = depth[c];
-      if (da < _near || db < _near || dc < _near) continue;
       final ax = screen[a * 2], ay = screen[a * 2 + 1];
       final area =
           (screen[b * 2] - ax) * (screen[c * 2 + 1] - ay) -

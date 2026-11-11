@@ -12,13 +12,14 @@ const _chunkBin = 0x004E4942; // "BIN\0"
 const _modeTriangles = 4;
 const _float = 5126;
 const _indexSizes = {5121: 1, 5123: 2, 5125: 4};
+const _maxStride = 252;
 
 /// Ceiling set by the 16-bit index buffer of `Canvas.drawVertices`.
 const maxVertices = 65536;
 
-/// Parses a GLB file into a [Model3D]. Throws [FormatException] on malformed
-/// or unsupported input.
-Model3D parseGlb(Uint8List bytes) {
+/// Parses a GLB file into validated mesh data. Throws [FormatException] on
+/// malformed or unsupported input.
+MeshData parseGlb(Uint8List bytes) {
   final data = ByteData.sublistView(bytes);
   if (bytes.length < 20 || data.getUint32(0, Endian.little) != _glbMagic) {
     throw const FormatException('Not a GLB file');
@@ -71,13 +72,14 @@ class _Reader {
   final ByteData? bin;
 
   final _partIndex = <String, int>{};
+  final _visited = <int>{};
   final _positions = <Float32List>[];
   final _normals = <Float32List>[];
   final _parts = <int>[];
   final _indices = <Uint32List>[];
   var _vertexCount = 0;
 
-  Model3D read() {
+  MeshData read() {
     final required = _list(json['extensionsRequired']);
     if (required.isNotEmpty) {
       throw FormatException(
@@ -90,11 +92,6 @@ class _Reader {
     }
     if (_vertexCount == 0) {
       throw const FormatException('Model has no triangles');
-    }
-    if (_vertexCount > maxVertices) {
-      throw FormatException(
-        'Model has $_vertexCount vertices, at most $maxVertices are supported',
-      );
     }
     return _build();
   }
@@ -115,6 +112,10 @@ class _Reader {
   }
 
   void _visit(List<Object?> nodes, int index, Matrix4 parent) {
+    // Also catches cycles, which would otherwise recurse forever.
+    if (!_visited.add(index)) {
+      throw FormatException('Node $index is reachable more than once');
+    }
     final node = _map(nodes[index]);
     final world = parent.multiplied(_localMatrix(node));
     final meshIndex = node['mesh'];
@@ -155,18 +156,22 @@ class _Reader {
     if (attributes['POSITION'] == null) {
       throw const FormatException('Primitive has no POSITION attribute');
     }
-    final positions = _readVec3(_int(attributes['POSITION']));
-    final count = positions.length ~/ 3;
-    final normalAccessor = attributes['NORMAL'];
-    final normals = normalAccessor == null
+    final positionAccessor = _accessor(_int(attributes['POSITION']));
+    final count = _count(positionAccessor);
+    if (_vertexCount + count > maxVertices) {
+      throw const FormatException('Model has more than $maxVertices vertices');
+    }
+    final positions = _readVec3(positionAccessor);
+    final normalIndex = attributes['NORMAL'];
+    final normals = normalIndex == null
         ? null
-        : _readVec3(_int(normalAccessor));
+        : _readVec3(_accessor(_int(normalIndex)));
     if (normals != null && normals.length != positions.length) {
       throw const FormatException('NORMAL and POSITION counts differ');
     }
     final indices = primitive['indices'] == null
         ? Uint32List.fromList([for (var i = 0; i < count; i++) i])
-        : _readIndices(_int(primitive['indices']));
+        : _readIndices(_accessor(_int(primitive['indices'])));
     if (indices.length % 3 != 0) {
       throw const FormatException(
         'Triangle index count is not a multiple of 3',
@@ -180,6 +185,9 @@ class _Reader {
     for (var i = 0; i < positions.length; i += 3) {
       v.setValues(positions[i], positions[i + 1], positions[i + 2]);
       world.transform3(v);
+      if (!v.x.isFinite || !v.y.isFinite || !v.z.isFinite) {
+        throw const FormatException('Positions must be finite');
+      }
       positions
         ..[i] = v.x
         ..[i + 1] = v.y
@@ -201,6 +209,9 @@ class _Reader {
         v.setValues(normals[i], normals[i + 1], normals[i + 2]);
         normalMatrix.transform(v);
         v.normalize();
+        if (!v.x.isFinite || !v.y.isFinite || !v.z.isFinite) {
+          throw const FormatException('Normals must be finite');
+        }
         normals
           ..[i] = v.x
           ..[i + 1] = v.y
@@ -218,12 +229,11 @@ class _Reader {
     _vertexCount += count;
   }
 
-  Float32List _readVec3(int index) {
-    final accessor = _accessor(index);
+  Float32List _readVec3(Map<String, Object?> accessor) {
     if (accessor['componentType'] != _float || accessor['type'] != 'VEC3') {
       throw const FormatException('Vertex attributes must be float VEC3');
     }
-    final count = _int(accessor['count']);
+    final count = _count(accessor);
     final (view, stride) = _view(accessor, 12, count);
     final out = Float32List(count * 3);
     for (var i = 0; i < count; i++) {
@@ -235,15 +245,14 @@ class _Reader {
     return out;
   }
 
-  Uint32List _readIndices(int index) {
-    final accessor = _accessor(index);
+  Uint32List _readIndices(Map<String, Object?> accessor) {
     final size = _indexSizes[accessor['componentType']];
     if (size == null || accessor['type'] != 'SCALAR') {
       throw const FormatException(
         'Indices must be unsigned byte, short or int scalars',
       );
     }
-    final count = _int(accessor['count']);
+    final count = _count(accessor);
     final (view, stride) = _view(accessor, size, count);
     final out = Uint32List(count);
     for (var i = 0; i < count; i++) {
@@ -270,8 +279,15 @@ class _Reader {
     return accessor;
   }
 
+  int _count(Map<String, Object?> accessor) {
+    final count = _int(accessor['count']);
+    if (count < 1) throw const FormatException('Accessor count must be >= 1');
+    return count;
+  }
+
   /// The bytes of [accessor] from its first element on, and the element
-  /// stride.
+  /// stride, after checking that every element lies inside its buffer view
+  /// and the view inside the binary chunk.
   (ByteData, int) _view(
     Map<String, Object?> accessor,
     int elementSize,
@@ -287,19 +303,36 @@ class _Reader {
         'Only the embedded GLB binary buffer is supported',
       );
     }
-    final stride = _int(bufferView['byteStride'] ?? elementSize);
-    final start =
-        _int(bufferView['byteOffset'] ?? 0) + _int(accessor['byteOffset'] ?? 0);
-    final end =
-        _int(bufferView['byteOffset'] ?? 0) + _int(bufferView['byteLength']);
-    if (count > 0 && start + stride * (count - 1) + elementSize > end ||
-        end > bin.lengthInBytes) {
+    final declaredStride = _int(bufferView['byteStride'] ?? 0);
+    if (declaredStride != 0 &&
+        (declaredStride < elementSize ||
+            declaredStride > _maxStride ||
+            declaredStride % 4 != 0)) {
+      throw FormatException('Invalid byteStride $declaredStride');
+    }
+    final stride = declaredStride == 0 ? elementSize : declaredStride;
+    final viewOffset = _int(bufferView['byteOffset'] ?? 0);
+    final viewLength = _int(bufferView['byteLength']);
+    final accessorOffset = _int(accessor['byteOffset'] ?? 0);
+    if (viewOffset < 0 ||
+        viewLength < 0 ||
+        accessorOffset < 0 ||
+        viewOffset + viewLength > bin.lengthInBytes ||
+        count > viewLength ||
+        accessorOffset + stride * (count - 1) + elementSize > viewLength) {
       throw const FormatException('Accessor runs past its buffer');
     }
-    return (ByteData.sublistView(bin, start, end), stride);
+    return (
+      ByteData.sublistView(
+        bin,
+        viewOffset + accessorOffset,
+        viewOffset + viewLength,
+      ),
+      stride,
+    );
   }
 
-  Model3D _build() {
+  MeshData _build() {
     final positions = Float32List(_vertexCount * 3);
     final normals = Float32List(_vertexCount * 3);
     final vertexParts = Uint16List(_vertexCount);
@@ -316,21 +349,24 @@ class _Reader {
       vertexOffset += count;
       indexOffset += _indices[p].length;
     }
-    final min = Vector3.all(double.infinity);
-    final max = Vector3.all(double.negativeInfinity);
-    final v = Vector3.zero();
+    final bounds = Float64List.fromList([
+      ...List.filled(3, double.infinity),
+      ...List.filled(3, double.negativeInfinity),
+    ]);
     for (var i = 0; i < positions.length; i += 3) {
-      v.setValues(positions[i], positions[i + 1], positions[i + 2]);
-      Vector3.min(min, v, min);
-      Vector3.max(max, v, max);
+      for (var axis = 0; axis < 3; axis++) {
+        final value = positions[i + axis];
+        if (value < bounds[axis]) bounds[axis] = value;
+        if (value > bounds[axis + 3]) bounds[axis + 3] = value;
+      }
     }
-    return Model3D(
+    return MeshData(
       partNames: List.unmodifiable(_partIndex.keys),
       positions: positions,
       normals: normals,
       vertexParts: vertexParts,
       indices: indices,
-      bounds: Aabb3.minMax(min, max),
+      bounds: bounds,
     );
   }
 }
