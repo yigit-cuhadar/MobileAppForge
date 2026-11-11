@@ -22,7 +22,10 @@
 
 ## Feature loop
 
-For the first unticked feature in `SPEC.md`:
+Take the first unticked feature in `SPEC.md`, plus up to two more unticked
+ones that are independent of it and of each other, and run this loop for each
+in parallel. Merge each as soon as its review and CI pass; the user approves
+at feature-group demos, not per PR. For each feature:
 
 1. **Architect** — write a short brief: entities, repository interface, use
    cases, cubit states, screens, Firestore paths and rules. Ask the user only

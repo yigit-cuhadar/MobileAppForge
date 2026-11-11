@@ -106,7 +106,12 @@ the design phase; verify screens on the simulator instead.
 
 - One simulator at a time; iOS for daily work, Android at feature-group demos.
 - No Firebase Emulator. Develop against the app's `-dev` project.
-- At most two parallel sub-agents. Never two Flutter builds at once.
+- Run independent work in parallel: at most three sub-agents at once, each on
+  its own branch, and in its own git worktree when two share a repo. Work is
+  independent when it touches different files and neither needs the other's
+  result.
+- Never two Flutter builds or simulator runs at once: sub-agents only format,
+  analyze and unit-test; the Architect does every device check, one at a time.
 - Analyze and test only what you changed; CI covers the rest.
 
 ## Roles
