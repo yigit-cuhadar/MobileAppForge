@@ -36,7 +36,9 @@ deps=()
 if $local; then
   for p in "${packages[@]}"; do deps+=("$p:{\"path\":\"../../packages/$p\"}"); done
 else
-  ref="$(git -C "$forge" describe --tags --abbrev=0)"
+  # Pin the commit of the latest tag, not the tag name: the packages depend on
+  # each other by path, which pub resolves to this commit, and both must match.
+  ref="$(git -C "$forge" rev-list -n1 "$(git -C "$forge" describe --tags --abbrev=0)")"
   url="https://github.com/yigit-cuhadar/MobileAppForge.git"
   for p in "${packages[@]}"; do
     deps+=("$p:{\"git\":{\"url\":\"$url\",\"ref\":\"$ref\",\"path\":\"packages/$p\"}}")

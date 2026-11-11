@@ -71,7 +71,8 @@ the code cannot say.
 
 Code moves into `packages/` when a second app needs it, not before. Changing a
 package: edit, `tools/check.sh <package>`, PR to this repo, then tag `vX.Y.Z`
-on main. Apps pin a tag and upgrade deliberately by changing the `ref`.
+on main. Apps pin the tag's commit and upgrade deliberately by changing the
+`ref` of all four packages to the new tag's commit (`git rev-list -n1 vX.Y.Z`).
 
 ## Tests
 
