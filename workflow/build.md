@@ -17,7 +17,7 @@
      the Identity Platform REST API; it requires billing.
 4. If the spec has no accounts, remove `forge_auth` from `pubspec.yaml`,
    `bootstrap.dart` and `router.dart`.
-5. `flutter run -t lib/main_dev.dart` on the iOS simulator; confirm sign-up
+5. `flutter run` on the iOS simulator; confirm sign-up
    works end to end. Commit, push, tick nothing yet.
 
 ## Feature loop
