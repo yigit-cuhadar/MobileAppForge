@@ -26,6 +26,9 @@ class ViewerGestureRecognizer extends OneSequenceGestureRecognizer {
   ValueChanged<Offset>? onScrubUpdate;
   VoidCallback? onScrubEnd;
 
+  /// The scrub was interrupted rather than released.
+  VoidCallback? onScrubCancel;
+
   var _mode = _Mode.idle;
   final _positions = <int, Offset>{};
   int _primary = 0;
@@ -109,7 +112,7 @@ class ViewerGestureRecognizer extends OneSequenceGestureRecognizer {
           onTap?.call(_primaryLocal);
         } else if (_mode == _Mode.scrubbing) {
           _mode = _Mode.done;
-          onScrubEnd?.call();
+          (event is PointerUpEvent ? onScrubEnd : onScrubCancel)?.call();
         }
       }
       if (_mode == _Mode.pinching && _positions.length == 1) {
@@ -126,7 +129,7 @@ class ViewerGestureRecognizer extends OneSequenceGestureRecognizer {
   void rejectGesture(int pointer) {
     // Only happens when another recognizer won the arena eagerly first.
     _positions.remove(pointer);
-    if (pointer == _primary && _mode == _Mode.scrubbing) onScrubEnd?.call();
+    if (pointer == _primary && _mode == _Mode.scrubbing) onScrubCancel?.call();
     if (pointer == _primary) _mode = _Mode.done;
     stopTrackingPointer(pointer);
   }
