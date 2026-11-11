@@ -44,8 +44,12 @@
 /// ```swift
 /// UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
 /// ```
-/// No `Info.plist` keys or capabilities are needed. iOS keeps at most 64
-/// pending notifications per app.
+/// No `Info.plist` keys or capabilities are needed.
+///
+/// ## App lifecycle
+///
+/// At start: `init`, then re-apply every repeating schedule. On resume:
+/// `refreshTimeZone`, and re-apply repeating schedules if it changed.
 library;
 
 export 'package:flutter_local_notifications/flutter_local_notifications.dart'
@@ -53,4 +57,4 @@ export 'package:flutter_local_notifications/flutter_local_notifications.dart'
 
 export 'src/local_notifications.dart';
 export 'src/notifications.dart';
-export 'src/schedule.dart' show ClockTime, seriesLength;
+export 'src/schedule.dart' show ClockTime, iosPendingLimit, seriesLength;

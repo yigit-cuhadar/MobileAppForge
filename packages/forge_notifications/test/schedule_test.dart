@@ -98,14 +98,14 @@ void main() {
       expect(newYorkSpring.timeZoneOffset, const Duration(hours: -4));
     });
 
-    test('lands on the right day for a time skipped by DST', () {
+    test('skips a week whose time falls in a DST gap', () {
       // 02:30 does not exist in Berlin on 29 March 2026.
       final now = TZDateTime(berlin, 2026, 3, 27, 12);
 
       final next = nextWeekly(now, DateTime.sunday, const ClockTime(2, 30));
 
-      expect(next.day, 29);
-      expect(next.isAfter(now), isTrue);
+      expect(next, TZDateTime(berlin, 2026, 4, 5, 2, 30));
+      expect((next.hour, next.minute), (2, 30));
     });
 
     test('rejects an invalid weekday or time', () {
@@ -124,101 +124,141 @@ void main() {
     });
   });
 
-  group('seriesOccurrences', () {
-    test('starts at a future first date and keeps the wall-clock time', () {
+  group('planSeries', () {
+    List<TZDateTime> times(SeriesPlan plan) => [
+      for (final o in plan.occurrences) o.at,
+    ];
+    List<int> ids(SeriesPlan plan) => [for (final o in plan.occurrences) o.id];
+
+    test('pre-schedules a future multi-week series at its wall-clock time', () {
       final first = TZDateTime(berlin, 2026, 3, 16, 7);
 
-      final occurrences = seriesOccurrences(
-        first,
-        2,
-        TZDateTime(berlin, 2026, 3, 1),
-      );
+      final plan = planSeries(100, first, 2, TZDateTime(berlin, 2026, 3, 1));
 
-      expect(occurrences, hasLength(seriesLength));
-      expect(occurrences.first, first);
-      expect(occurrences[1], TZDateTime(berlin, 2026, 3, 30, 7));
-      expect(occurrences.map((o) => o.hour).toSet(), {7});
-      expect(occurrences.map((o) => o.timeZoneOffset.inHours).toSet(), {1, 2});
-      for (var i = 1; i < occurrences.length; i++) {
-        final previous = occurrences[i - 1];
-        final days = DateTime.utc(
-          occurrences[i].year,
-          occurrences[i].month,
-          occurrences[i].day,
-        ).difference(DateTime.utc(previous.year, previous.month, previous.day));
-        expect(days.inDays, 14);
-      }
+      expect(plan.weekly, isFalse);
+      expect(ids(plan), [for (var i = 100; i < 100 + seriesLength; i++) i]);
+      expect(times(plan).first, first);
+      expect(times(plan)[1], TZDateTime(berlin, 2026, 3, 30, 7));
+      expect(times(plan).map((t) => t.hour).toSet(), {7});
+      expect(times(plan).map((t) => t.timeZoneOffset.inHours).toSet(), {1, 2});
     });
 
-    test('continues a series whose first date has passed', () {
+    test('continues a started series and keeps each occurrence id', () {
       final first = TZDateTime(istanbul, 2026, 1, 5, 18);
-      final now = TZDateTime(istanbul, 2026, 2, 9, 19);
 
-      final occurrences = seriesOccurrences(first, 2, now);
+      // Occurrences 0..2 have passed; occurrence 3 is next.
+      final plan = planSeries(
+        100,
+        first,
+        2,
+        TZDateTime(istanbul, 2026, 2, 9, 19),
+      );
 
-      expect(occurrences.first, TZDateTime(istanbul, 2026, 2, 16, 18));
+      expect(plan.occurrences.first, (
+        id: 103,
+        at: TZDateTime(istanbul, 2026, 2, 16, 18),
+      ));
+      // Occurrence 12 reuses the id of occurrence 0.
+      expect(ids(plan).sublist(8), [111, 100, 101, 102]);
+      expect(ids(plan).toSet(), hasLength(seriesLength));
     });
 
     test('skips an occurrence at exactly now', () {
       final first = TZDateTime(istanbul, 2026, 1, 5, 18);
 
-      final occurrences = seriesOccurrences(
+      final plan = planSeries(
+        100,
         first,
         4,
         TZDateTime(istanbul, 2026, 2, 2, 18),
       );
 
-      expect(occurrences.first, TZDateTime(istanbul, 2026, 3, 2, 18));
+      expect(times(plan).first, TZDateTime(istanbul, 2026, 3, 2, 18));
     });
 
     test('keeps the occurrence just after a DST change', () {
-      // Weekly from summer time; the 25 October one is an hour later in UTC.
+      // From summer time; the 1 November one is an hour later in UTC.
       final first = TZDateTime(berlin, 2026, 10, 18, 9);
-      final now = TZDateTime(berlin, 2026, 10, 25, 8, 30);
 
-      expect(
-        seriesOccurrences(first, 1, now).first,
-        TZDateTime(berlin, 2026, 10, 25, 9),
+      final plan = planSeries(
+        100,
+        first,
+        2,
+        TZDateTime(berlin, 2026, 11, 1, 8, 30),
       );
+
+      expect(times(plan).first, TZDateTime(berlin, 2026, 11, 1, 9));
     });
 
     test('crosses the year boundary', () {
       final first = TZDateTime(newYork, 2026, 12, 21, 6);
 
-      final occurrences = seriesOccurrences(
-        first,
-        4,
-        TZDateTime(newYork, 2026, 12, 1),
+      final plan = planSeries(100, first, 4, TZDateTime(newYork, 2026, 12, 1));
+
+      expect(times(plan)[1], TZDateTime(newYork, 2027, 1, 18, 6));
+    });
+
+    test('repeats weekly natively once the first date is within a week', () {
+      final now = TZDateTime(berlin, 2026, 11, 11, 10);
+
+      final started = planSeries(
+        100,
+        TZDateTime(berlin, 2026, 10, 1, 8),
+        1,
+        now,
+      );
+      final soon = planSeries(100, TZDateTime(berlin, 2026, 11, 14, 8), 1, now);
+
+      expect(started.weekly, isTrue);
+      expect(started.occurrences, [
+        (id: 100, at: TZDateTime(berlin, 2026, 11, 12, 8)),
+      ]);
+      expect(soon.weekly, isTrue);
+      expect(times(soon), [TZDateTime(berlin, 2026, 11, 14, 8)]);
+    });
+
+    test('pre-schedules a weekly series whose first date is weeks away', () {
+      final now = TZDateTime(berlin, 2026, 11, 11, 10);
+      final first = TZDateTime(berlin, 2026, 12, 2, 8);
+
+      final plan = planSeries(100, first, 1, now);
+
+      expect(plan.weekly, isFalse);
+      expect(times(plan).first, first);
+      expect(times(plan), hasLength(seriesLength));
+    });
+
+    test('a native weekly repeat keeps a time hit by a DST gap', () {
+      // Sundays at 02:30 from 22 March; 29 March has no 02:30.
+      final plan = planSeries(
+        100,
+        TZDateTime(berlin, 2026, 3, 22, 2, 30),
+        1,
+        TZDateTime(berlin, 2026, 3, 27, 12),
       );
 
-      expect(occurrences[1], TZDateTime(newYork, 2027, 1, 18, 6));
+      expect(plan.weekly, isTrue);
+      final next = times(plan).single;
+      expect((next.month, next.day, next.hour, next.minute), (4, 5, 2, 30));
     });
 
     test('rejects an interval under one week', () {
       final first = TZDateTime(istanbul, 2026, 1, 5);
 
-      expect(() => seriesOccurrences(first, 0, first), throwsValidation);
+      expect(() => planSeries(100, first, 0, first), throwsValidation);
     });
   });
 
-  group('ids', () {
-    test('a series owns seriesLength consecutive ids from its base', () {
-      expect(seriesIds(100), List.generate(seriesLength, (i) => 100 + i));
-    });
-
-    test('ids must fit 32 bits', () {
-      expect(() => checkId(0x7FFFFFFF), returnsNormally);
-      expect(() => checkId(-0x80000000), returnsNormally);
-      expect(() => checkId(0x80000000), throwsValidation);
-      expect(
-        () => checkSeriesBase(0x7FFFFFFF - seriesLength + 1),
-        returnsNormally,
-      );
-      expect(
-        () => checkSeriesBase(0x7FFFFFFF - seriesLength + 2),
-        throwsValidation,
-      );
-    });
+  test('a series base must leave room for its ids in 32 bits', () {
+    expect(
+      () => checkSeriesBase(0x7FFFFFFF - seriesLength + 1),
+      returnsNormally,
+    );
+    expect(
+      () => checkSeriesBase(0x7FFFFFFF - seriesLength + 2),
+      throwsValidation,
+    );
+    expect(() => checkSeriesBase(-0x80000001), throwsValidation);
   });
 
   test('checkFuture rejects now and the past', () {
@@ -232,6 +272,24 @@ void main() {
     expect(
       () => checkFuture(now.subtract(const Duration(minutes: 1)), now),
       throwsValidation,
+    );
+  });
+
+  test('checkBudget ignores ids the call replaces', () {
+    final pending = List.generate(63, (i) => i);
+
+    expect(() => checkBudget(pending, {}, 1, 64), returnsNormally);
+    expect(() => checkBudget(pending, {}, 2, 64), throwsValidation);
+    expect(() => checkBudget(pending, {0}, 2, 64), returnsNormally);
+  });
+
+  test('ceilToSecond rounds sub-seconds up', () {
+    final whole = TZDateTime(istanbul, 2026, 11, 11, 10, 0, 5);
+
+    expect(ceilToSecond(whole), whole);
+    expect(
+      ceilToSecond(whole.add(const Duration(microseconds: 1))),
+      whole.add(const Duration(seconds: 1)),
     );
   });
 }

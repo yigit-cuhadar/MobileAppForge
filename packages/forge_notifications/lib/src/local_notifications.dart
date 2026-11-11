@@ -36,6 +36,8 @@ class LocalNotifications implements Notifications {
   final String androidIcon;
 
   final _plugin = FlutterLocalNotificationsPlugin();
+  var _ready = false;
+  var _launchReported = false;
 
   AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
       .resolvePlatformSpecificImplementation<
@@ -60,16 +62,18 @@ class LocalNotifications implements Notifications {
   tz.TZDateTime get _now => tz.TZDateTime.from(clock.now(), tz.local);
 
   @override
-  Future<Result<void>> init({void Function(String? payload)? onTap}) =>
+  Future<Result<LocalTimeZone>> init({void Function(String? payload)? onTap}) =>
       _guard(() async {
-        tzdata.initializeTimeZones();
-        final zone = (await FlutterTimezone.getLocalTimezone()).identifier;
-        try {
-          tz.setLocalLocation(tz.getLocation(zone));
-        } on tz.LocationNotFoundException catch (error, stack) {
-          // Absolute schedules stay right; wall-clock ones follow UTC.
-          Log.e('notifications', 'Unknown time zone $zone', error, stack);
+        if (!_ready) tzdata.initializeTimeZones();
+        final zone = await _applyDeviceZone();
+        void tap(String? payload) {
+          try {
+            onTap?.call(payload);
+          } catch (error, stack) {
+            Log.e('notifications', 'onTap threw', error, stack);
+          }
         }
+
         await _plugin.initialize(
           settings: InitializationSettings(
             android: AndroidInitializationSettings(androidIcon),
@@ -79,31 +83,37 @@ class LocalNotifications implements Notifications {
               requestSoundPermission: false,
             ),
           ),
-          onDidReceiveNotificationResponse: onTap == null
-              ? null
-              : (response) => onTap(_payload(response.payload)),
+          onDidReceiveNotificationResponse: (response) =>
+              tap(_payload(response.payload)),
         );
-        final launch = await _plugin.getNotificationAppLaunchDetails();
-        if (onTap != null && (launch?.didNotificationLaunchApp ?? false)) {
-          onTap(_payload(launch!.notificationResponse?.payload));
+        _ready = true;
+        if (!_launchReported) {
+          _launchReported = true;
+          final launch = await _plugin.getNotificationAppLaunchDetails();
+          if (launch?.didNotificationLaunchApp ?? false) {
+            tap(_payload(launch!.notificationResponse?.payload));
+          }
         }
+        return zone;
       });
 
   @override
-  Future<Result<NotificationPermission>> status() => _guard(() async {
+  Future<Result<LocalTimeZone>> refreshTimeZone() => _run(_applyDeviceZone);
+
+  @override
+  Future<Result<NotificationPermission>> status() => _run(() async {
     final android = _android;
     if (android != null) {
       return _permission(await android.areNotificationsEnabled());
     }
     final options = await _requireIos().checkPermissions();
-    if (options?.isProvisionalEnabled ?? false) {
-      return NotificationPermission.provisional;
-    }
-    return _permission(options?.isEnabled);
+    return _permission(
+      options != null && (options.isEnabled || options.isProvisionalEnabled),
+    );
   });
 
   @override
-  Future<Result<NotificationPermission>> request() => _guard(() async {
+  Future<Result<NotificationPermission>> request() => _run(() async {
     final android = _android;
     if (android != null) {
       return _permission(await android.requestNotificationsPermission());
@@ -118,10 +128,10 @@ class LocalNotifications implements Notifications {
   });
 
   @override
-  Future<Result<bool>> canScheduleExact() => _guard(_canScheduleExact);
+  Future<Result<bool>> canScheduleExact() => _run(_canScheduleExact);
 
   @override
-  Future<Result<bool>> requestExact() => _guard(() async {
+  Future<Result<bool>> requestExact() => _run(() async {
     final android = _android;
     if (android == null) return true;
     return await android.requestExactAlarmsPermission() ?? false;
@@ -133,16 +143,15 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
-  }) => _guard(() {
-    checkId(id);
-    return _plugin.show(
+  }) => _run(
+    () => _plugin.show(
       id: id,
       title: title,
       body: body,
       notificationDetails: _details,
       payload: payload,
-    );
-  });
+    ),
+  );
 
   @override
   Future<Result<void>> scheduleAt(
@@ -151,11 +160,11 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
-  }) => _guard(() {
-    final at = tz.TZDateTime.from(when, tz.local);
-    checkId(id);
+  }) => _run(() async {
+    final at = ceilToSecond(tz.TZDateTime.from(when, tz.local));
     checkFuture(at, _now);
-    return _schedule(id, at, title, body, payload);
+    await _checkBudget({id}, 1);
+    await _schedule(id, at, title, body, payload, await _scheduleMode());
   });
 
   @override
@@ -181,10 +190,18 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
-  }) => _guard(() {
-    checkId(id);
+  }) => _run(() async {
     final at = nextWeekly(_now, weekday, time);
-    return _schedule(id, at, title, body, payload, weekly: true);
+    await _checkBudget({id}, 1);
+    await _schedule(
+      id,
+      at,
+      title,
+      body,
+      payload,
+      await _scheduleMode(),
+      weekly: true,
+    );
   });
 
   @override
@@ -195,54 +212,61 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
-  }) => _guard(() async {
+  }) => _run(() async {
     checkSeriesBase(baseId);
-    final occurrences = seriesOccurrences(
+    final plan = planSeries(
+      baseId,
       tz.TZDateTime.from(first, tz.local),
       weeks,
       _now,
     );
-    await _cancelSeries(baseId);
-    if (weeks == 1) {
-      return _schedule(
-        baseId,
-        occurrences.first,
-        title,
-        body,
-        payload,
-        weekly: true,
-      );
+    final ids = seriesIds(baseId).toSet();
+    final pendingIds = await _pendingIds();
+    if (_android == null) {
+      checkBudget(pendingIds, ids, plan.occurrences.length, iosPendingLimit);
     }
     final mode = await _scheduleMode();
-    for (final (index, at) in occurrences.indexed) {
-      await _schedule(
-        seriesId(baseId, index),
-        at,
-        title,
-        body,
-        payload,
-        mode: mode,
-      );
+    final scheduled = <int>[];
+    try {
+      for (final occurrence in plan.occurrences) {
+        await _schedule(
+          occurrence.id,
+          occurrence.at,
+          title,
+          body,
+          payload,
+          mode,
+          weekly: plan.weekly,
+        );
+        scheduled.add(occurrence.id);
+      }
+      // Cancel only what is still pending: a shown notification stays.
+      for (final id in pendingIds) {
+        if (ids.contains(id) && !scheduled.contains(id)) {
+          await _plugin.cancel(id: id);
+        }
+      }
+    } catch (error) {
+      throw _incomplete(error, baseId, scheduled);
     }
   });
 
   @override
-  Future<Result<void>> cancel(int id) => _guard(() {
-    checkId(id);
-    return _plugin.cancel(id: id);
-  });
+  Future<Result<void>> cancel(int id) => _run(() => _plugin.cancel(id: id));
 
   @override
-  Future<Result<void>> cancelEvery(int baseId) => _guard(() {
+  Future<Result<void>> cancelEvery(int baseId) => _run(() async {
     checkSeriesBase(baseId);
-    return _cancelSeries(baseId);
+    for (final id in seriesIds(baseId)) {
+      await _plugin.cancel(id: id);
+    }
   });
 
   @override
-  Future<Result<void>> cancelAll() => _guard(_plugin.cancelAll);
+  Future<Result<void>> cancelAll() => _run(_plugin.cancelAll);
 
   @override
-  Future<Result<List<PendingNotification>>> pending() => _guard(() async {
+  Future<Result<List<PendingNotification>>> pending() => _run(() async {
     final requests = await _plugin.pendingNotificationRequests();
     return [
       for (final request in requests)
@@ -250,19 +274,32 @@ class LocalNotifications implements Notifications {
     ];
   });
 
+  Future<LocalTimeZone> _applyDeviceZone() async {
+    final id = (await FlutterTimezone.getLocalTimezone()).identifier;
+    final before = _ready ? tz.local.name : null;
+    var known = true;
+    try {
+      tz.setLocalLocation(tz.getLocation(id));
+    } on tz.LocationNotFoundException {
+      known = false;
+      tz.setLocalLocation(tz.UTC);
+    }
+    return LocalTimeZone(id, known: known, changed: tz.local.name != before);
+  }
+
   Future<void> _schedule(
     int id,
     tz.TZDateTime at,
     String title,
     String body,
-    String? payload, {
+    String? payload,
+    AndroidScheduleMode mode, {
     bool weekly = false,
-    AndroidScheduleMode? mode,
-  }) async => _plugin.zonedSchedule(
+  }) => _plugin.zonedSchedule(
     id: id,
     scheduledDate: at,
     notificationDetails: _details,
-    androidScheduleMode: mode ?? await _scheduleMode(),
+    androidScheduleMode: mode,
     title: title,
     body: body,
     payload: payload,
@@ -271,14 +308,18 @@ class LocalNotifications implements Notifications {
         : null,
   );
 
-  Future<void> _cancelSeries(int baseId) async {
-    for (final id in seriesIds(baseId)) {
-      await _plugin.cancel(id: id);
-    }
+  Future<List<int>> _pendingIds() async => [
+    for (final request in await _plugin.pendingNotificationRequests())
+      request.id,
+  ];
+
+  Future<void> _checkBudget(Set<int> claimed, int adding) async {
+    if (_android != null) return;
+    checkBudget(await _pendingIds(), claimed, adding, iosPendingLimit);
   }
 
   // Scheduling an exact alarm without the permission fails on Android, so
-  // fall back to an inexact one that may fire a few minutes late.
+  // fall back to an inexact one.
   Future<AndroidScheduleMode> _scheduleMode() async => await _canScheduleExact()
       ? AndroidScheduleMode.exactAllowWhileIdle
       : AndroidScheduleMode.inexactAllowWhileIdle;
@@ -293,6 +334,13 @@ class LocalNotifications implements Notifications {
       _ios ??
       (throw UnsupportedError('Notifications run on Android and iOS only'));
 
+  Future<Result<T>> _run<T>(Future<T> Function() body) => _guard(() {
+    if (!_ready) {
+      throw const UnknownFailure('Notifications used before init completed');
+    }
+    return body();
+  });
+
   static NotificationPermission _permission(bool? granted) => granted ?? false
       ? NotificationPermission.granted
       : NotificationPermission.denied;
@@ -300,6 +348,20 @@ class LocalNotifications implements Notifications {
   /// The plugin turns a null payload into ''.
   static String? _payload(String? payload) =>
       payload == null || payload.isEmpty ? null : payload;
+
+  static Failure _incomplete(Object error, int baseId, List<int> scheduled) {
+    final failure = error is Failure
+        ? error
+        : _mapError(error) ?? UnknownFailure('$error', error);
+    final message =
+        'Series $baseId incomplete, scheduled ids $scheduled: '
+        '${failure.message}';
+    return switch (failure) {
+      PermissionFailure() => PermissionFailure(message, error),
+      ValidationFailure() => ValidationFailure(message),
+      _ => UnknownFailure(message, error),
+    };
+  }
 
   static Future<Result<T>> _guard<T>(Future<T> Function() body) =>
       guard(body, mapper: _mapError);
@@ -310,7 +372,7 @@ class LocalNotifications implements Notifications {
       error,
     ),
     PlatformException() => UnknownFailure(error.message ?? error.code, error),
-    ArgumentError(:final message) => ValidationFailure('$message'),
+    ArgumentError() => ValidationFailure('$error'),
     _ => null,
   };
 }
