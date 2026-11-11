@@ -1,0 +1,14 @@
+name: forge_core
+description: Result/Failure types, use case base, DI and environment for MobileAppForge apps.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.1
+dependencies:
+  equatable: '>=2.0.5 <4.0.0'
+  get_it: ^9.3.0
+  meta: ^1.19.0
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.33.0

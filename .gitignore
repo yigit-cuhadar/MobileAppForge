@@ -1,0 +1,8 @@
+.DS_Store
+.dart_tool/
+build/
+pubspec.lock
+.idea/
+*.iml
+/apps/
+.claude/settings.local.json
