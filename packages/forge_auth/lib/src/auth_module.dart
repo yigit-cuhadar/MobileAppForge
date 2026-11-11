@@ -9,8 +9,13 @@ import 'presentation/auth_cubit.dart';
 import 'presentation/auth_form_cubit.dart';
 
 /// Registers the auth feature. Call after Firebase is initialized.
+///
+/// With [guestStart], the app always has a user: a signed-out session becomes
+/// an anonymous guest, which signing up later upgrades in place.
 class AuthModule implements FeatureModule {
-  const AuthModule();
+  const AuthModule({this.guestStart = false});
+
+  final bool guestStart;
 
   @override
   void register(GetIt sl) {
@@ -19,6 +24,7 @@ class AuthModule implements FeatureModule {
         () => FirebaseAuthRepository(FirebaseAuth.instance),
       )
       ..registerFactory(() => WatchAuthUser(sl()))
+      ..registerFactory(() => SignInAnonymously(sl()))
       ..registerFactory(() => SignInWithEmail(sl()))
       ..registerFactory(() => SignUpWithEmail(sl()))
       ..registerFactory(() => SignInWithProvider(sl()))
@@ -26,8 +32,12 @@ class AuthModule implements FeatureModule {
       ..registerFactory(() => SignOut(sl()))
       ..registerFactory(() => DeleteAccount(sl()))
       ..registerLazySingleton(
-        () =>
-            AuthCubit(watchAuthUser: sl(), signOut: sl(), deleteAccount: sl()),
+        () => AuthCubit(
+          watchAuthUser: sl(),
+          signOut: sl(),
+          deleteAccount: sl(),
+          signInAnonymously: guestStart ? sl() : null,
+        ),
       )
       ..registerFactory(
         () => AuthFormCubit(

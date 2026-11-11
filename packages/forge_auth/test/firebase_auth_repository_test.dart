@@ -11,10 +11,19 @@ class MockUserCredential extends Mock implements UserCredential {}
 
 class MockUser extends Mock implements User {}
 
+class FakeAuthCredential extends Fake implements AuthCredential {}
+
+class FakeAuthProvider extends Fake implements AuthProvider {}
+
 void main() {
   late MockFirebaseAuth auth;
   late MockUser user;
   late FirebaseAuthRepository repository;
+
+  setUpAll(() {
+    registerFallbackValue(FakeAuthCredential());
+    registerFallbackValue(FakeAuthProvider());
+  });
 
   setUp(() {
     auth = MockFirebaseAuth();
@@ -22,8 +31,22 @@ void main() {
     when(() => user.uid).thenReturn('u1');
     when(() => user.email).thenReturn('a@b.co');
     when(() => user.displayName).thenReturn(null);
+    when(() => user.isAnonymous).thenReturn(false);
     repository = FirebaseAuthRepository(auth);
   });
+
+  MockUserCredential credentialFor(User user) {
+    final credential = MockUserCredential();
+    when(() => credential.user).thenReturn(user);
+    return credential;
+  }
+
+  MockUser signedInGuest() {
+    final guest = MockUser();
+    when(() => guest.isAnonymous).thenReturn(true);
+    when(() => auth.currentUser).thenReturn(guest);
+    return guest;
+  }
 
   test('signInWithEmail maps the Firebase user', () async {
     final credential = MockUserCredential();
@@ -67,5 +90,89 @@ void main() {
       repository.watchUser(),
       emitsInOrder([null, const AuthUser(id: 'u1', email: 'a@b.co')]),
     );
+  });
+
+  test('signInAnonymously maps isAnonymous', () async {
+    final guest = MockUser();
+    when(() => guest.uid).thenReturn('g1');
+    when(() => guest.email).thenReturn(null);
+    when(() => guest.displayName).thenReturn(null);
+    when(() => guest.isAnonymous).thenReturn(true);
+    when(() => auth.signInAnonymously())
+        .thenAnswer((_) async => credentialFor(guest));
+
+    final result = await repository.signInAnonymously();
+
+    expect(result.valueOrNull, const AuthUser(id: 'g1', isAnonymous: true));
+  });
+
+  test('signUpWithEmail links a guest instead of creating a user', () async {
+    final guest = signedInGuest();
+    when(() => guest.linkWithCredential(any()))
+        .thenAnswer((_) async => credentialFor(user));
+
+    final result = await repository.signUpWithEmail('a@b.co', 'pw');
+
+    expect(result.valueOrNull, const AuthUser(id: 'u1', email: 'a@b.co'));
+    verify(() => guest.linkWithCredential(any())).called(1);
+    verifyNever(
+      () => auth.createUserWithEmailAndPassword(
+        email: any(named: 'email'),
+        password: any(named: 'password'),
+      ),
+    );
+  });
+
+  test('signInWithProvider links a guest to the provider', () async {
+    final guest = signedInGuest();
+    when(() => guest.linkWithProvider(any()))
+        .thenAnswer((_) async => credentialFor(user));
+
+    final result = await repository.signInWithProvider(SocialProvider.google);
+
+    expect(result.isOk, isTrue);
+    verifyNever(() => auth.signInWithProvider(any()));
+  });
+
+  for (final code in [
+    'credential-already-in-use',
+    'email-already-in-use',
+    'provider-already-linked',
+  ]) {
+    test(
+      'signInWithProvider maps link conflict $code to accountExists',
+      () async {
+        final guest = signedInGuest();
+        when(() => guest.linkWithProvider(any()))
+            .thenThrow(FirebaseAuthException(code: code));
+
+        final result = await repository.signInWithProvider(
+          SocialProvider.apple,
+        );
+
+        expect(
+          result.failureOrNull,
+          isA<AuthFailure>().having(
+            (f) => f.code,
+            'code',
+            AuthFailure.accountExists,
+          ),
+        );
+      },
+    );
+  }
+
+  test('signInWithProvider with replaceGuest signs in plainly', () async {
+    final guest = signedInGuest();
+    when(() => auth.signInWithProvider(any()))
+        .thenAnswer((_) async => credentialFor(user));
+
+    final result = await repository.signInWithProvider(
+      SocialProvider.google,
+      replaceGuest: true,
+    );
+
+    expect(result.valueOrNull, const AuthUser(id: 'u1', email: 'a@b.co'));
+    verifyNever(() => guest.linkWithProvider(any()));
   });
 }

@@ -4,12 +4,22 @@ import 'auth_repository.dart';
 import 'auth_user.dart';
 
 typedef EmailCredentials = ({String email, String password});
+typedef ProviderSignIn = ({SocialProvider provider, bool replaceGuest});
 
 class WatchAuthUser {
   const WatchAuthUser(this._repository);
   final AuthRepository _repository;
 
   Stream<AuthUser?> call() => _repository.watchUser();
+}
+
+class SignInAnonymously implements UseCase<AuthUser, NoParams> {
+  const SignInAnonymously(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<AuthUser>> call([NoParams params = const NoParams()]) =>
+      _repository.signInAnonymously();
 }
 
 class SignInWithEmail implements UseCase<AuthUser, EmailCredentials> {
@@ -30,13 +40,13 @@ class SignUpWithEmail implements UseCase<AuthUser, EmailCredentials> {
       _repository.signUpWithEmail(params.email.trim(), params.password);
 }
 
-class SignInWithProvider implements UseCase<AuthUser, SocialProvider> {
+class SignInWithProvider implements UseCase<AuthUser, ProviderSignIn> {
   const SignInWithProvider(this._repository);
   final AuthRepository _repository;
 
   @override
-  Future<Result<AuthUser>> call(SocialProvider params) =>
-      _repository.signInWithProvider(params);
+  Future<Result<AuthUser>> call(ProviderSignIn params) => _repository
+      .signInWithProvider(params.provider, replaceGuest: params.replaceGuest);
 }
 
 class SendPasswordReset implements UseCase<void, String> {

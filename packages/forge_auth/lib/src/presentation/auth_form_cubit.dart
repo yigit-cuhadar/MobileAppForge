@@ -39,8 +39,14 @@ class AuthFormCubit extends Cubit<AuthFormState> {
   Future<void> signUp(String email, String password) =>
       _run(() => _signUpWithEmail((email: email, password: password)));
 
-  Future<void> signInWith(SocialProvider provider) =>
-      _run(() => _signInWithProvider(provider));
+  /// [replaceGuest] signs in to an existing provider account, discarding a
+  /// guest session instead of linking to it.
+  Future<void> signInWith(
+    SocialProvider provider, {
+    bool replaceGuest = false,
+  }) => _run(
+    () => _signInWithProvider((provider: provider, replaceGuest: replaceGuest)),
+  );
 
   Future<void> resetPassword(String email) =>
       _run(() => _sendPasswordReset(email), onOk: AuthFormStatus.resetSent);

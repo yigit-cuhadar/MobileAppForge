@@ -17,10 +17,11 @@ void main() {
   group('AuthCubit', () {
     late StreamController<AuthUser?> users;
 
-    AuthCubit build() => AuthCubit(
+    AuthCubit build({bool guestStart = false}) => AuthCubit(
       watchAuthUser: WatchAuthUser(repository),
       signOut: SignOut(repository),
       deleteAccount: DeleteAccount(repository),
+      signInAnonymously: guestStart ? SignInAnonymously(repository) : null,
     );
 
     setUp(() {
@@ -42,6 +43,41 @@ void main() {
         Authenticated(user),
         Unauthenticated(),
       ],
+    );
+
+    const guest = AuthUser(id: 'g1', isAnonymous: true);
+
+    blocTest<AuthCubit, AuthState>(
+      'with guest start, a signed-out session becomes a guest',
+      setUp: () =>
+          when(() => repository.signInAnonymously()).thenAnswer((_) async {
+            users.add(guest);
+            return const Ok(guest);
+          }),
+      build: () => build(guestStart: true),
+      act: (_) => users
+        ..add(user)
+        ..add(null),
+      expect: () => const [Authenticated(user), Authenticated(guest)],
+      verify: (_) => verify(() => repository.signInAnonymously()).called(1),
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'with guest start, a failed guest sign-in is Unauthenticated',
+      setUp: () =>
+          when(() => repository.signInAnonymously())
+              .thenAnswer((_) async => const Err(NetworkFailure())),
+      build: () => build(guestStart: true),
+      act: (_) => users.add(null),
+      expect: () => const [Unauthenticated()],
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'without guest start, never signs in anonymously',
+      build: build,
+      act: (_) => users.add(null),
+      expect: () => const [Unauthenticated()],
+      verify: (_) => verifyNever(() => repository.signInAnonymously()),
     );
 
     test('signOut delegates to the repository', () async {
@@ -101,18 +137,54 @@ void main() {
 
     blocTest<AuthFormCubit, AuthFormState>(
       'ignores a second submit while loading',
-      setUp: () =>
-          when(() => repository.signInWithProvider(SocialProvider.google))
-              .thenAnswer((_) async => const Ok(user)),
+      setUp: () => when(
+        () => repository.signInWithProvider(
+          SocialProvider.google,
+          replaceGuest: any(named: 'replaceGuest'),
+        ),
+      ).thenAnswer((_) async => const Ok(user)),
       build: build,
       act: (cubit) => Future.wait([
         cubit.signInWith(SocialProvider.google),
         cubit.signInWith(SocialProvider.google),
       ]),
-      verify: (_) =>
-          verify(() => repository.signInWithProvider(SocialProvider.google))
-              .called(1),
+      verify: (_) => verify(
+        () => repository.signInWithProvider(
+          SocialProvider.google,
+          replaceGuest: any(named: 'replaceGuest'),
+        ),
+      ).called(1),
     );
+  });
+
+  group('AuthFormCubit replaceGuest', () {
+    AuthFormCubit build() => AuthFormCubit(
+      signInWithEmail: SignInWithEmail(repository),
+      signUpWithEmail: SignUpWithEmail(repository),
+      signInWithProvider: SignInWithProvider(repository),
+      sendPasswordReset: SendPasswordReset(repository),
+    );
+
+    for (final replaceGuest in [false, true]) {
+      blocTest<AuthFormCubit, AuthFormState>(
+        'signInWith passes replaceGuest: $replaceGuest',
+        setUp: () => when(
+          () => repository.signInWithProvider(
+            SocialProvider.apple,
+            replaceGuest: any(named: 'replaceGuest'),
+          ),
+        ).thenAnswer((_) async => const Ok(user)),
+        build: build,
+        act: (cubit) =>
+            cubit.signInWith(SocialProvider.apple, replaceGuest: replaceGuest),
+        verify: (_) => verify(
+          () => repository.signInWithProvider(
+            SocialProvider.apple,
+            replaceGuest: replaceGuest,
+          ),
+        ).called(1),
+      );
+    }
   });
 
   test('default error text distinguishes common auth codes', () {
