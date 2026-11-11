@@ -63,16 +63,29 @@ Clean Architecture, feature-first: `lib/features/<feature>/{domain,data,presenta
 - Small use cases of a feature share one `<feature>_usecases.dart`.
   `packages/forge_auth` is the reference implementation of all of the above.
 
-Keep it lean: no abstractions without a second user, no speculative options,
+Keep it lean: no speculative options or unused parameters, in packages too,
 no new `.md` files (state goes in `SPEC.md`, rules go here). Comment only what
 the code cannot say.
 
 ## Shared packages
 
-Code moves into `packages/` when a second app needs it, not before. Changing a
-package: edit, `tools/check.sh <package>`, PR to this repo, then tag `vX.Y.Z`
-on main. Apps pin the tag's commit and upgrade deliberately by changing the
-`ref` of all four packages to the new tag's commit (`git rev-list -n1 vX.Y.Z`).
+Anything not specific to one app's product is built as a package in
+`packages/` from the start: infrastructure, generic widgets, engines and
+integrations another app could use (auth, a 3D viewer, purchases, health
+data, notifications). Only the app's own features, data model and content
+live in the app. When unsure, make it a package. This repo is public, so
+packages hold no secrets and no app content.
+
+A package knows nothing about the app using it: no app names, no app-specific
+codes or strings; the app passes those in.
+
+Changing a package: edit, `tools/check.sh <package>`, PR to this repo, then
+tag `vX.Y.Z` on main. Apps pin the tag's commit and upgrade deliberately by
+changing the `ref` of every forge package to the new tag's commit
+(`git rev-list -n1 vX.Y.Z`). While a package and an app are developed together,
+point the app at the local copy with a gitignored `pubspec_overrides.yaml`
+(`dependency_overrides` with `path: ../../packages/<name>`); merge and tag the
+package before the app PR that needs it.
 
 ## Tests
 

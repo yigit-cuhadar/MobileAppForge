@@ -28,6 +28,7 @@ cd "$app"
 rm -f lib/main.dart test/widget_test.dart README.md
 cp -R "$forge/template/." .
 sed -i.bak "s/{{APP_NAME}}/$name/g" SPEC.md AGENTS.md
+printf '\n# MobileAppForge\npubspec_overrides.yaml\nfirebase-debug.log\n' >> .gitignore
 
 # Firebase needs iOS 15+.
 sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/' \
