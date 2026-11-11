@@ -1,5 +1,5 @@
 /// A domain-level error. Data sources throw; repositories return these.
-sealed class Failure {
+abstract class Failure {
   const Failure(this.message, {this.cause});
 
   /// Developer-facing description. UI maps the failure *type* to user text.
@@ -20,33 +20,6 @@ final class AuthFailure extends Failure {
 
   /// Provider error code, e.g. `wrong-password`, `email-already-in-use`.
   final String code;
-}
-
-/// A store purchase that did not complete. Network problems are
-/// [NetworkFailure], anything unrecognised is [UnknownFailure].
-final class PurchaseFailure extends Failure {
-  const PurchaseFailure(this.reason, [String? message, Object? cause])
-    : super(message ?? 'Purchase failed', cause: cause);
-
-  final PurchaseFailureReason reason;
-
-  @override
-  String toString() => 'PurchaseFailure(${reason.name}): $message';
-}
-
-enum PurchaseFailureReason {
-  /// The user dismissed the store sheet; not an error to show.
-  cancelled,
-
-  /// Purchases are impossible here: store problem, restrictions or billing
-  /// not set up on the device.
-  storeUnavailable,
-  productNotAvailable,
-  alreadyOwned,
-
-  /// Awaiting approval (Ask to Buy, pending payment); the entitlement arrives
-  /// later through the entitlement stream.
-  pending,
 }
 
 final class PermissionFailure extends Failure {
