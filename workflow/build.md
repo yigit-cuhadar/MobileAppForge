@@ -25,7 +25,15 @@
 Take the first unticked feature in `SPEC.md`, plus up to two more unticked
 ones that are independent of it and of each other, and run this loop for each
 in parallel. Merge each as soon as its review and CI pass; the user approves
-at feature-group demos, not per PR. For each feature:
+at feature-group demos, not per PR.
+
+Keep the slots full: the moment a feature's implementer finishes, start the
+next independent unticked feature in the freed slot, without waiting for the
+other tracks or for the finished one's review and merge. Reviews and review
+fixes run in the same slot budget. When the next features in order all depend
+on unmerged work, pull forward any later feature that is independent (pure
+calculators, tooling, a package) rather than leaving a slot idle; leave a slot
+empty only when nothing independent is left, and say so. For each feature:
 
 1. **Architect** — write a short brief: entities, repository interface, use
    cases, cubit states, screens, Firestore paths and rules. Ask the user only
