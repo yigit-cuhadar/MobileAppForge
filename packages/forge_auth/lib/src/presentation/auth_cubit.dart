@@ -31,21 +31,40 @@ final class Unauthenticated extends AuthState {
 }
 
 /// App-wide session state. Registered as a singleton; routers listen to it.
+///
+/// With [_signInAnonymously] (guest start), a signed-out session is replaced by
+/// a new guest instead of emitting [Unauthenticated]; that state then only
+/// means the guest sign-in failed.
 class AuthCubit extends Cubit<AuthState> {
   AuthCubit({
     required WatchAuthUser watchAuthUser,
     required this._signOut,
     required this._deleteAccount,
+    this._signInAnonymously,
   }) : super(const AuthUnknown()) {
-    _subscription = watchAuthUser().listen(
-      (user) =>
-          emit(user == null ? const Unauthenticated() : Authenticated(user)),
-    );
+    _subscription = watchAuthUser().listen(_onUser);
   }
 
   final SignOut _signOut;
   final DeleteAccount _deleteAccount;
+  final SignInAnonymously? _signInAnonymously;
   late final StreamSubscription<AuthUser?> _subscription;
+
+  /// Tries the guest sign-in again after it failed ([Unauthenticated]).
+  /// Does nothing without guest start.
+  Future<void> retryGuestSignIn() async {
+    if (_signInAnonymously == null || state is! Unauthenticated) return;
+    emit(const AuthUnknown());
+    await _onUser(null);
+  }
+
+  Future<void> _onUser(AuthUser? user) async {
+    if (user != null) return emit(Authenticated(user));
+    final signInAnonymously = _signInAnonymously;
+    // The guest user arrives through the stream; only a failure needs a state.
+    if (signInAnonymously != null && (await signInAnonymously()).isOk) return;
+    if (!isClosed) emit(const Unauthenticated());
+  }
 
   AuthUser? get user => switch (state) {
     Authenticated(:final user) => user,

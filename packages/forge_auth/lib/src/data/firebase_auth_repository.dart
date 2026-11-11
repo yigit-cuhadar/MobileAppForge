@@ -9,8 +9,21 @@ class FirebaseAuthRepository implements AuthRepository {
   const FirebaseAuthRepository(this._auth);
   final FirebaseAuth _auth;
 
+  /// Firebase codes meaning the linked credential belongs to another account.
+  static const _accountExistsCodes = {
+    'credential-already-in-use',
+    'email-already-in-use',
+  };
+
   @override
   Stream<AuthUser?> watchUser() => _auth.userChanges().map(_toUser);
+
+  @override
+  AuthUser? get currentUser => _toUser(_auth.currentUser);
+
+  @override
+  Future<Result<AuthUser>> signInAnonymously() =>
+      _credential(_auth.signInAnonymously);
 
   @override
   Future<Result<AuthUser>> signInWithEmail(String email, String password) =>
@@ -20,22 +33,46 @@ class FirebaseAuthRepository implements AuthRepository {
       );
 
   @override
-  Future<Result<AuthUser>> signUpWithEmail(String email, String password) =>
-      _credential(
-        () => _auth.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        ),
-      );
+  Future<Result<AuthUser>> signUpWithEmail(String email, String password) {
+    final guest = _guest;
+    return _credential(
+      () => guest != null
+          ? guest.linkWithCredential(
+              EmailAuthProvider.credential(email: email, password: password),
+            )
+          : _auth.createUserWithEmailAndPassword(
+              email: email,
+              password: password,
+            ),
+    );
+  }
 
   @override
-  Future<Result<AuthUser>> signInWithProvider(SocialProvider provider) =>
-      _credential(
-        () => _auth.signInWithProvider(switch (provider) {
-          SocialProvider.google => GoogleAuthProvider(),
-          SocialProvider.apple => AppleAuthProvider(),
-        }),
-      );
+  Future<Result<AuthUser>> signInWithProvider(
+    SocialProvider provider, {
+    bool replaceGuest = false,
+  }) {
+    final authProvider = switch (provider) {
+      SocialProvider.google => GoogleAuthProvider(),
+      SocialProvider.apple => AppleAuthProvider(),
+    };
+    final guest = replaceGuest ? null : _guest;
+    if (guest == null) {
+      return _credential(() => _auth.signInWithProvider(authProvider));
+    }
+    return guard(
+      () async => _toUser((await guest.linkWithProvider(authProvider)).user)!,
+      mapper: (error) =>
+          error is FirebaseAuthException &&
+              _accountExistsCodes.contains(error.code)
+          ? AuthFailure(
+              error.message ?? error.code,
+              code: accountExistsCode,
+              cause: error,
+            )
+          : mapFirebaseError(error),
+    );
+  }
 
   @override
   Future<Result<void>> sendPasswordReset(String email) => guard(
@@ -51,6 +88,11 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<Result<void>> deleteAccount() =>
       guard(() async => _auth.currentUser?.delete(), mapper: mapFirebaseError);
 
+  User? get _guest {
+    final user = _auth.currentUser;
+    return user != null && user.isAnonymous ? user : null;
+  }
+
   Future<Result<AuthUser>> _credential(
     Future<UserCredential> Function() signIn,
   ) => guard(
@@ -64,5 +106,6 @@ class FirebaseAuthRepository implements AuthRepository {
           id: user.uid,
           email: user.email,
           displayName: user.displayName,
+          isAnonymous: user.isAnonymous,
         );
 }

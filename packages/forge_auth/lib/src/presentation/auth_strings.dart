@@ -16,6 +16,11 @@ class AuthStrings {
     this.invalidEmail = 'Enter a valid email',
     this.shortPassword = 'Use at least 6 characters',
     this.resetSent = 'Password reset email sent',
+    this.replaceGuestTitle = 'Use existing account?',
+    this.replaceGuestBody =
+        'What you did as a guest on this device will be lost.',
+    this.replaceGuestConfirm = 'Continue',
+    this.cancel = 'Cancel',
     this.errorFor = defaultErrorFor,
   });
 
@@ -31,6 +36,10 @@ class AuthStrings {
   final String invalidEmail;
   final String shortPassword;
   final String resetSent;
+  final String replaceGuestTitle;
+  final String replaceGuestBody;
+  final String replaceGuestConfirm;
+  final String cancel;
   final String Function(Failure failure) errorFor;
 
   static String defaultErrorFor(Failure failure) => switch (failure) {
