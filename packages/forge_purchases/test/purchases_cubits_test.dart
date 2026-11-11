@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_purchases/forge_purchases.dart';
@@ -30,112 +31,163 @@ void main() {
   group('EntitlementCubit', () {
     late FakePurchasesRepository store;
 
-    EntitlementCubit build(PurchasesRepository repository) => EntitlementCubit(
+    EntitlementCubit build(
+      PurchasesRepository repository, {
+      DateTime Function()? clock,
+    }) => EntitlementCubit(
       configure: ConfigurePurchases(repository),
       watchEntitlement: WatchEntitlement(repository),
       identify: IdentifyPurchaser(repository),
       reset: ResetPurchaser(repository),
+      refresh: RefreshEntitlement(repository),
+      getManagementUrl: GetManagementUrl(repository),
+      clock: clock,
     );
 
-    setUp(
-      () => store = FakePurchasesRepository(
-        plans: const [monthly],
-        purchaseDelay: Duration.zero,
-      ),
-    );
+    FakePurchasesRepository fake({String? cachedUserId}) =>
+        FakePurchasesRepository(
+          plans: const [monthly],
+          purchaseDelay: Duration.zero,
+          cachedUserId: cachedUserId,
+        );
 
-    test('starts unknown, then resolves after the fake configures', () async {
-      final cubit = build(store);
-      expect(cubit.state, const EntitlementUnknown());
+    Future<List<EntitlementState>> statesOf(
+      EntitlementCubit cubit,
+      Future<void> Function() act,
+    ) async {
+      final states = <EntitlementState>[];
+      final subscription = cubit.stream.listen(states.add);
+      await act();
       await pumpEventQueue();
+      await subscription.cancel();
+      return states;
+    }
+
+    setUp(() => store = fake());
+
+    test('stays unknown until the first identify or reset', () async {
+      final cubit = build(store);
+      await pumpEventQueue();
+      expect(cubit.state, const EntitlementUnknown());
+
+      await cubit.reset();
       expect(cubit.state, const EntitlementInactive());
       await cubit.close();
     });
 
     test('follows identify and reset', () async {
       final cubit = build(store);
-      final states = <EntitlementState>[];
-      final subscription = cubit.stream.listen(states.add);
+      final states = await statesOf(cubit, () async {
+        await cubit.identify('a');
+        await store.purchase(monthly);
+        await pumpEventQueue();
+        await cubit.reset();
+        await cubit.identify('a');
+      });
 
-      await cubit.identify('a');
-      await store.purchase(monthly);
-      await pumpEventQueue();
-      expect(cubit.isActive, isTrue);
-
-      await cubit.reset();
-      await pumpEventQueue();
-      expect(cubit.state, const EntitlementInactive());
-
-      await cubit.identify('a');
-      await pumpEventQueue();
-      expect(cubit.isActive, isTrue);
-
-      expect(states.whereType<EntitlementActive>(), hasLength(2));
-      expect(
-        states.whereType<EntitlementUnknown>(),
-        hasLength(3),
-        reason: 'unknown while each user switch resolves',
-      );
-      await subscription.cancel();
+      expect(states.map((s) => s.runtimeType), [
+        EntitlementInactive,
+        EntitlementActive,
+        EntitlementUnknown,
+        EntitlementInactive,
+        EntitlementUnknown,
+        EntitlementActive,
+      ]);
       await cubit.close();
     });
 
     test('identifying the same user again does nothing', () async {
       final cubit = build(store);
       await cubit.identify('a');
-      await pumpEventQueue();
-      final states = <EntitlementState>[];
-      final subscription = cubit.stream.listen(states.add);
-
-      await cubit.identify('a');
-      await pumpEventQueue();
-      expect(states, isEmpty);
-      await subscription.cancel();
+      expect(await statesOf(cubit, () => cubit.identify('a')), isEmpty);
       await cubit.close();
     });
 
-    group('with a failing store', () {
+    test('a cold start with a cached user is signed out by reset', () async {
+      store = fake(cachedUserId: 'a');
+      await store.configure();
+      await store.purchase(monthly);
+
+      final cubit = build(store);
+      await cubit.reset();
+      expect(cubit.state, const EntitlementInactive());
+
+      await cubit.identify('a');
+      expect(cubit.isActive, isTrue);
+      await cubit.close();
+    });
+
+    test('a failed reset is inactive', () async {
+      final cubit = build(store);
+      await cubit.identify('a');
+      await store.purchase(monthly);
+      await pumpEventQueue();
+
+      store.sessionFailure = const NetworkFailure();
+      expect((await cubit.reset()).isOk, isFalse);
+      expect(cubit.state, const EntitlementInactive());
+      await cubit.close();
+    });
+
+    group('after a failed identify', () {
       late MockPurchasesRepository repository;
       late StreamController<Entitlement> entitlements;
 
       setUp(() {
         repository = MockPurchasesRepository();
-        entitlements = StreamController<Entitlement>();
+        entitlements = StreamController<Entitlement>.broadcast();
         when(() => repository.watchEntitlement())
             .thenAnswer((_) => entitlements.stream);
+        when(() => repository.configure())
+            .thenAnswer((_) async => const Ok(null));
+        when(() => repository.identify('a'))
+            .thenAnswer((_) async => const Ok(active));
       });
 
-      blocTest<EntitlementCubit, EntitlementState>(
-        'a failed configure is inactive',
-        setUp: () =>
-            when(() => repository.configure())
-                .thenAnswer((_) async => const Err(UnknownFailure())),
-        build: () => build(repository),
-        expect: () => const [EntitlementInactive()],
-      );
+      test('the next user never sees the previous user', () async {
+        Result<Entitlement> identifyB = const Err(NetworkFailure());
+        when(() => repository.identify('b')).thenAnswer((_) async => identifyB);
+        final cubit = build(repository);
+        await cubit.identify('a');
+        expect(cubit.isActive, isTrue);
 
-      blocTest<EntitlementCubit, EntitlementState>(
-        'a failed identify keeps the previous user state',
-        setUp: () {
-          when(() => repository.configure()).thenAnswer((_) async {
-            entitlements.add(active);
-            return const Ok(null);
-          });
-          when(() => repository.identify('b'))
-              .thenAnswer((_) async => const Err(NetworkFailure()));
-        },
-        build: () => build(repository),
-        act: (cubit) async {
-          await pumpEventQueue();
-          final result = await cubit.identify('b');
-          expect(result.failureOrNull, isA<NetworkFailure>());
-        },
-        expect: () => const [
-          EntitlementActive(active),
-          EntitlementUnknown(),
-          EntitlementActive(active),
-        ],
-      );
+        final states = await statesOf(cubit, () async {
+          expect((await cubit.identify('b')).isOk, isFalse);
+          // The store is still on the previous user and keeps reporting it.
+          entitlements.add(active);
+        });
+        expect(states, const [EntitlementUnknown()]);
+
+        identifyB = const Ok(Entitlement.none());
+        await cubit.identify('b');
+        expect(cubit.state, const EntitlementInactive());
+        await cubit.close();
+      });
+    });
+
+    test('re-checks the store when the entitlement expires', () {
+      fakeAsync((async) {
+        final start = DateTime.utc(2026);
+        DateTime now() => start.add(async.elapsed);
+        final store = FakePurchasesRepository(
+          plans: const [monthly],
+          purchaseDelay: Duration.zero,
+          clock: now,
+        );
+        final cubit = build(store, clock: now);
+        unawaited(cubit.identify('a'));
+        unawaited(store.purchase(monthly));
+        async.elapse(Duration.zero);
+        store.cancelRenewal();
+        async.flushMicrotasks();
+        expect(cubit.isActive, isTrue);
+
+        async.elapse(const Duration(days: 30));
+        expect(cubit.isActive, isTrue);
+        async.elapse(const Duration(days: 1));
+        expect(cubit.state, const EntitlementInactive());
+        unawaited(cubit.close());
+      });
     });
   });
 
@@ -153,6 +205,15 @@ void main() {
       plans: [monthly, yearly],
       selected: monthly,
     );
+
+    PaywallState readyWith(PaywallOutcome outcome, [Failure? failure]) =>
+        PaywallState(
+          status: PaywallStatus.ready,
+          plans: ready.plans,
+          selected: monthly,
+          outcome: outcome,
+          failure: failure,
+        );
 
     setUp(() {
       repository = MockPurchasesRepository();
@@ -173,13 +234,20 @@ void main() {
           when(() => repository.offering())
               .thenAnswer((_) async => const Err(NetworkFailure())),
       build: build,
-      act: (cubit) => cubit.load(),
+      act: (cubit) async {
+        await cubit.load();
+        when(() => repository.offering())
+            .thenAnswer((_) async => const Ok(Offering([monthly, yearly])));
+        await cubit.load();
+      },
       expect: () => const [
         PaywallState(),
         PaywallState(
           status: PaywallStatus.loadFailed,
-          failure: NetworkFailure(),
+          loadFailure: NetworkFailure(),
         ),
+        PaywallState(),
+        ready,
       ],
     );
 
@@ -213,6 +281,18 @@ void main() {
       ],
     );
 
+    blocTest<PaywallCubit, PaywallState>(
+      'a purchase that does not activate the entitlement is not purchased',
+      setUp: () =>
+          when(() => repository.purchase(any()))
+              .thenAnswer((_) async => const Ok(Entitlement.none())),
+      build: build,
+      seed: () => ready,
+      act: (cubit) => cubit.purchase(),
+      skip: 1,
+      expect: () => [readyWith(PaywallOutcome.notEntitled)],
+    );
+
     for (final (failure, outcome) in const [
       (
         PurchaseFailure(PurchaseFailureReason.cancelled),
@@ -235,13 +315,7 @@ void main() {
         act: (cubit) => cubit.purchase(),
         skip: 1,
         expect: () => [
-          PaywallState(
-            status: PaywallStatus.ready,
-            plans: ready.plans,
-            selected: monthly,
-            outcome: outcome,
-            failure: outcome == PaywallOutcome.failed ? failure : null,
-          ),
+          readyWith(outcome, outcome == PaywallOutcome.failed ? failure : null),
         ],
       );
     }
@@ -278,31 +352,32 @@ void main() {
           plans: [monthly, yearly],
           selected: monthly,
         ),
-        const PaywallState(
-          status: PaywallStatus.ready,
-          plans: [monthly, yearly],
-          selected: monthly,
-          outcome: PaywallOutcome.nothingToRestore,
-        ),
+        readyWith(PaywallOutcome.nothingToRestore),
       ],
     );
 
     blocTest<PaywallCubit, PaywallState>(
-      'restore works after a failed load and returns to it',
-      setUp: () =>
-          when(() => repository.restore())
-              .thenAnswer((_) async => const Ok(active)),
+      'restore after a failed load keeps the load failure apart',
+      setUp: () => when(() => repository.restore()).thenAnswer(
+        (_) async =>
+            const Err(PurchaseFailure(PurchaseFailureReason.storeUnavailable)),
+      ),
       build: build,
       seed: () => const PaywallState(
         status: PaywallStatus.loadFailed,
-        failure: NetworkFailure(),
+        loadFailure: NetworkFailure(),
       ),
       act: (cubit) => cubit.restore(),
       expect: () => const [
-        PaywallState(status: PaywallStatus.restoring),
+        PaywallState(
+          status: PaywallStatus.restoring,
+          loadFailure: NetworkFailure(),
+        ),
         PaywallState(
           status: PaywallStatus.loadFailed,
-          outcome: PaywallOutcome.restored,
+          loadFailure: NetworkFailure(),
+          outcome: PaywallOutcome.failed,
+          failure: PurchaseFailure(PurchaseFailureReason.storeUnavailable),
         ),
       ],
     );

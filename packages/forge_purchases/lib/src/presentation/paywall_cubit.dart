@@ -8,6 +8,11 @@ enum PaywallStatus { loading, loadFailed, ready, purchasing, restoring }
 
 enum PaywallOutcome {
   purchased,
+
+  /// The store charged, but the entitlement is not active: the product is
+  /// not attached to the entitlement in the store setup. Ask the user to
+  /// restore or contact support.
+  notEntitled,
   restored,
   nothingToRestore,
 
@@ -26,6 +31,7 @@ class PaywallState extends Equatable {
     this.status = PaywallStatus.loading,
     this.plans = const [],
     this.selected,
+    this.loadFailure,
     this.outcome,
     this.failure,
   });
@@ -34,10 +40,13 @@ class PaywallState extends Equatable {
   final List<Plan> plans;
   final Plan? selected;
 
+  /// Why the offering could not be loaded ([PaywallStatus.loadFailed]).
+  final Failure? loadFailure;
+
   /// Result of the last purchase or restore; cleared when the next starts.
   final PaywallOutcome? outcome;
 
-  /// Why the last load, purchase or restore failed.
+  /// Why the last purchase or restore failed ([PaywallOutcome.failed]).
   final Failure? failure;
 
   bool get isBusy =>
@@ -45,20 +54,27 @@ class PaywallState extends Equatable {
 
   PaywallState _copyWith({
     PaywallStatus? status,
-    List<Plan>? plans,
     Plan? selected,
     PaywallOutcome? outcome,
     Failure? failure,
   }) => PaywallState(
     status: status ?? this.status,
-    plans: plans ?? this.plans,
+    plans: plans,
     selected: selected ?? this.selected,
+    loadFailure: loadFailure,
     outcome: outcome,
     failure: failure,
   );
 
   @override
-  List<Object?> get props => [status, plans, selected, outcome, failure];
+  List<Object?> get props => [
+    status,
+    plans,
+    selected,
+    loadFailure,
+    outcome,
+    failure,
+  ];
 }
 
 /// Drives an app-built paywall screen. Call [load] after creating it.
@@ -86,8 +102,10 @@ class PaywallCubit extends Cubit<PaywallState> {
           plans: offering.plans,
           selected: offering.plans.first,
         ),
-        (failure) =>
-            PaywallState(status: PaywallStatus.loadFailed, failure: failure),
+        (failure) => PaywallState(
+          status: PaywallStatus.loadFailed,
+          loadFailure: failure,
+        ),
       ),
     );
   }
@@ -104,7 +122,12 @@ class PaywallCubit extends Cubit<PaywallState> {
     emit(state._copyWith(status: PaywallStatus.purchasing));
     final result = await _purchasePlan(plan);
     if (isClosed) return;
-    _finish(result, (_) => PaywallOutcome.purchased);
+    _finish(
+      result,
+      (entitlement) => entitlement.isActive
+          ? PaywallOutcome.purchased
+          : PaywallOutcome.notEntitled,
+    );
   }
 
   /// Also available when loading failed, so a buyer is never locked out.
@@ -128,9 +151,6 @@ class PaywallCubit extends Cubit<PaywallState> {
     Result<Entitlement> result,
     PaywallOutcome Function(Entitlement) onOk,
   ) {
-    final idle = state.plans.isEmpty
-        ? PaywallStatus.loadFailed
-        : PaywallStatus.ready;
     final failure = result.failureOrNull;
     final outcome = switch (failure) {
       null => onOk(result.valueOrNull!),
@@ -142,7 +162,9 @@ class PaywallCubit extends Cubit<PaywallState> {
     };
     emit(
       state._copyWith(
-        status: idle,
+        status: state.loadFailure == null
+            ? PaywallStatus.ready
+            : PaywallStatus.loadFailed,
         outcome: outcome,
         failure: outcome == PaywallOutcome.failed ? failure : null,
       ),

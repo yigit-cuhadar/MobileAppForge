@@ -13,7 +13,9 @@ sealed class EntitlementState extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Not resolved yet, also while switching users; do not gate on it.
+/// Not resolved: before the first [EntitlementCubit.identify] or
+/// [EntitlementCubit.reset] completes, while switching users, and after a
+/// failed identify. Do not gate on it.
 final class EntitlementUnknown extends EntitlementState {
   const EntitlementUnknown();
 }
@@ -31,72 +33,98 @@ final class EntitlementActive extends EntitlementState {
 }
 
 /// App-wide entitlement state. Registered as a singleton; configures the
-/// store on creation. The app calls [identify] and [reset] when its own
-/// session changes so purchases follow the account.
+/// store on creation. The app calls [identify] or [reset] at startup and on
+/// every session change, so purchases follow its account.
 class EntitlementCubit extends Cubit<EntitlementState> {
   EntitlementCubit({
     required ConfigurePurchases configure,
     required WatchEntitlement watchEntitlement,
     required this._identify,
     required this._reset,
-  }) : super(const EntitlementUnknown()) {
+    required this._refresh,
+    required this._getManagementUrl,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now,
+       super(const EntitlementUnknown()) {
     _subscription = watchEntitlement().listen(_onEntitlement);
-    _queue = _start(configure);
+    _queue = configure();
   }
 
   final IdentifyPurchaser _identify;
   final ResetPurchaser _reset;
+  final RefreshEntitlement _refresh;
+  final GetManagementUrl _getManagementUrl;
+  final DateTime Function() _clock;
   late final StreamSubscription<Entitlement> _subscription;
+  Timer? _expiryTimer;
 
   /// Configure, then user switches, one at a time and in call order.
   late Future<void> _queue;
+
+  /// Whether the store is on [_userId]; until then, stream values may
+  /// belong to another user and are ignored.
+  bool _resolved = false;
   String? _userId;
 
   bool get isActive => state is EntitlementActive;
 
+  /// A failure leaves the state unknown; call again to retry.
   Future<Result<void>> identify(String userId) =>
-      _switchUser(userId, () => _identify(userId));
+      _switchUser(userId, () => _identify(userId), const EntitlementUnknown());
 
-  Future<Result<void>> reset() => _switchUser(null, _reset.call);
+  /// A failure leaves the state inactive: a signed-out user is not entitled.
+  Future<Result<void>> reset() =>
+      _switchUser(null, _reset.call, const EntitlementInactive());
 
-  Future<void> _start(ConfigurePurchases configure) async {
-    final result = await configure();
-    // Without a configured store nothing will arrive; treat as not entitled.
-    if (!result.isOk && state is EntitlementUnknown && !isClosed) {
-      emit(const EntitlementInactive());
-    }
-  }
+  /// The platform's manage-subscription page, for the app to open.
+  Future<Result<Uri>> managementUrl() => _getManagementUrl();
 
   Future<Result<void>> _switchUser(
     String? userId,
-    Future<Result<void>> Function() action,
+    Future<Result<Entitlement>> Function() action,
+    EntitlementState onFailure,
   ) {
-    final run = _queue.then((_) async {
-      if (userId == _userId) return const Ok<void>(null);
-      final previousUser = _userId;
-      final previousState = state;
+    final run = _queue.then<Result<void>>((_) async {
+      if (_resolved && userId == _userId) return const Ok(null);
+      _resolved = false;
       _userId = userId;
-      if (!isClosed) emit(const EntitlementUnknown());
-      final result = await action();
-      // The store still holds the previous user, and so does its state.
-      if (!result.isOk) {
-        _userId = previousUser;
-        if (state is EntitlementUnknown && !isClosed) emit(previousState);
+      _expiryTimer?.cancel();
+      if (!isClosed && state is! EntitlementUnknown) {
+        emit(const EntitlementUnknown());
       }
+      final result = await action();
+      if (isClosed) return result;
+      result.fold((entitlement) {
+        _resolved = true;
+        _show(entitlement);
+      }, (_) => emit(onFailure));
       return result;
     });
     _queue = run;
     return run;
   }
 
-  void _onEntitlement(Entitlement entitlement) => emit(
-    entitlement.isActive
-        ? EntitlementActive(entitlement)
-        : const EntitlementInactive(),
-  );
+  void _onEntitlement(Entitlement entitlement) {
+    if (_resolved) _show(entitlement);
+  }
+
+  void _show(Entitlement entitlement) {
+    emit(
+      entitlement.isActive
+          ? EntitlementActive(entitlement)
+          : const EntitlementInactive(),
+    );
+    // Stores do not notify when a period simply runs out; check again then.
+    _expiryTimer?.cancel();
+    final expiresAt = entitlement.expiresAt;
+    if (!entitlement.isActive || expiresAt == null) return;
+    final wait = expiresAt.difference(_clock());
+    if (wait > Duration.zero) _expiryTimer = Timer(wait, _refresh.call);
+  }
 
   @override
   Future<void> close() async {
+    _expiryTimer?.cancel();
     await _subscription.cancel();
     return super.close();
   }

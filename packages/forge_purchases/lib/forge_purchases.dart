@@ -4,8 +4,14 @@
 /// **Switching.** Only the backend changes; the app's code is the same:
 /// `PurchasesModule(entitlementId: 'premium', backend: FakeBackend([...plans]))`
 /// or `backend: RevenueCatBackend(appleApiKey: ..., googleApiKey: ...)`.
-/// Plan ids are store product ids; keep the fake's ids equal to the real ones.
-/// Wire the app's session to `EntitlementCubit.identify(uid)` / `reset()`.
+/// Plan ids follow RevenueCat (`productId` on the App Store,
+/// `subscriptionId:basePlanId` on Play) and `Entitlement.productId` uses the
+/// same form, so compare them with each other and pick plans by
+/// `Plan.period`, never by hard-coded ids. The fake's ids are free.
+/// Wire the app's session to `EntitlementCubit`: `identify(uid)` when signed
+/// in, `reset()` when signed out, at startup and on every change; the state
+/// stays unknown until then. Open `EntitlementCubit.managementUrl()` for
+/// "Manage subscription".
 ///
 /// **RevenueCat setup.** One project, one entitlement attached to every
 /// product, products in a "current" offering as Monthly/Annual/Lifetime
