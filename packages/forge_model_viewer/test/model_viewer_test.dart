@@ -77,7 +77,7 @@ void main() {
     controller.dispose();
   });
 
-  group('a scrub ends exactly once when', () {
+  group('an interrupted scrub ends exactly once, reporting no part, when', () {
     late List<String?> ends;
     setUp(() => ends = []);
 
@@ -95,7 +95,7 @@ void main() {
       await tester.pump(holdLong);
       await gesture.cancel();
       await tester.pump();
-      expect(ends, ['left']);
+      expect(ends, [null]);
     });
 
     testWidgets('the viewer turns non-interactive', (tester) async {
@@ -105,7 +105,7 @@ void main() {
       await pumpViewer(tester, viewer(interactive: false));
       await gesture.up();
       await tester.pump();
-      expect(ends, ['left']);
+      expect(ends, [null]);
     });
 
     testWidgets('the scrub callbacks are removed', (tester) async {
@@ -116,7 +116,7 @@ void main() {
       await gesture.moveTo(right);
       await gesture.up();
       await tester.pump();
-      expect(ends, ['left']);
+      expect(ends, [null]);
     });
 
     testWidgets('the viewer is disposed', (tester) async {
@@ -126,7 +126,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await gesture.up();
       await tester.pump();
-      expect(ends, ['left']);
+      expect(ends, [null]);
     });
   });
 

@@ -16,7 +16,8 @@ import 'viewer_gesture_recognizer.dart';
 /// part under the finger to [onPartTap] on release, and a long press followed
 /// by a slide reports the part under the finger to [onScrub] each time it
 /// changes (starting from none) and, exactly once, to [onScrubEnd] when the
-/// scrub ends for any reason. Only parts accepted by [selectable] are
+/// scrub ends: with the part under the finger on release, with null when the
+/// scrub was interrupted. Only parts accepted by [selectable] are
 /// reported; the others still hide the parts behind them.
 ///
 /// Screen readers get only [semanticLabel]; apps that let users pick parts
@@ -97,13 +98,17 @@ class _ModelViewerState extends State<ModelViewer> {
       _ownController = null;
     }
     if (!widget.interactive || !_scrubs) {
-      _endScrub(widget.onScrubEnd ?? oldWidget.onScrubEnd, deferred: true);
+      _endScrub(
+        widget.onScrubEnd ?? oldWidget.onScrubEnd,
+        deferred: true,
+        cancelled: true,
+      );
     }
   }
 
   @override
   void dispose() {
-    _endScrub(widget.onScrubEnd, deferred: true);
+    _endScrub(widget.onScrubEnd, deferred: true, cancelled: true);
     _ownController?.dispose();
     super.dispose();
   }
@@ -158,11 +163,16 @@ class _ModelViewerState extends State<ModelViewer> {
   }
 
   /// Ends a running scrub. [deferred] delays the callback past the current
-  /// build or unmount, where the app could not call setState.
-  void _endScrub(ValueChanged<String?>? onScrubEnd, {bool deferred = false}) {
+  /// build or unmount, where the app could not call setState. A [cancelled]
+  /// scrub reports no part, so apps do not act on an interrupted gesture.
+  void _endScrub(
+    ValueChanged<String?>? onScrubEnd, {
+    bool deferred = false,
+    bool cancelled = false,
+  }) {
     if (!_scrubbing) return;
     _scrubbing = false;
-    final part = _scrubPart;
+    final part = cancelled ? null : _scrubPart;
     _scrubPart = null;
     if (onScrubEnd == null) return;
     if (deferred) {
@@ -205,7 +215,9 @@ class _ModelViewerState extends State<ModelViewer> {
                       _controller.zoom = _pinchStartZoom * scale)
                   ..onScrubStart = scrubs ? _onScrubStart : null
                   ..onScrubUpdate = _onScrubUpdate
-                  ..onScrubEnd = (() => _endScrub(widget.onScrubEnd)),
+                  ..onScrubEnd = (() => _endScrub(widget.onScrubEnd))
+                  ..onScrubCancel = (() =>
+                      _endScrub(widget.onScrubEnd, cancelled: true)),
               ),
         },
         child: viewer,
