@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_auth/src/data/firebase_auth_repository.dart';
+import 'package:forge_auth/src/domain/auth_repository.dart';
 import 'package:forge_auth/src/domain/auth_user.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:mocktail/mocktail.dart';
@@ -134,11 +135,7 @@ void main() {
     verifyNever(() => auth.signInWithProvider(any()));
   });
 
-  for (final code in [
-    'credential-already-in-use',
-    'email-already-in-use',
-    'provider-already-linked',
-  ]) {
+  for (final code in ['credential-already-in-use', 'email-already-in-use']) {
     test(
       'signInWithProvider maps link conflict $code to accountExists',
       () async {
@@ -152,11 +149,7 @@ void main() {
 
         expect(
           result.failureOrNull,
-          isA<AuthFailure>().having(
-            (f) => f.code,
-            'code',
-            AuthFailure.accountExists,
-          ),
+          isA<AuthFailure>().having((f) => f.code, 'code', accountExistsCode),
         );
       },
     );
@@ -174,5 +167,10 @@ void main() {
 
     expect(result.valueOrNull, const AuthUser(id: 'u1', email: 'a@b.co'));
     verifyNever(() => guest.linkWithProvider(any()));
+  });
+
+  test('currentUser maps the signed-in Firebase user', () {
+    when(() => auth.currentUser).thenReturn(user);
+    expect(repository.currentUser, const AuthUser(id: 'u1', email: 'a@b.co'));
   });
 }

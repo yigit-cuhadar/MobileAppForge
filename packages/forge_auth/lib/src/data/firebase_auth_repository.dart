@@ -13,11 +13,13 @@ class FirebaseAuthRepository implements AuthRepository {
   static const _accountExistsCodes = {
     'credential-already-in-use',
     'email-already-in-use',
-    'provider-already-linked',
   };
 
   @override
   Stream<AuthUser?> watchUser() => _auth.userChanges().map(_toUser);
+
+  @override
+  AuthUser? get currentUser => _toUser(_auth.currentUser);
 
   @override
   Future<Result<AuthUser>> signInAnonymously() =>
@@ -65,7 +67,7 @@ class FirebaseAuthRepository implements AuthRepository {
               _accountExistsCodes.contains(error.code)
           ? AuthFailure(
               error.message ?? error.code,
-              code: AuthFailure.accountExists,
+              code: accountExistsCode,
               cause: error,
             )
           : mapFirebaseError(error),

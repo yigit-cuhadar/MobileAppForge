@@ -74,7 +74,6 @@ class _AuthViewState extends State<_AuthView> {
   final _password = TextEditingController();
   late bool _signUp = widget.initialSignUp;
   bool _signedIn = false;
-  SocialProvider? _lastProvider;
 
   static final _emailPattern = RegExp(r'^\S+@\S+\.\S+$');
 
@@ -90,37 +89,17 @@ class _AuthViewState extends State<_AuthView> {
       ? null
       : widget.strings.invalidEmail;
 
-  bool get _isGuest => context.read<AuthCubit>().user?.isAnonymous ?? false;
-
-  Future<void> _submit() async {
+  void _submit() {
     if (!_formKey.currentState!.validate()) return;
     final cubit = context.read<AuthFormCubit>();
-    if (_signUp) return cubit.signUp(_email.text, _password.text);
-    if (_isGuest && !await _confirmReplaceGuest()) return;
-    if (mounted) await cubit.signIn(_email.text, _password.text);
+    _signUp
+        ? cubit.signUp(_email.text, _password.text)
+        : cubit.signIn(_email.text, _password.text);
   }
 
-  void _signInWith(SocialProvider provider) {
-    _lastProvider = provider;
-    context.read<AuthFormCubit>().signInWith(provider);
-  }
-
-  Future<void> _onFailure(Failure failure) async {
-    final provider = _lastProvider;
-    if (failure is! AuthFailure ||
-        failure.code != AuthFailure.accountExists ||
-        provider == null) {
-      return _show(widget.strings.errorFor(failure));
-    }
-    if (!await _confirmReplaceGuest() || !mounted) return;
-    await context.read<AuthFormCubit>().signInWith(
-      provider,
-      replaceGuest: true,
-    );
-  }
-
-  Future<bool> _confirmReplaceGuest() async {
+  Future<void> _confirmReplaceGuest() async {
     final s = widget.strings;
+    final cubit = context.read<AuthFormCubit>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -138,7 +117,9 @@ class _AuthViewState extends State<_AuthView> {
         ],
       ),
     );
-    return confirmed ?? false;
+    confirmed ?? false
+        ? await cubit.confirmReplaceGuest()
+        : cubit.cancelReplaceGuest();
   }
 
   void _resetPassword() {
@@ -166,7 +147,8 @@ class _AuthViewState extends State<_AuthView> {
       },
       child: BlocConsumer<AuthFormCubit, AuthFormState>(
         listener: (context, state) => switch (state.status) {
-          AuthFormStatus.failure => _onFailure(state.failure!),
+          AuthFormStatus.failure => _show(s.errorFor(state.failure!)),
+          AuthFormStatus.confirmReplaceGuest => _confirmReplaceGuest(),
           AuthFormStatus.resetSent => _show(s.resetSent),
           _ => null,
         },
@@ -239,7 +221,9 @@ class _AuthViewState extends State<_AuthView> {
                               OutlinedButton(
                                 onPressed: state.isLoading
                                     ? null
-                                    : () => _signInWith(provider),
+                                    : () => context
+                                          .read<AuthFormCubit>()
+                                          .signInWith(provider),
                                 child: Text(switch (provider) {
                                   SocialProvider.google => s.continueWithGoogle,
                                   SocialProvider.apple => s.continueWithApple,

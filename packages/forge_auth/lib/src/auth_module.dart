@@ -25,6 +25,7 @@ class AuthModule implements FeatureModule {
       )
       ..registerFactory(() => WatchAuthUser(sl()))
       ..registerFactory(() => SignInAnonymously(sl()))
+      ..registerFactory(() => GetCurrentUser(sl()))
       ..registerFactory(() => SignInWithEmail(sl()))
       ..registerFactory(() => SignUpWithEmail(sl()))
       ..registerFactory(() => SignInWithProvider(sl()))
@@ -45,6 +46,7 @@ class AuthModule implements FeatureModule {
           signUpWithEmail: sl(),
           signInWithProvider: sl(),
           sendPasswordReset: sl(),
+          getCurrentUser: sl(),
         ),
       );
   }

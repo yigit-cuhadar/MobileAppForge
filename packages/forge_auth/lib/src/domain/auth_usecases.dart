@@ -13,6 +13,13 @@ class WatchAuthUser {
   Stream<AuthUser?> call() => _repository.watchUser();
 }
 
+class GetCurrentUser {
+  const GetCurrentUser(this._repository);
+  final AuthRepository _repository;
+
+  AuthUser? call() => _repository.currentUser;
+}
+
 class SignInAnonymously implements UseCase<AuthUser, NoParams> {
   const SignInAnonymously(this._repository);
   final AuthRepository _repository;

@@ -18,10 +18,6 @@ final class NetworkFailure extends Failure {
 final class AuthFailure extends Failure {
   const AuthFailure(super.message, {this.code = 'unknown', super.cause});
 
-  /// The account being linked already exists; the caller may sign in to it
-  /// instead, which replaces the current (guest) session.
-  static const accountExists = 'account-exists';
-
   /// Provider error code, e.g. `wrong-password`, `email-already-in-use`.
   final String code;
 }

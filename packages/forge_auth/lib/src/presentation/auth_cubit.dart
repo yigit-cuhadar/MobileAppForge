@@ -50,6 +50,14 @@ class AuthCubit extends Cubit<AuthState> {
   final SignInAnonymously? _signInAnonymously;
   late final StreamSubscription<AuthUser?> _subscription;
 
+  /// Tries the guest sign-in again after it failed ([Unauthenticated]).
+  /// Does nothing without guest start.
+  Future<void> retryGuestSignIn() async {
+    if (_signInAnonymously == null || state is! Unauthenticated) return;
+    emit(const AuthUnknown());
+    await _onUser(null);
+  }
+
   Future<void> _onUser(AuthUser? user) async {
     if (user != null) return emit(Authenticated(user));
     final signInAnonymously = _signInAnonymously;

@@ -80,6 +80,41 @@ void main() {
       verify: (_) => verifyNever(() => repository.signInAnonymously()),
     );
 
+    blocTest<AuthCubit, AuthState>(
+      'retryGuestSignIn tries again after a failure',
+      setUp: () {
+        var attempts = 0;
+        when(() => repository.signInAnonymously()).thenAnswer((_) async {
+          if (++attempts == 1) return const Err(NetworkFailure());
+          users.add(guest);
+          return const Ok(guest);
+        });
+      },
+      build: () => build(guestStart: true),
+      act: (cubit) async {
+        users.add(null);
+        await Future<void>.delayed(Duration.zero);
+        await cubit.retryGuestSignIn();
+      },
+      expect: () => const [
+        Unauthenticated(),
+        AuthUnknown(),
+        Authenticated(guest),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'retryGuestSignIn does nothing without guest start',
+      build: build,
+      act: (cubit) async {
+        users.add(null);
+        await Future<void>.delayed(Duration.zero);
+        await cubit.retryGuestSignIn();
+      },
+      expect: () => const [Unauthenticated()],
+      verify: (_) => verifyNever(() => repository.signInAnonymously()),
+    );
+
     test('signOut delegates to the repository', () async {
       when(() => repository.signOut()).thenAnswer((_) async => const Ok(null));
       expect((await build().signOut()).isOk, isTrue);
@@ -93,6 +128,7 @@ void main() {
       signUpWithEmail: SignUpWithEmail(repository),
       signInWithProvider: SignInWithProvider(repository),
       sendPasswordReset: SendPasswordReset(repository),
+      getCurrentUser: GetCurrentUser(repository),
     );
 
     blocTest<AuthFormCubit, AuthFormState>(
@@ -157,34 +193,127 @@ void main() {
     );
   });
 
-  group('AuthFormCubit replaceGuest', () {
+  group('AuthFormCubit with a guest', () {
+    const guest = AuthUser(id: 'g1', isAnonymous: true);
+    const accountExists = AuthFailure('x', code: accountExistsCode);
+
     AuthFormCubit build() => AuthFormCubit(
       signInWithEmail: SignInWithEmail(repository),
       signUpWithEmail: SignUpWithEmail(repository),
       signInWithProvider: SignInWithProvider(repository),
       sendPasswordReset: SendPasswordReset(repository),
+      getCurrentUser: GetCurrentUser(repository),
     );
 
-    for (final replaceGuest in [false, true]) {
-      blocTest<AuthFormCubit, AuthFormState>(
-        'signInWith passes replaceGuest: $replaceGuest',
-        setUp: () => when(
+    void stubProvider({
+      required bool replaceGuest,
+      required Result<AuthUser> result,
+    }) => when(
+      () => repository.signInWithProvider(
+        SocialProvider.apple,
+        replaceGuest: replaceGuest,
+      ),
+    ).thenAnswer((_) async => result);
+
+    setUp(() {
+      when(() => repository.currentUser).thenReturn(guest);
+      when(() => repository.signInWithEmail(any(), any()))
+          .thenAnswer((_) async => const Ok(user));
+    });
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'signIn asks first and signs in only after confirm',
+      build: build,
+      act: (cubit) async {
+        await cubit.signIn('a@b.co', 'secret1');
+        verifyNever(() => repository.signInWithEmail(any(), any()));
+        await cubit.confirmReplaceGuest();
+      },
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.confirmReplaceGuest),
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(),
+      ],
+      verify: (_) =>
+          verify(() => repository.signInWithEmail('a@b.co', 'secret1'))
+              .called(1),
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'cancel returns to idle without signing in',
+      build: build,
+      act: (cubit) async {
+        await cubit.signIn('a@b.co', 'secret1');
+        cubit.cancelReplaceGuest();
+        await cubit.confirmReplaceGuest();
+      },
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.confirmReplaceGuest),
+        AuthFormState(),
+      ],
+      verify: (_) =>
+          verifyNever(() => repository.signInWithEmail(any(), any())),
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'a signed-in user is not asked',
+      setUp: () => when(() => repository.currentUser).thenReturn(user),
+      build: build,
+      act: (cubit) => cubit.signIn('a@b.co', 'secret1'),
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(),
+      ],
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'provider account-exists asks, then retries with replaceGuest',
+      setUp: () {
+        stubProvider(replaceGuest: false, result: const Err(accountExists));
+        stubProvider(replaceGuest: true, result: const Ok(user));
+      },
+      build: build,
+      act: (cubit) async {
+        await cubit.signInWith(SocialProvider.apple);
+        verifyNever(
           () => repository.signInWithProvider(
             SocialProvider.apple,
-            replaceGuest: any(named: 'replaceGuest'),
+            replaceGuest: true,
           ),
-        ).thenAnswer((_) async => const Ok(user)),
-        build: build,
-        act: (cubit) =>
-            cubit.signInWith(SocialProvider.apple, replaceGuest: replaceGuest),
-        verify: (_) => verify(
-          () => repository.signInWithProvider(
-            SocialProvider.apple,
-            replaceGuest: replaceGuest,
-          ),
-        ).called(1),
-      );
-    }
+        );
+        await cubit.confirmReplaceGuest();
+      },
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(status: AuthFormStatus.confirmReplaceGuest),
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(),
+      ],
+      verify: (_) => verify(
+        () => repository.signInWithProvider(
+          SocialProvider.apple,
+          replaceGuest: true,
+        ),
+      ).called(1),
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'other provider failures surface as failure',
+      setUp: () => stubProvider(
+        replaceGuest: false,
+        result: const Err(NetworkFailure()),
+      ),
+      build: build,
+      act: (cubit) => cubit.signInWith(SocialProvider.apple),
+      expect: () => [
+        const AuthFormState(status: AuthFormStatus.loading),
+        isA<AuthFormState>().having(
+          (s) => s.status,
+          'status',
+          AuthFormStatus.failure,
+        ),
+      ],
+    );
   });
 
   test('default error text distinguishes common auth codes', () {
