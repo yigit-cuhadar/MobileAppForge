@@ -16,10 +16,16 @@ bundle="$(sed -n 's/.*applicationId = "\(.*\)".*/\1/p' android/app/build.gradle.
 # (google-services.json, GoogleService-Info.plist) must point at prod.
 for env in dev prod; do
   project="$base-$env"
-  firebase projects:list 2>/dev/null | grep -q " $project " ||
-    firebase projects:create "$project" --display-name "$name $env"
-  flutterfire configure --yes --project "$project" --platforms ios,android \
-    --ios-bundle-id "$bundle" --android-package-name "$bundle" \
-    --out "lib/firebase_options_$env.dart"
+  # Ask for the project directly: a new one takes minutes to show in the list.
+  firebase apps:list --project "$project" >/dev/null 2>&1 ||
+    firebase projects:create "$project" --display-name "${name//_/-} $env"
+  # flutterfire looks the project up in the list, which lags; retry.
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    flutterfire configure --yes --project "$project" --platforms ios,android \
+      --ios-bundle-id "$bundle" --android-package-name "$bundle" \
+      --out "lib/firebase_options_$env.dart" && break
+    [ "$attempt" = 10 ] && { echo "flutterfire configure failed for $project" >&2; exit 1; }
+    sleep 20
+  done
 done
 echo "Firebase ready: $base-dev, $base-prod"

@@ -6,9 +6,15 @@
    user first; it creates a private GitHub repo.
 2. `tools/firebase_setup.sh <name> <project-id-base>` — creates `<base>-dev`
    and `<base>-prod`. Confirm the id base first; project ids are permanent.
-3. Enable what the spec needs in both projects through the Firebase CLI or
-   REST APIs: Firestore database (ask for the region once), the chosen Auth
-   providers. Deploy `firestore.rules`.
+3. Enable what the spec needs in both projects:
+   - Firestore: `gcloud services enable firestore.googleapis.com --project <id>
+     --account <firebase login account>`, then `firebase firestore:databases:create
+     "(default)" --location <region> --project <id>` (ask for the region once;
+     retry if the API is still propagating).
+   - Auth and rules: add `"firestore": {"rules": "firestore.rules"}` and
+     `"auth": {"providers": {...}}` to `firebase.json`, then
+     `firebase deploy --only auth,firestore:rules --project <id>`. Do not use
+     the Identity Platform REST API; it requires billing.
 4. If the spec has no accounts, remove `forge_auth` from `pubspec.yaml`,
    `bootstrap.dart` and `router.dart`.
 5. `flutter run -t lib/main_dev.dart` on the iOS simulator; confirm sign-up
