@@ -142,16 +142,22 @@ abstract interface class Notifications {
   });
 
   /// Makes the pending notifications with ids [baseId] to
-  /// `baseId + count - 1` exactly [wanted]: schedules what is missing or
-  /// differs (as [scheduleAt]), cancels the other pending ones of the range,
-  /// and leaves equal ones alone. Notifications already on screen stay.
+  /// `baseId + count - 1` exactly [wanted]: cancels the other pending ones
+  /// of the range and those that differ, then schedules what is missing or
+  /// differs (as [scheduleAt]), earliest first, and leaves equal ones alone.
+  /// Notifications already on screen stay. Calls run one after another.
   ///
-  /// [wanted] needs distinct ids inside the range, else nothing changes and
-  /// it fails with a [ValidationFailure]; so does going past the iOS limit.
-  /// Every change is tried; if any fails, the last failure is returned.
+  /// An empty or 32-bit-overflowing range, or [wanted] ids that repeat or
+  /// lie outside it, fail with a [ValidationFailure] and change nothing.
+  /// Otherwise every change is tried and, if any fails, the last failure is
+  /// returned: a notification in the past is not scheduled (its pending
+  /// predecessor is still cancelled), and on iOS those that would take the
+  /// pending ones past [iosPendingLimit] are left out, latest first.
   ///
-  /// Equal ones are recognised by a signature of time, text and payload that
-  /// is appended to the stored payload; taps and [pending] never see it.
+  /// Equal ones are recognised by a signature of time, alarm mode (exact or
+  /// not), text and payload, appended to the stored payload; taps and
+  /// [pending] never see it. Re-applying after the exact-alarm permission
+  /// changes therefore reschedules them.
   Future<Result<void>> sync(
     int baseId, {
     required int count,

@@ -28,11 +28,12 @@ typedef Occurrence = ({int id, TZDateTime at});
 /// What a series schedules: one native weekly repeat, or one-offs.
 typedef SeriesPlan = ({bool weekly, List<Occurrence> occurrences});
 
-/// Throws a [ValidationFailure] unless every id of the series at [baseId]
-/// fits the platforms' 32-bit ids.
-void checkSeriesBase(int baseId) {
-  if (baseId < -0x80000000 || baseId + seriesLength - 1 > 0x7FFFFFFF) {
-    throw ValidationFailure('Series ids from $baseId exceed 32 bits');
+/// Throws a [ValidationFailure] unless the [count] ids from [baseId] are at
+/// least one and fit the platforms' 32-bit ids.
+void checkIdRange(int baseId, int count) {
+  if (count < 1) throw ValidationFailure('$count ids from $baseId');
+  if (baseId < -0x80000000 || baseId + count - 1 > 0x7FFFFFFF) {
+    throw ValidationFailure('$count ids from $baseId exceed 32 bits');
   }
 }
 
@@ -76,17 +77,20 @@ const _signatureSeparator = '\u001F';
 final _signatureSuffix = RegExp('$_signatureSeparator[0-9a-f]{8}\$');
 
 /// [payload] followed by a signature of the notification it belongs to, so
-/// an equal pending one is recognised.
+/// an equal pending one is recognised. [exact] is whether its alarm is
+/// exact, so a newly granted exact-alarm permission changes it.
 String signPayload(
   String? payload, {
   required DateTime at,
   required String title,
   required String body,
+  required bool exact,
 }) {
   // 32-bit FNV-1a: stable across runs, unlike String.hashCode.
   var hash = 0x811c9dc5;
   for (final unit
-      in '${at.millisecondsSinceEpoch}\n$title\n$body\n$payload'.codeUnits) {
+      in '${at.millisecondsSinceEpoch}\n$exact\n$title\n$body\n$payload'
+          .codeUnits) {
     hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
   }
   final signature = hash.toRadixString(16).padLeft(8, '0');

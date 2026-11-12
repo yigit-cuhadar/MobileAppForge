@@ -249,16 +249,11 @@ void main() {
     });
   });
 
-  test('a series base must leave room for its ids in 32 bits', () {
-    expect(
-      () => checkSeriesBase(0x7FFFFFFF - seriesLength + 1),
-      returnsNormally,
-    );
-    expect(
-      () => checkSeriesBase(0x7FFFFFFF - seriesLength + 2),
-      throwsValidation,
-    );
-    expect(() => checkSeriesBase(-0x80000001), throwsValidation);
+  test('an id range is not empty and fits 32 bits', () {
+    expect(() => checkIdRange(0x7FFFFFFF - 11, 12), returnsNormally);
+    expect(() => checkIdRange(0x7FFFFFFF - 10, 12), throwsValidation);
+    expect(() => checkIdRange(-0x80000001, 1), throwsValidation);
+    expect(() => checkIdRange(100, 0), throwsValidation);
   });
 
   test('checkFuture rejects now and the past', () {
@@ -285,11 +280,22 @@ void main() {
 
   group('payload signatures', () {
     final at = DateTime.utc(2026, 11, 13, 7);
-    String sign(String? payload, {DateTime? when, String body = 'B'}) =>
-        signPayload(payload, at: when ?? at, title: 'T', body: body);
+    String sign(
+      String? payload, {
+      DateTime? when,
+      String body = 'B',
+      bool exact = true,
+    }) => signPayload(
+      payload,
+      at: when ?? at,
+      title: 'T',
+      body: body,
+      exact: exact,
+    );
 
-    test('are stable and change with time, text and payload', () {
+    test('are stable and change with time, mode, text and payload', () {
       expect(sign('p'), sign('p'));
+      expect(sign('p'), isNot(sign('p', exact: false)));
       expect(sign('p'), isNot(sign('q')));
       expect(sign('p'), isNot(sign('p', body: 'C')));
       expect(
