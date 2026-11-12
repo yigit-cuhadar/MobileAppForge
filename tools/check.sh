@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../packages"
 
-for pkg in "${@:-forge_core forge_ui forge_firebase forge_auth forge_model_viewer forge_notifications forge_purchases}"; do
+for pkg in "${@:-forge_core forge_ui forge_firebase forge_auth forge_model_viewer forge_notifications forge_purchases forge_health}"; do
   for p in $pkg; do
     echo "== $p"
     (
