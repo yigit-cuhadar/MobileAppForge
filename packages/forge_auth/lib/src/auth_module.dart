@@ -32,6 +32,7 @@ class AuthModule implements FeatureModule {
       ..registerFactory(() => SendPasswordReset(sl()))
       ..registerFactory(() => SignOut(sl()))
       ..registerFactory(() => DeleteAccount(sl()))
+      ..registerFactory(() => Reauthenticate(sl()))
       ..registerLazySingleton(
         () => AuthCubit(
           watchAuthUser: sl(),

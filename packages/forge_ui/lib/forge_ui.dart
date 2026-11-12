@@ -4,6 +4,7 @@ library;
 
 export 'src/spacing.dart';
 export 'src/theme.dart';
+export 'src/widgets/before_after_slider.dart' show BeforeAfterSlider;
 export 'src/widgets/forge_button.dart';
 export 'src/widgets/forge_text_field.dart';
 export 'src/widgets/state_views.dart';

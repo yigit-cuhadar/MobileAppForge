@@ -173,4 +173,40 @@ void main() {
     when(() => auth.currentUser).thenReturn(user);
     expect(repository.currentUser, const AuthUser(id: 'u1', email: 'a@b.co'));
   });
+
+  group('reauthenticate', () {
+    setUp(() {
+      when(() => auth.currentUser).thenReturn(user);
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
+    });
+
+    test('signs in again with the email and password', () async {
+      expect((await repository.reauthenticate('secret')).isOk, isTrue);
+      final credential =
+          verify(() => user.reauthenticateWithCredential(captureAny()))
+                  .captured
+                  .single
+              as AuthCredential;
+      expect(credential.providerId, 'password');
+    });
+
+    test('fails without an email user', () async {
+      when(() => user.email).thenReturn(null);
+      expect(
+        (await repository.reauthenticate('secret')).failureOrNull,
+        isA<AuthFailure>(),
+      );
+      verifyNever(() => user.reauthenticateWithCredential(any()));
+    });
+
+    test('a wrong password is an auth failure', () async {
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenThrow(FirebaseAuthException(code: 'invalid-credential'));
+      expect(
+        (await repository.reauthenticate('nope')).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'invalid-credential'),
+      );
+    });
+  });
 }

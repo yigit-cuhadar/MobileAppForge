@@ -88,6 +88,18 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<Result<void>> deleteAccount() =>
       guard(() async => _auth.currentUser?.delete(), mapper: mapFirebaseError);
 
+  @override
+  Future<Result<void>> reauthenticate(String password) => guard(() async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) {
+      throw const AuthFailure('no email user signed in');
+    }
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: password),
+    );
+  }, mapper: mapFirebaseError);
+
   User? get _guest {
     final user = _auth.currentUser;
     return user != null && user.isAnonymous ? user : null;

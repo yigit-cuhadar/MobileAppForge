@@ -35,6 +35,10 @@ abstract interface class AuthRepository {
   Future<Result<void>> signOut();
 
   /// Fails with [AuthFailure] code `requires-recent-login` when the session
-  /// is too old; the user must sign in again first.
+  /// is too old; the user must sign in again first ([reauthenticate]).
   Future<Result<void>> deleteAccount();
+
+  /// Signs the email user in again with [password], so the sign-in is
+  /// recent. Fails with [AuthFailure] when no email user is signed in.
+  Future<Result<void>> reauthenticate(String password);
 }
