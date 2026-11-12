@@ -3,10 +3,9 @@ import 'dart:io';
 
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 
-/// Firebase Analytics and Crashlytics, collecting only where [allowed] and
+/// Firebase Analytics and Crashlytics, collecting only where allowed and
 /// only for a user who said yes.
 ///
 /// Each user's last answer is a file of their own in [_directory], so
@@ -20,13 +19,13 @@ import 'package:forge_core/forge_core.dart';
 /// it was overtaken.
 class FirebaseTelemetry implements Telemetry {
   FirebaseTelemetry({
-    required this.allowed,
+    required this._allowed,
     required this._directory,
     required this._analytics,
     required this._crashlytics,
   });
 
-  final bool allowed;
+  final bool _allowed;
   final Future<Directory> Function() _directory;
   final FirebaseAnalytics _analytics;
   final FirebaseCrashlytics _crashlytics;
@@ -39,21 +38,17 @@ class FirebaseTelemetry implements Telemetry {
   /// Applies the answer [uid] (whoever is signed in at launch) last gave on
   /// this device: collection is off for nobody or a user never asked here.
   /// Call once, from the app's main entry point; a background entry point
-  /// leaves collection to the app.
+  /// leaves collection to the app. Never fails: on an error collection is
+  /// left off.
   Future<void> restore(String? uid) async {
     _uid = uid;
-    final consent = uid == null ? null : await _saved(uid);
-    await _setCollection(consent == true);
-  }
-
-  /// Completes once every change asked for so far has run.
-  @visibleForTesting
-  Future<void> get settled async {
-    Future<void> tail;
-    do {
-      tail = _tail;
-      await tail;
-    } while (!identical(tail, _tail));
+    try {
+      final consent = uid == null ? null : await _saved(uid);
+      await _setCollection(consent == true);
+    } catch (error, stack) {
+      Log.e('FirebaseTelemetry', 'consent not restored', error, stack);
+      await guard(() => _setCollection(false));
+    }
   }
 
   @override
@@ -106,7 +101,7 @@ class FirebaseTelemetry implements Telemetry {
   }
 
   Future<void> _setCollection(bool consent) async {
-    final collect = allowed && consent;
+    final collect = _allowed && consent;
     await _crashlytics.setCrashlyticsCollectionEnabled(collect);
     await _analytics.setAnalyticsCollectionEnabled(collect);
   }

@@ -92,8 +92,16 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<Result<void>> reauthenticate(String password) => guard(() async {
     final user = _auth.currentUser;
     final email = user?.email;
-    if (user == null || email == null) {
-      throw const AuthFailure('no email user signed in');
+    final hasPassword =
+        user?.providerData.any(
+          (info) => info.providerId == EmailAuthProvider.PROVIDER_ID,
+        ) ??
+        false;
+    if (user == null || email == null || !hasPassword) {
+      throw const AuthFailure(
+        'no email and password sign-in',
+        code: noPasswordCode,
+      );
     }
     await user.reauthenticateWithCredential(
       EmailAuthProvider.credential(email: email, password: password),

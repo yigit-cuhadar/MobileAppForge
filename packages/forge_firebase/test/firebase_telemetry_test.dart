@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forge_core/forge_core.dart';
 import 'package:forge_firebase/forge_firebase.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -68,6 +69,27 @@ void main() {
       expect(collecting, isFalse);
       await telemetry().restore(null);
       expect(collecting, isFalse);
+    });
+
+    test('a failure is logged, never thrown, and leaves collection '
+        'off', () async {
+      await answered('u1', true);
+      bool? crashlyticsOn;
+      when(() => crashlytics.setCrashlyticsCollectionEnabled(any())).thenAnswer(
+        (call) async => crashlyticsOn = call.positionalArguments.first as bool,
+      );
+      when(() => analytics.setAnalyticsCollectionEnabled(true))
+          .thenThrow(Exception('no plugin'));
+      final logged = <Object>[];
+      final logError = Log.onError;
+      Log.onError = (error, _, _) => logged.add(error);
+      addTearDown(() => Log.onError = logError);
+
+      await telemetry().restore('u1');
+
+      expect(crashlyticsOn, isFalse);
+      expect(collecting, isFalse);
+      expect(logged, isNotEmpty);
     });
   });
 

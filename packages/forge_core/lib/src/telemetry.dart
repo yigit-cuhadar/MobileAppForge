@@ -2,7 +2,8 @@ import 'result.dart';
 
 /// Analytics and crash reporting on this device. Collection is per user,
 /// never per device: it follows one user's own answer, and is off while
-/// that is unknown.
+/// that is unknown. A uid is whatever identifies who answered: the signed-in
+/// user's id, or one fixed key in an app without accounts.
 abstract interface class Telemetry {
   /// From now on collection follows [uid] (null: nobody). Another user than
   /// before turns it off until [apply] gives their answer.

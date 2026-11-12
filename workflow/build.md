@@ -16,7 +16,10 @@
      `firebase deploy --only auth,firestore:rules --project <id>`. Do not use
      the Identity Platform REST API; it requires billing.
 4. If the spec has no accounts, remove `forge_auth` from `pubspec.yaml`,
-   `bootstrap.dart` and `router.dart`.
+   `bootstrap.dart` and `router.dart`. Either way Analytics and Crashlytics
+   collect nothing until the app applies an answer through the `Telemetry`
+   that `initFirebase` returns (keyed by user id, or one fixed key without
+   accounts).
 5. `flutter run` on the iOS simulator; confirm sign-up
    works end to end. Commit, push, tick nothing yet.
 

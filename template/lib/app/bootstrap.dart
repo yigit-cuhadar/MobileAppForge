@@ -10,7 +10,7 @@ import 'app.dart';
 Future<void> bootstrap(AppEnv env, FirebaseOptions options) async {
   WidgetsFlutterBinding.ensureInitialized();
   final telemetry = await initFirebase(options: options, env: env);
-  // No user is asked for consent yet, so nothing is collected.
+  // Collection stays off until the app applies an answer through telemetry.
   await telemetry.restore(null);
   sl.registerSingleton<AppEnv>(env);
   registerModules(const [AuthModule()]);

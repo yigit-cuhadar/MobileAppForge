@@ -16,6 +16,8 @@ class FakeAuthCredential extends Fake implements AuthCredential {}
 
 class FakeAuthProvider extends Fake implements AuthProvider {}
 
+class MockUserInfo extends Mock implements UserInfo {}
+
 void main() {
   late MockFirebaseAuth auth;
   late MockUser user;
@@ -175,8 +177,16 @@ void main() {
   });
 
   group('reauthenticate', () {
+    UserInfo provider(String id) {
+      final info = MockUserInfo();
+      when(() => info.providerId).thenReturn(id);
+      return info;
+    }
+
     setUp(() {
       when(() => auth.currentUser).thenReturn(user);
+      final providers = [provider('google.com'), provider('password')];
+      when(() => user.providerData).thenReturn(providers);
       when(() => user.reauthenticateWithCredential(any()))
           .thenAnswer((_) async => credentialFor(user));
     });
@@ -187,17 +197,28 @@ void main() {
           verify(() => user.reauthenticateWithCredential(captureAny()))
                   .captured
                   .single
-              as AuthCredential;
-      expect(credential.providerId, 'password');
+              as EmailAuthCredential;
+      expect(credential.email, 'a@b.co');
+      expect(credential.password, 'secret');
     });
 
-    test('fails without an email user', () async {
-      when(() => user.email).thenReturn(null);
+    Future<void> expectNoPassword() async {
       expect(
         (await repository.reauthenticate('secret')).failureOrNull,
-        isA<AuthFailure>(),
+        isA<AuthFailure>().having((f) => f.code, 'code', noPasswordCode),
       );
       verifyNever(() => user.reauthenticateWithCredential(any()));
+    }
+
+    test('fails with nobody signed in', () async {
+      when(() => auth.currentUser).thenReturn(null);
+      await expectNoPassword();
+    });
+
+    test('fails for a user who signs in with a provider only', () async {
+      final providers = [provider('apple.com')];
+      when(() => user.providerData).thenReturn(providers);
+      await expectNoPassword();
     });
 
     test('a wrong password is an auth failure', () async {
