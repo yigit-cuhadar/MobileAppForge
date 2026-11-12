@@ -188,6 +188,18 @@ void main() {
       expect(created.last['enableVibration'], isFalse);
     });
 
+    test('a failed channel creation is logged, not a failed init', () async {
+      native.failing = 'createNotificationChannel';
+      native.launch = launchedBy('workout/1');
+
+      final result = await init();
+      final shown = await notifications.show(1, title: 'T', body: 'B');
+
+      expect(result.isOk, isTrue);
+      expect(shown.isOk, isTrue);
+      expect(taps, ['workout/1']);
+    });
+
     test('creates no channel on iOS', () async {
       usePlatform(TargetPlatform.iOS);
 

@@ -76,7 +76,13 @@ class LocalNotifications implements Notifications {
           onDidReceiveNotificationResponse: (response) =>
               tap(_payload(response.payload)),
         );
-        await _createChannels();
+        // Without its channel a notification still shows (the plugin creates
+        // it when posting), so a failure here must not fail init.
+        try {
+          await _createChannels();
+        } catch (error, stack) {
+          Log.e('notifications', 'channels not created', error, stack);
+        }
         _ready = true;
         if (!_launchReported) {
           _launchReported = true;
