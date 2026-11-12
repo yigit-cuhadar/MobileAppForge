@@ -39,6 +39,26 @@ final class PendingNotification extends Equatable {
   List<Object?> get props => [id, payload];
 }
 
+/// A notification shown once at [at], as `Notifications.sync` wants it.
+final class OneOffNotification extends Equatable {
+  const OneOffNotification(
+    this.id,
+    this.at, {
+    required this.title,
+    required this.body,
+    this.payload,
+  });
+
+  final int id;
+  final DateTime at;
+  final String title;
+  final String body;
+  final String? payload;
+
+  @override
+  List<Object?> get props => [id, at, title, body, payload];
+}
+
 /// The device time zone that wall-clock schedules follow.
 final class LocalTimeZone extends Equatable {
   const LocalTimeZone(this.id, {required this.known, required this.changed});
@@ -100,6 +120,10 @@ abstract interface class Notifications {
   /// granted. Always true on iOS. See [canScheduleExact].
   Future<Result<bool>> requestExact();
 
+  /// Opens the system settings of the app's notifications; fails when the
+  /// platform could not open them.
+  Future<Result<void>> openSettings();
+
   Future<Result<void>> show(
     int id, {
     required String title,
@@ -115,6 +139,23 @@ abstract interface class Notifications {
     required String title,
     required String body,
     String? payload,
+  });
+
+  /// Makes the pending notifications with ids [baseId] to
+  /// `baseId + count - 1` exactly [wanted]: schedules what is missing or
+  /// differs (as [scheduleAt]), cancels the other pending ones of the range,
+  /// and leaves equal ones alone. Notifications already on screen stay.
+  ///
+  /// [wanted] needs distinct ids inside the range, else nothing changes and
+  /// it fails with a [ValidationFailure]; so does going past the iOS limit.
+  /// Every change is tried; if any fails, the last failure is returned.
+  ///
+  /// Equal ones are recognised by a signature of time, text and payload that
+  /// is appended to the stored payload; taps and [pending] never see it.
+  Future<Result<void>> sync(
+    int baseId, {
+    required int count,
+    required List<OneOffNotification> wanted,
   });
 
   /// Shows once after [delay], which must be positive.

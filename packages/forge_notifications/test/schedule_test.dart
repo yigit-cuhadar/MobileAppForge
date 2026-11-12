@@ -283,6 +283,29 @@ void main() {
     expect(() => checkBudget(pending, {0}, 2, 64), returnsNormally);
   });
 
+  group('payload signatures', () {
+    final at = DateTime.utc(2026, 11, 13, 7);
+    String sign(String? payload, {DateTime? when, String body = 'B'}) =>
+        signPayload(payload, at: when ?? at, title: 'T', body: body);
+
+    test('are stable and change with time, text and payload', () {
+      expect(sign('p'), sign('p'));
+      expect(sign('p'), isNot(sign('q')));
+      expect(sign('p'), isNot(sign('p', body: 'C')));
+      expect(
+        sign('p'),
+        isNot(sign('p', when: at.add(const Duration(seconds: 1)))),
+      );
+    });
+
+    test('come off again, and only a signature does', () {
+      expect(unsignPayload(sign('reminder:workout')), 'reminder:workout');
+      expect(unsignPayload(sign(null)), '');
+      expect(unsignPayload('plain'), 'plain');
+      expect(unsignPayload('a\u001Fnot-hex!'), 'a\u001Fnot-hex!');
+    });
+  });
+
   test('ceilToSecond rounds sub-seconds up', () {
     final whole = TZDateTime(istanbul, 2026, 11, 11, 10, 0, 5);
 

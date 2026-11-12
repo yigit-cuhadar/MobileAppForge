@@ -70,6 +70,33 @@ TZDateTime ceilToSecond(TZDateTime time) {
         );
 }
 
+/// Separates a payload from the signature `Notifications.sync` appends. A
+/// control character, which app payloads do not hold.
+const _signatureSeparator = '\u001F';
+final _signatureSuffix = RegExp('$_signatureSeparator[0-9a-f]{8}\$');
+
+/// [payload] followed by a signature of the notification it belongs to, so
+/// an equal pending one is recognised.
+String signPayload(
+  String? payload, {
+  required DateTime at,
+  required String title,
+  required String body,
+}) {
+  // 32-bit FNV-1a: stable across runs, unlike String.hashCode.
+  var hash = 0x811c9dc5;
+  for (final unit
+      in '${at.millisecondsSinceEpoch}\n$title\n$body\n$payload'.codeUnits) {
+    hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
+  }
+  final signature = hash.toRadixString(16).padLeft(8, '0');
+  return '${payload ?? ''}$_signatureSeparator$signature';
+}
+
+/// [payload] without the signature [signPayload] added, if any.
+String unsignPayload(String payload) =>
+    payload.replaceFirst(_signatureSuffix, '');
+
 /// The ids a series at [baseId] owns.
 Iterable<int> seriesIds(int baseId) =>
     Iterable.generate(seriesLength, (i) => baseId + i);

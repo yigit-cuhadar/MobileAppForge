@@ -135,6 +135,16 @@ class LocalNotifications implements Notifications {
   });
 
   @override
+  Future<Result<void>> openSettings() => _run(() async {
+    final opened =
+        await (_android?.openAppNotificationSettings() ??
+            _requireIos().openAppNotificationSettings());
+    if (opened != true) {
+      throw const UnknownFailure('Notification settings did not open');
+    }
+  });
+
+  @override
   Future<Result<void>> show(
     int id, {
     required String title,
@@ -162,6 +172,72 @@ class LocalNotifications implements Notifications {
     checkFuture(at, _now);
     await _checkBudget({id}, 1);
     await _schedule(id, at, title, body, payload, await _scheduleMode());
+  });
+
+  @override
+  Future<Result<void>> sync(
+    int baseId, {
+    required int count,
+    required List<OneOffNotification> wanted,
+  }) => _run(() async {
+    bool owned(int id) => id >= baseId && id < baseId + count;
+    final wantedIds = {for (final notification in wanted) notification.id};
+    if (wantedIds.length < wanted.length || !wantedIds.every(owned)) {
+      throw ValidationFailure(
+        'Synced notifications need distinct ids in $baseId to '
+        '${baseId + count - 1}',
+      );
+    }
+    final requests = await _plugin.pendingNotificationRequests();
+    final have = {
+      for (final request in requests)
+        if (owned(request.id)) request.id: request.payload,
+    };
+    if (_android == null) {
+      checkBudget(
+        [for (final request in requests) request.id],
+        have.keys.toSet(),
+        wanted.length,
+        iosPendingLimit,
+      );
+    }
+    final mode = await _scheduleMode();
+    (Object, StackTrace)? last;
+    Future<void> attempt(Future<void> Function() change) async {
+      try {
+        await change();
+      } catch (error, stack) {
+        last = (error, stack);
+      }
+    }
+
+    for (final id in have.keys) {
+      if (!wantedIds.contains(id)) await attempt(() => _plugin.cancel(id: id));
+    }
+    for (final notification in wanted) {
+      final at = ceilToSecond(tz.TZDateTime.from(notification.at, tz.local));
+      final payload = signPayload(
+        notification.payload,
+        at: at,
+        title: notification.title,
+        body: notification.body,
+      );
+      if (have[notification.id] == payload) continue;
+      await attempt(() async {
+        checkFuture(at, _now);
+        await _schedule(
+          notification.id,
+          at,
+          notification.title,
+          notification.body,
+          payload,
+          mode,
+        );
+      });
+    }
+    if (last case (final error, final stack)) {
+      Error.throwWithStackTrace(error, stack);
+    }
   });
 
   @override
@@ -407,9 +483,12 @@ class LocalNotifications implements Notifications {
       ? NotificationPermission.granted
       : NotificationPermission.denied;
 
-  /// The plugin turns a null payload into ''.
-  static String? _payload(String? payload) =>
-      payload == null || payload.isEmpty ? null : payload;
+  /// The app's payload: without a `sync` signature, and null for '', which
+  /// the plugin turns a null payload into.
+  static String? _payload(String? payload) {
+    final unsigned = payload == null ? null : unsignPayload(payload);
+    return unsigned == null || unsigned.isEmpty ? null : unsigned;
+  }
 
   static Failure _incomplete(Object error, int baseId, List<int> scheduled) {
     final failure = error is Failure
