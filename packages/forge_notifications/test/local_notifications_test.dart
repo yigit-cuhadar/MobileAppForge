@@ -505,6 +505,76 @@ void main() {
     });
   });
 
+  group('countdown', () {
+    const countdownChannel = NotificationChannel(
+      id: 'timer',
+      name: 'Timer',
+      description: 'The running timer',
+      importance: Importance.defaultImportance,
+    );
+    final endsAt = now.add(const Duration(seconds: 90));
+
+    Future<Result<void>> showCountdown(DateTime endsAt) => at(
+      () => notifications.showCountdown(
+        2,
+        endsAt: endsAt,
+        title: 'Rest',
+        body: 'Next: squat',
+        channel: countdownChannel,
+      ),
+    );
+
+    test(
+      'posts a silent ongoing chronometer that times out at the end',
+      () async {
+        await init();
+
+        final result = await showCountdown(endsAt);
+
+        expect(result.isOk, isTrue);
+        final args = native.named('show').single.arguments as Map;
+        expect(
+          [args['id'], args['title'], args['body']],
+          [2, 'Rest', 'Next: squat'],
+        );
+        final details = args['platformSpecifics'] as Map;
+        expect(details['channelId'], 'timer');
+        expect(details['channelName'], 'Timer');
+        expect(details['importance'], Importance.defaultImportance.value);
+        expect(details['playSound'], isFalse);
+        expect(details['enableVibration'], isFalse);
+        expect(details['silent'], isTrue);
+        expect(details['onlyAlertOnce'], isTrue);
+        expect(details['ongoing'], isTrue);
+        expect(details['autoCancel'], isFalse);
+        expect(details['requestPromotedOngoing'], isTrue);
+        expect(details['when'], endsAt.millisecondsSinceEpoch);
+        expect(details['usesChronometer'], isTrue);
+        expect(details['chronometerCountDown'], isTrue);
+        expect(details['timeoutAfter'], 90000);
+      },
+    );
+
+    test('an end that is not in the future is a validation failure', () async {
+      await init();
+
+      final result = await showCountdown(now);
+
+      expect(result.failureOrNull, isA<ValidationFailure>());
+      expect(native.named('show'), isEmpty);
+    });
+
+    test('fails on iOS without posting anything', () async {
+      usePlatform(TargetPlatform.iOS);
+      await init();
+
+      final result = await showCountdown(endsAt);
+
+      expect(result.failureOrNull, isA<UnknownFailure>());
+      expect(native.named('show'), isEmpty);
+    });
+  });
+
   test('cancel, cancelEvery and cancelAll', () async {
     await init();
 

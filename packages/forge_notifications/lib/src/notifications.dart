@@ -1,6 +1,26 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    show Importance;
 import 'package:forge_core/forge_core.dart';
 
 import 'schedule.dart';
+
+/// An Android notification channel: the one every notification is posted
+/// to, or one of its own for a countdown (`Notifications.showCountdown`).
+final class NotificationChannel {
+  const NotificationChannel({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.importance,
+  });
+
+  final String id;
+
+  /// Shown to the user in the system notification settings.
+  final String name;
+  final String description;
+  final Importance importance;
+}
 
 /// Whether the app may show notifications.
 ///
@@ -129,6 +149,29 @@ abstract interface class Notifications {
     required String title,
     required String body,
     String? payload,
+  });
+
+  /// Android only (an [UnknownFailure] elsewhere; iOS shows countdowns as
+  /// Live Activities): shows, or replaces in place, an ongoing silent
+  /// notification [id] whose system chronometer counts down to [endsAt]
+  /// without the app running, and which the system removes at [endsAt].
+  /// [endsAt] must be in the future.
+  ///
+  /// It is posted to [channel], created without sound or vibration on first
+  /// use, so give it a channel of its own: Android fixes a channel's sound
+  /// when it is created. At [Importance.defaultImportance] it shows on the
+  /// lock screen; lower ones count as silent, which Android may hide there.
+  /// On Android 16 it asks to be promoted to a Live Update (status bar chip),
+  /// which needs `android.permission.POST_PROMOTED_NOTIFICATIONS` in the
+  /// app's manifest. From Android 14 the user can swipe it away while the
+  /// device is unlocked. It needs the notification permission like any
+  /// other notification.
+  Future<Result<void>> showCountdown(
+    int id, {
+    required DateTime endsAt,
+    required String title,
+    String? body,
+    required NotificationChannel channel,
   });
 
   /// Cancels the pending or shown notification [id].

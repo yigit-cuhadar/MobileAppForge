@@ -9,23 +9,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'notifications.dart';
 import 'schedule.dart';
 
-/// The Android notification channel every notification is posted to.
-final class NotificationChannel {
-  const NotificationChannel({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.importance,
-  });
-
-  final String id;
-
-  /// Shown to the user in the system notification settings.
-  final String name;
-  final String description;
-  final Importance importance;
-}
-
 /// [Notifications] over `flutter_local_notifications`.
 class LocalNotifications implements Notifications {
   /// [androidIcon] is the drawable resource name of the small icon, e.g.
@@ -249,6 +232,44 @@ class LocalNotifications implements Notifications {
     } catch (error) {
       throw _incomplete(error, baseId, scheduled);
     }
+  });
+
+  @override
+  Future<Result<void>> showCountdown(
+    int id, {
+    required DateTime endsAt,
+    required String title,
+    String? body,
+    required NotificationChannel channel,
+  }) => _run(() {
+    final android =
+        _android ??
+        (throw UnsupportedError('Countdown notifications run on Android only'));
+    final now = clock.now();
+    checkFuture(endsAt, now);
+    return android.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+        importance: channel.importance,
+        playSound: false,
+        enableVibration: false,
+        silent: true,
+        onlyAlertOnce: true,
+        ongoing: true,
+        autoCancel: false,
+        requestPromotedOngoing: true,
+        visibility: NotificationVisibility.public,
+        when: endsAt.millisecondsSinceEpoch,
+        usesChronometer: true,
+        chronometerCountDown: true,
+        timeoutAfter: endsAt.difference(now).inMilliseconds,
+      ),
+    );
   });
 
   @override

@@ -34,6 +34,10 @@
 ///   </application>
 /// </manifest>
 /// ```
+/// With `showCountdown`, also
+/// `<uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS"/>`
+/// (Android 16 Live Updates; not a runtime permission).
+///
 /// Android, the small icon: a white-on-transparent drawable at
 /// `res/drawable/<androidIcon>.png`, kept from resource shrinking by
 /// `res/raw/keep.xml`:
