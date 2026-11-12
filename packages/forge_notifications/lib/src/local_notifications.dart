@@ -13,8 +13,9 @@ import 'schedule.dart';
 class LocalNotifications implements Notifications {
   /// [androidIcon] is the drawable resource name of the small icon, e.g.
   /// `ic_notification` for `res/drawable/ic_notification.png`.
-  /// [countdownChannel] is needed for [showCountdown] only; Android fixes a
-  /// channel's sound when it is created, so it is a channel of its own.
+  /// [countdownChannel] is needed for [showCountdown] and the stopwatches
+  /// only; Android fixes a channel's sound when it is created, so it is a
+  /// channel of its own.
   LocalNotifications({
     required this.channel,
     this.countdownChannel,
@@ -371,39 +372,103 @@ class LocalNotifications implements Notifications {
     required DateTime endsAt,
     required String title,
     String? body,
+    String? payload,
   }) => _run(() {
-    final android =
-        _android ??
-        (throw UnsupportedError('Countdown notifications run on Android only'));
-    final channel =
-        countdownChannel ??
-        (throw StateError('showCountdown needs a countdownChannel'));
+    final android = _requireOngoing();
     final now = clock.now();
     checkFuture(endsAt, now);
     return android.show(
       id: id,
       title: title,
       body: body,
-      notificationDetails: AndroidNotificationDetails(
-        channel.id,
-        channel.name,
-        channelDescription: channel.description,
-        importance: channel.importance,
-        playSound: false,
-        enableVibration: false,
-        silent: true,
-        onlyAlertOnce: true,
-        ongoing: true,
-        autoCancel: false,
-        requestPromotedOngoing: true,
-        visibility: NotificationVisibility.public,
-        when: endsAt.millisecondsSinceEpoch,
-        usesChronometer: true,
-        chronometerCountDown: true,
-        timeoutAfter: endsAt.difference(now).inMilliseconds,
+      payload: payload,
+      notificationDetails: _ongoing(
+        endsAt,
+        countDown: true,
+        timeoutAfter: endsAt.difference(now),
       ),
     );
   });
+
+  @override
+  Future<Result<void>> showStopwatch(
+    int id, {
+    required DateTime since,
+    required String title,
+    String? body,
+    String? payload,
+  }) => _run(
+    () => _requireOngoing().show(
+      id: id,
+      title: title,
+      body: body,
+      payload: payload,
+      notificationDetails: _ongoing(since, countDown: false),
+    ),
+  );
+
+  @override
+  Future<Result<void>> scheduleStopwatch(
+    int id,
+    DateTime at, {
+    required DateTime since,
+    required String title,
+    String? body,
+    String? payload,
+  }) => _run(() async {
+    final android = _requireOngoing();
+    final when = ceilToSecond(tz.TZDateTime.from(at, tz.local));
+    checkFuture(when, _now);
+    await android.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: when,
+      payload: payload,
+      notificationDetails: _ongoing(since, countDown: false),
+      scheduleMode: await _scheduleMode(),
+    );
+  });
+
+  /// The Android plugin, with a countdown channel to post ongoing
+  /// notifications to.
+  AndroidFlutterLocalNotificationsPlugin _requireOngoing() {
+    final android =
+        _android ??
+        (throw UnsupportedError('Ongoing notifications run on Android only'));
+    if (countdownChannel == null) {
+      throw StateError('Ongoing notifications need a countdownChannel');
+    }
+    return android;
+  }
+
+  /// An ongoing, silent notification on the countdown channel whose system
+  /// chronometer counts down to [when] or up from it.
+  AndroidNotificationDetails _ongoing(
+    DateTime when, {
+    required bool countDown,
+    Duration? timeoutAfter,
+  }) {
+    final channel = countdownChannel!;
+    return AndroidNotificationDetails(
+      channel.id,
+      channel.name,
+      channelDescription: channel.description,
+      importance: channel.importance,
+      playSound: false,
+      enableVibration: false,
+      silent: true,
+      onlyAlertOnce: true,
+      ongoing: true,
+      autoCancel: false,
+      requestPromotedOngoing: true,
+      visibility: NotificationVisibility.public,
+      when: when.millisecondsSinceEpoch,
+      usesChronometer: true,
+      chronometerCountDown: countDown,
+      timeoutAfter: timeoutAfter?.inMilliseconds,
+    );
+  }
 
   @override
   Future<Result<void>> cancel(int id) => _run(() => _plugin.cancel(id: id));

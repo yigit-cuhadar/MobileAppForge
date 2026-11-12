@@ -583,6 +583,7 @@ void main() {
         endsAt: endsAt,
         title: 'Rest',
         body: 'Next: squat',
+        payload: 'timer',
       ),
     );
 
@@ -596,8 +597,8 @@ void main() {
         expect(result.isOk, isTrue);
         final args = native.named('show').single.arguments as Map;
         expect(
-          [args['id'], args['title'], args['body']],
-          [2, 'Rest', 'Next: squat'],
+          [args['id'], args['title'], args['body'], args['payload']],
+          [2, 'Rest', 'Next: squat', 'timer'],
         );
         final details = args['platformSpecifics'] as Map;
         expect(details['channelId'], 'timer');
@@ -647,6 +648,125 @@ void main() {
 
       expect(result.failureOrNull, isA<UnknownFailure>());
       expect(native.named('show'), isEmpty);
+    });
+  });
+
+  group('stopwatch', () {
+    setUp(
+      () => notifications = LocalNotifications(
+        channel: channel,
+        countdownChannel: countdownChannel,
+        androidIcon: 'ic_notification',
+      ),
+    );
+
+    final since = now.subtract(const Duration(minutes: 20));
+
+    void expectStopwatch(Map<Object?, Object?> args) {
+      expect(
+        [args['id'], args['title'], args['body'], args['payload']],
+        [3, 'Legs', 'Squat', 'open'],
+      );
+      final details = args['platformSpecifics'] as Map;
+      expect(details['channelId'], 'timer');
+      expect(details['silent'], isTrue);
+      expect(details['onlyAlertOnce'], isTrue);
+      expect(details['ongoing'], isTrue);
+      expect(details['autoCancel'], isFalse);
+      expect(details['requestPromotedOngoing'], isTrue);
+      expect(details['when'], since.millisecondsSinceEpoch);
+      expect(details['usesChronometer'], isTrue);
+      expect(details['chronometerCountDown'], isFalse);
+      expect(details['timeoutAfter'], isNull);
+    }
+
+    test('posts a silent ongoing chronometer counting up, kept', () async {
+      await init();
+
+      final result = await at(
+        () => notifications.showStopwatch(
+          3,
+          since: since,
+          title: 'Legs',
+          body: 'Squat',
+          payload: 'open',
+        ),
+      );
+
+      expect(result.isOk, isTrue);
+      expectStopwatch(native.named('show').single.arguments as Map);
+    });
+
+    Future<Result<void>> schedule(DateTime when) => at(
+      () => notifications.scheduleStopwatch(
+        3,
+        when,
+        since: since,
+        title: 'Legs',
+        body: 'Squat',
+        payload: 'open',
+      ),
+    );
+
+    test('is scheduled exactly, rounded up to a whole second', () async {
+      await init();
+
+      final result = await schedule(
+        now.add(const Duration(seconds: 90, milliseconds: 200)),
+      );
+
+      expect(result.isOk, isTrue);
+      final args = native.named('zonedSchedule').single.arguments as Map;
+      expectStopwatch(args);
+      expect(args['scheduledDateTime'], '2026-11-11T10:01:31');
+      expect(args['platformSpecifics']['scheduleMode'], 'exactAllowWhileIdle');
+      expect(native.named('show'), isEmpty);
+    });
+
+    test('falls back to an inexact alarm without the permission', () async {
+      native.exactAllowed = false;
+      await init();
+
+      await schedule(now.add(const Duration(seconds: 90)));
+
+      final args = native.named('zonedSchedule').single.arguments as Map;
+      expect(
+        args['platformSpecifics']['scheduleMode'],
+        'inexactAllowWhileIdle',
+      );
+    });
+
+    test('in the past is a validation failure', () async {
+      await init();
+
+      final result = await schedule(now.subtract(const Duration(seconds: 1)));
+
+      expect(result.failureOrNull, isA<ValidationFailure>());
+      expect(native.named('zonedSchedule'), isEmpty);
+    });
+
+    test('fails without a countdown channel or on iOS', () async {
+      for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+        usePlatform(platform);
+        notifications = LocalNotifications(
+          channel: channel,
+          countdownChannel: platform == TargetPlatform.iOS
+              ? countdownChannel
+              : null,
+          androidIcon: 'ic_notification',
+        );
+        await init();
+
+        final shown = await at(
+          () => notifications.showStopwatch(3, since: since, title: 'Legs'),
+        );
+        final scheduled = await schedule(now.add(const Duration(minutes: 1)));
+
+        expect(shown.failureOrNull, isA<UnknownFailure>(), reason: '$platform');
+        expect(scheduled.failureOrNull, isA<UnknownFailure>());
+      }
+      expect(native.named('show'), isEmpty);
+      expect(native.named('zonedSchedule'), isEmpty);
     });
   });
 
