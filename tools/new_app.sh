@@ -35,6 +35,48 @@ sed -i.bak 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET =
   ios/Runner.xcodeproj/project.pbxproj
 rm -f SPEC.md.bak AGENTS.md.bak ios/Runner.xcodeproj/project.pbxproj.bak
 
+# Analytics and Crashlytics start off natively; forge_firebase's Telemetry
+# turns them on for a user who agreed. Edited as text to keep comments.
+plist=ios/Runner/Info.plist
+if ! grep -q FIREBASE_ANALYTICS_COLLECTION_ENABLED "$plist"; then
+  perl -0pi -e 's|<dict>\n|<dict>
+\t<!-- Analytics and Crashlytics collect nothing until the user agrees;
+\t     the app turns them on (forge_firebase Telemetry). -->
+\t<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
+\t<false/>
+\t<key>FirebaseCrashlyticsCollectionEnabled</key>
+\t<false/>
+\t<!-- With consent, still no vendor ID or ad personalisation signals. -->
+\t<key>GOOGLE_ANALYTICS_IDFV_COLLECTION_ENABLED</key>
+\t<false/>
+\t<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS</key>
+\t<false/>
+|' "$plist"
+fi
+manifest=android/app/src/main/AndroidManifest.xml
+if ! grep -q firebase_analytics_collection_enabled "$manifest"; then
+  perl -0pi -e 's|(\n\s*</application>)|
+        <!-- Analytics and Crashlytics collect nothing until the user agrees;
+             the app turns them on (forge_firebase Telemetry). -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        <!-- With consent, still no advertising ID, Android ID or ad
+             personalisation signals. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_ssaid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />$1|' "$manifest"
+fi
+
 if [ -n "$bundle" ]; then
   # The Android namespace (Kotlin package) keeps its generated value; only the
   # ids the stores see change.

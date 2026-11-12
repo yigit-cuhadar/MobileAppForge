@@ -16,6 +16,8 @@ class FakeAuthCredential extends Fake implements AuthCredential {}
 
 class FakeAuthProvider extends Fake implements AuthProvider {}
 
+class MockUserInfo extends Mock implements UserInfo {}
+
 void main() {
   late MockFirebaseAuth auth;
   late MockUser user;
@@ -172,5 +174,60 @@ void main() {
   test('currentUser maps the signed-in Firebase user', () {
     when(() => auth.currentUser).thenReturn(user);
     expect(repository.currentUser, const AuthUser(id: 'u1', email: 'a@b.co'));
+  });
+
+  group('reauthenticate', () {
+    UserInfo provider(String id) {
+      final info = MockUserInfo();
+      when(() => info.providerId).thenReturn(id);
+      return info;
+    }
+
+    setUp(() {
+      when(() => auth.currentUser).thenReturn(user);
+      final providers = [provider('google.com'), provider('password')];
+      when(() => user.providerData).thenReturn(providers);
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
+    });
+
+    test('signs in again with the email and password', () async {
+      expect((await repository.reauthenticate('secret')).isOk, isTrue);
+      final credential =
+          verify(() => user.reauthenticateWithCredential(captureAny()))
+                  .captured
+                  .single
+              as EmailAuthCredential;
+      expect(credential.email, 'a@b.co');
+      expect(credential.password, 'secret');
+    });
+
+    Future<void> expectNoPassword() async {
+      expect(
+        (await repository.reauthenticate('secret')).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', noPasswordCode),
+      );
+      verifyNever(() => user.reauthenticateWithCredential(any()));
+    }
+
+    test('fails with nobody signed in', () async {
+      when(() => auth.currentUser).thenReturn(null);
+      await expectNoPassword();
+    });
+
+    test('fails for a user who signs in with a provider only', () async {
+      final providers = [provider('apple.com')];
+      when(() => user.providerData).thenReturn(providers);
+      await expectNoPassword();
+    });
+
+    test('a wrong password is an auth failure', () async {
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenThrow(FirebaseAuthException(code: 'invalid-credential'));
+      expect(
+        (await repository.reauthenticate('nope')).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'invalid-credential'),
+      );
+    });
   });
 }

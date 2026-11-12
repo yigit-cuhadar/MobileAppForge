@@ -3,4 +3,5 @@ library;
 
 export 'src/firebase_bootstrap.dart';
 export 'src/firebase_failure.dart';
+export 'src/firebase_telemetry.dart';
 export 'src/firestore_collection.dart';

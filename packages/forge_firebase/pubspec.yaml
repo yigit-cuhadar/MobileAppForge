@@ -16,9 +16,11 @@ dependencies:
     sdk: flutter
   forge_core:
     path: ../forge_core
+  path_provider: ^2.1.5
 
 dev_dependencies:
   fake_cloud_firestore: ^4.5.0
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  mocktail: ^1.0.5

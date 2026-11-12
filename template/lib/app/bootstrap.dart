@@ -9,7 +9,9 @@ import 'app.dart';
 /// Composition root: every feature module is registered here.
 Future<void> bootstrap(AppEnv env, FirebaseOptions options) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initFirebase(options: options, env: env);
+  final telemetry = await initFirebase(options: options, env: env);
+  // Collection stays off until the app applies an answer through telemetry.
+  await telemetry.restore(null);
   sl.registerSingleton<AppEnv>(env);
   registerModules(const [AuthModule()]);
   runApp(const App());

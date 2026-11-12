@@ -6,6 +6,11 @@ import 'auth_user.dart';
 /// because it already exists.
 const accountExistsCode = 'account-exists';
 
+/// [AuthFailure.code] when [AuthRepository.reauthenticate] has no password
+/// to check: nobody is signed in, or the user has no email and password
+/// sign-in (a guest, or Google or Apple only).
+const noPasswordCode = 'no-password';
+
 abstract interface class AuthRepository {
   /// Emits the signed-in user, or null when signed out.
   Stream<AuthUser?> watchUser();
@@ -34,7 +39,14 @@ abstract interface class AuthRepository {
   Future<Result<void>> sendPasswordReset(String email);
   Future<Result<void>> signOut();
 
-  /// Fails with [AuthFailure] code `requires-recent-login` when the session
-  /// is too old; the user must sign in again first.
+  /// Deletes the signed-in user. Fails with [AuthFailure] code
+  /// `requires-recent-login` when Firebase finds the sign-in too old; a user
+  /// with a password can renew it with [reauthenticate] and try again.
   Future<Result<void>> deleteAccount();
+
+  /// Signs the signed-in user in again with their email and [password], so
+  /// the sign-in is recent. Fails with [noPasswordCode] when nobody is
+  /// signed in or the user has no email and password sign-in, and with
+  /// Firebase's code (e.g. `invalid-credential`) for a wrong password.
+  Future<Result<void>> reauthenticate(String password);
 }

@@ -82,3 +82,12 @@ class DeleteAccount implements UseCase<void, NoParams> {
   Future<Result<void>> call([NoParams params = const NoParams()]) =>
       _repository.deleteAccount();
 }
+
+class Reauthenticate implements UseCase<void, String> {
+  const Reauthenticate(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<void>> call(String params) =>
+      _repository.reauthenticate(params);
+}
