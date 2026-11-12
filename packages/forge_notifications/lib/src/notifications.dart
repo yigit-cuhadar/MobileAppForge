@@ -5,7 +5,7 @@ import 'package:forge_core/forge_core.dart';
 import 'schedule.dart';
 
 /// An Android notification channel: the one every notification is posted
-/// to, or one of its own for a countdown (`Notifications.showCountdown`).
+/// to, or the countdowns' own (`Notifications.showCountdown`).
 final class NotificationChannel {
   const NotificationChannel({
     required this.id,
@@ -72,7 +72,10 @@ final class LocalTimeZone extends Equatable {
 /// start and when [refreshTimeZone] reports a change; re-applying is
 /// idempotent.
 abstract interface class Notifications {
-  /// Prepares the plugin and the local time zone; call before anything else.
+  /// Prepares the plugin and the local time zone, and creates (or renames)
+  /// the app's Android channels, so pushed messages naming one find it
+  /// before any local notification was shown; needs no permission. Call
+  /// before anything else.
   /// [onTap] receives the payload of every tapped notification, including the
   /// one that launched the app, which is reported once, during the first
   /// call.
@@ -152,15 +155,14 @@ abstract interface class Notifications {
   });
 
   /// Android only (an [UnknownFailure] elsewhere; iOS shows countdowns as
-  /// Live Activities): shows, or replaces in place, an ongoing silent
-  /// notification [id] whose system chronometer counts down to [endsAt]
-  /// without the app running, and which the system removes at [endsAt].
-  /// [endsAt] must be in the future.
+  /// Live Activities), and only with a countdown channel configured: shows,
+  /// or replaces in place, an ongoing silent notification [id] whose system
+  /// chronometer counts down to [endsAt] without the app running, and which
+  /// the system removes at [endsAt]. [endsAt] must be in the future.
   ///
-  /// It is posted to [channel], created without sound or vibration on first
-  /// use, so give it a channel of its own: Android fixes a channel's sound
-  /// when it is created. At [Importance.defaultImportance] it shows on the
-  /// lock screen; lower ones count as silent, which Android may hide there.
+  /// The countdown channel is created without sound or vibration; at
+  /// [Importance.defaultImportance] it shows on the lock screen, while lower
+  /// ones count as silent, which Android may hide there.
   /// On Android 16 it asks to be promoted to a Live Update (status bar chip),
   /// which needs `android.permission.POST_PROMOTED_NOTIFICATIONS` in the
   /// app's manifest. From Android 14 the user can swipe it away while the
@@ -171,7 +173,6 @@ abstract interface class Notifications {
     required DateTime endsAt,
     required String title,
     String? body,
-    required NotificationChannel channel,
   });
 
   /// Cancels the pending or shown notification [id].

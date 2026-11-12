@@ -79,6 +79,12 @@ void main() {
     description: 'Workout reminders',
     importance: Importance.high,
   );
+  const countdownChannel = NotificationChannel(
+    id: 'timer',
+    name: 'Timer',
+    description: 'The running timer',
+    importance: Importance.defaultImportance,
+  );
 
   late FakeNative native;
   late String deviceZone;
@@ -148,6 +154,46 @@ void main() {
       expect(native.named('initialize').single.arguments, {
         'defaultIcon': 'ic_notification',
       });
+    });
+
+    test('creates the channel on Android, asking no permission', () async {
+      await init();
+
+      final created = native.named('createNotificationChannel').single;
+      final args = created.arguments as Map;
+      expect(args['id'], 'reminders');
+      expect(args['name'], 'Reminders');
+      expect(args['description'], 'Workout reminders');
+      expect(args['importance'], Importance.high.value);
+      expect(args['playSound'], isTrue);
+      expect(native.named('requestNotificationsPermission'), isEmpty);
+    });
+
+    test('creates a countdown channel without sound or vibration', () async {
+      notifications = LocalNotifications(
+        channel: channel,
+        countdownChannel: countdownChannel,
+        androidIcon: 'ic_notification',
+      );
+
+      await init();
+
+      final created = [
+        for (final call in native.named('createNotificationChannel'))
+          call.arguments as Map,
+      ];
+      expect([for (final c in created) c['id']], ['reminders', 'timer']);
+      expect(created.last['importance'], Importance.defaultImportance.value);
+      expect(created.last['playSound'], isFalse);
+      expect(created.last['enableVibration'], isFalse);
+    });
+
+    test('creates no channel on iOS', () async {
+      usePlatform(TargetPlatform.iOS);
+
+      await init();
+
+      expect(native.named('createNotificationChannel'), isEmpty);
     });
 
     test('asks for no permission at start on iOS', () async {
@@ -506,12 +552,14 @@ void main() {
   });
 
   group('countdown', () {
-    const countdownChannel = NotificationChannel(
-      id: 'timer',
-      name: 'Timer',
-      description: 'The running timer',
-      importance: Importance.defaultImportance,
+    setUp(
+      () => notifications = LocalNotifications(
+        channel: channel,
+        countdownChannel: countdownChannel,
+        androidIcon: 'ic_notification',
+      ),
     );
+
     final endsAt = now.add(const Duration(seconds: 90));
 
     Future<Result<void>> showCountdown(DateTime endsAt) => at(
@@ -520,7 +568,6 @@ void main() {
         endsAt: endsAt,
         title: 'Rest',
         body: 'Next: squat',
-        channel: countdownChannel,
       ),
     );
 
@@ -561,6 +608,19 @@ void main() {
       final result = await showCountdown(now);
 
       expect(result.failureOrNull, isA<ValidationFailure>());
+      expect(native.named('show'), isEmpty);
+    });
+
+    test('fails without a countdown channel', () async {
+      notifications = LocalNotifications(
+        channel: channel,
+        androidIcon: 'ic_notification',
+      );
+      await init();
+
+      final result = await showCountdown(endsAt);
+
+      expect(result.failureOrNull, isA<UnknownFailure>());
       expect(native.named('show'), isEmpty);
     });
 

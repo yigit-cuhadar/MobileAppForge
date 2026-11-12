@@ -13,9 +13,16 @@ import 'schedule.dart';
 class LocalNotifications implements Notifications {
   /// [androidIcon] is the drawable resource name of the small icon, e.g.
   /// `ic_notification` for `res/drawable/ic_notification.png`.
-  LocalNotifications({required this.channel, required this.androidIcon});
+  /// [countdownChannel] is needed for [showCountdown] only; Android fixes a
+  /// channel's sound when it is created, so it is a channel of its own.
+  LocalNotifications({
+    required this.channel,
+    this.countdownChannel,
+    required this.androidIcon,
+  });
 
   final NotificationChannel channel;
+  final NotificationChannel? countdownChannel;
   final String androidIcon;
 
   final _plugin = FlutterLocalNotificationsPlugin();
@@ -69,6 +76,7 @@ class LocalNotifications implements Notifications {
           onDidReceiveNotificationResponse: (response) =>
               tap(_payload(response.payload)),
         );
+        await _createChannels();
         _ready = true;
         if (!_launchReported) {
           _launchReported = true;
@@ -240,11 +248,13 @@ class LocalNotifications implements Notifications {
     required DateTime endsAt,
     required String title,
     String? body,
-    required NotificationChannel channel,
   }) => _run(() {
     final android =
         _android ??
         (throw UnsupportedError('Countdown notifications run on Android only'));
+    final channel =
+        countdownChannel ??
+        (throw StateError('showCountdown needs a countdownChannel'));
     final now = clock.now();
     checkFuture(endsAt, now);
     return android.show(
@@ -294,6 +304,31 @@ class LocalNotifications implements Notifications {
         PendingNotification(request.id, _payload(request.payload)),
     ];
   });
+
+  Future<void> _createChannels() async {
+    final android = _android;
+    if (android == null) return;
+    await android.createNotificationChannel(
+      AndroidNotificationChannel(
+        channel.id,
+        channel.name,
+        description: channel.description,
+        importance: channel.importance,
+      ),
+    );
+    final countdown = countdownChannel;
+    if (countdown == null) return;
+    await android.createNotificationChannel(
+      AndroidNotificationChannel(
+        countdown.id,
+        countdown.name,
+        description: countdown.description,
+        importance: countdown.importance,
+        playSound: false,
+        enableVibration: false,
+      ),
+    );
+  }
 
   Future<LocalTimeZone> _applyDeviceZone() async {
     final id = (await FlutterTimezone.getLocalTimezone()).identifier;
