@@ -1,6 +1,26 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    show Importance;
 import 'package:forge_core/forge_core.dart';
 
 import 'schedule.dart';
+
+/// An Android notification channel: the one every notification is posted
+/// to, or the countdowns' own (`Notifications.showCountdown`).
+final class NotificationChannel {
+  const NotificationChannel({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.importance,
+  });
+
+  final String id;
+
+  /// Shown to the user in the system notification settings.
+  final String name;
+  final String description;
+  final Importance importance;
+}
 
 /// Whether the app may show notifications.
 ///
@@ -52,7 +72,10 @@ final class LocalTimeZone extends Equatable {
 /// start and when [refreshTimeZone] reports a change; re-applying is
 /// idempotent.
 abstract interface class Notifications {
-  /// Prepares the plugin and the local time zone; call before anything else.
+  /// Prepares the plugin and the local time zone, and creates (or renames)
+  /// the app's Android channels, so pushed messages naming one find it
+  /// before any local notification was shown; needs no permission. Call
+  /// before anything else.
   /// [onTap] receives the payload of every tapped notification, including the
   /// one that launched the app, which is reported once, during the first
   /// call.
@@ -129,6 +152,27 @@ abstract interface class Notifications {
     required String title,
     required String body,
     String? payload,
+  });
+
+  /// Android only (an [UnknownFailure] elsewhere; iOS shows countdowns as
+  /// Live Activities), and only with a countdown channel configured: shows,
+  /// or replaces in place, an ongoing silent notification [id] whose system
+  /// chronometer counts down to [endsAt] without the app running, and which
+  /// the system removes at [endsAt]. [endsAt] must be in the future.
+  ///
+  /// The countdown channel is created without sound or vibration; at
+  /// [Importance.defaultImportance] it shows on the lock screen, while lower
+  /// ones count as silent, which Android may hide there.
+  /// On Android 16 it asks to be promoted to a Live Update (status bar chip),
+  /// which needs `android.permission.POST_PROMOTED_NOTIFICATIONS` in the
+  /// app's manifest. From Android 14 the user can swipe it away while the
+  /// device is unlocked. It needs the notification permission like any
+  /// other notification.
+  Future<Result<void>> showCountdown(
+    int id, {
+    required DateTime endsAt,
+    required String title,
+    String? body,
   });
 
   /// Cancels the pending or shown notification [id].

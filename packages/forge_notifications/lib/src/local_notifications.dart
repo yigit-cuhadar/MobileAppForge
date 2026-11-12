@@ -9,30 +9,20 @@ import 'package:timezone/timezone.dart' as tz;
 import 'notifications.dart';
 import 'schedule.dart';
 
-/// The Android notification channel every notification is posted to.
-final class NotificationChannel {
-  const NotificationChannel({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.importance,
-  });
-
-  final String id;
-
-  /// Shown to the user in the system notification settings.
-  final String name;
-  final String description;
-  final Importance importance;
-}
-
 /// [Notifications] over `flutter_local_notifications`.
 class LocalNotifications implements Notifications {
   /// [androidIcon] is the drawable resource name of the small icon, e.g.
   /// `ic_notification` for `res/drawable/ic_notification.png`.
-  LocalNotifications({required this.channel, required this.androidIcon});
+  /// [countdownChannel] is needed for [showCountdown] only; Android fixes a
+  /// channel's sound when it is created, so it is a channel of its own.
+  LocalNotifications({
+    required this.channel,
+    this.countdownChannel,
+    required this.androidIcon,
+  });
 
   final NotificationChannel channel;
+  final NotificationChannel? countdownChannel;
   final String androidIcon;
 
   final _plugin = FlutterLocalNotificationsPlugin();
@@ -86,6 +76,13 @@ class LocalNotifications implements Notifications {
           onDidReceiveNotificationResponse: (response) =>
               tap(_payload(response.payload)),
         );
+        // Without its channel a notification still shows (the plugin creates
+        // it when posting), so a failure here must not fail init.
+        try {
+          await _createChannels();
+        } catch (error, stack) {
+          Log.e('notifications', 'channels not created', error, stack);
+        }
         _ready = true;
         if (!_launchReported) {
           _launchReported = true;
@@ -252,6 +249,46 @@ class LocalNotifications implements Notifications {
   });
 
   @override
+  Future<Result<void>> showCountdown(
+    int id, {
+    required DateTime endsAt,
+    required String title,
+    String? body,
+  }) => _run(() {
+    final android =
+        _android ??
+        (throw UnsupportedError('Countdown notifications run on Android only'));
+    final channel =
+        countdownChannel ??
+        (throw StateError('showCountdown needs a countdownChannel'));
+    final now = clock.now();
+    checkFuture(endsAt, now);
+    return android.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+        importance: channel.importance,
+        playSound: false,
+        enableVibration: false,
+        silent: true,
+        onlyAlertOnce: true,
+        ongoing: true,
+        autoCancel: false,
+        requestPromotedOngoing: true,
+        visibility: NotificationVisibility.public,
+        when: endsAt.millisecondsSinceEpoch,
+        usesChronometer: true,
+        chronometerCountDown: true,
+        timeoutAfter: endsAt.difference(now).inMilliseconds,
+      ),
+    );
+  });
+
+  @override
   Future<Result<void>> cancel(int id) => _run(() => _plugin.cancel(id: id));
 
   @override
@@ -273,6 +310,31 @@ class LocalNotifications implements Notifications {
         PendingNotification(request.id, _payload(request.payload)),
     ];
   });
+
+  Future<void> _createChannels() async {
+    final android = _android;
+    if (android == null) return;
+    await android.createNotificationChannel(
+      AndroidNotificationChannel(
+        channel.id,
+        channel.name,
+        description: channel.description,
+        importance: channel.importance,
+      ),
+    );
+    final countdown = countdownChannel;
+    if (countdown == null) return;
+    await android.createNotificationChannel(
+      AndroidNotificationChannel(
+        countdown.id,
+        countdown.name,
+        description: countdown.description,
+        importance: countdown.importance,
+        playSound: false,
+        enableVibration: false,
+      ),
+    );
+  }
 
   Future<LocalTimeZone> _applyDeviceZone() async {
     final id = (await FlutterTimezone.getLocalTimezone()).identifier;
