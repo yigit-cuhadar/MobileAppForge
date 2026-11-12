@@ -42,22 +42,11 @@ final class DailySteps extends Equatable {
   List<Object?> get props => [day, count];
 }
 
-/// A health store call that could not be served. Anything unrecognised is an
-/// [UnknownFailure].
+/// No usable health store; `availability` tells why. Missing read access
+/// is a [PermissionFailure], anything unrecognised an [UnknownFailure].
 final class HealthFailure extends Failure {
-  const HealthFailure(this.reason, [String? message, Object? cause])
-    : super(message ?? 'Health data unavailable', cause: cause);
-
-  final HealthFailureReason reason;
-
-  @override
-  String toString() => 'HealthFailure(${reason.name}): $message';
-}
-
-enum HealthFailureReason {
-  /// No usable health store; `availability` tells why.
-  unavailable,
-
-  /// Android: step read access is not granted.
-  denied,
+  const HealthFailure([
+    super.message = 'Health data unavailable',
+    Object? cause,
+  ]) : super(cause: cause);
 }

@@ -2,8 +2,12 @@ import 'package:forge_core/forge_core.dart';
 
 import 'health_models.dart';
 
+/// The longest range [HealthSteps.dailySteps] reads at once.
+const maxStepDays = 366;
+
 /// Step counts from the platform health store, read only. Failures are
-/// [HealthFailure], [ValidationFailure] or [UnknownFailure].
+/// [HealthFailure] (no usable store), [PermissionFailure] (Android: read
+/// access missing), [ValidationFailure] or [UnknownFailure].
 abstract interface class HealthSteps {
   Future<Result<HealthAvailability>> availability();
 
@@ -20,6 +24,7 @@ abstract interface class HealthSteps {
 
   /// One entry per local calendar day from [first] to [last] inclusive,
   /// oldest first, days without data as zero. Times of day are ignored.
+  /// At most [maxStepDays] days.
   /// Android reads only 30 days before the permission was first granted.
   Future<Result<List<DailySteps>>> dailySteps(DateTime first, DateTime last);
 

@@ -14,12 +14,19 @@ class PlatformHealthSteps implements HealthSteps {
 
   final HealthDataSource _source;
 
+  /// Days read at once, to stay clear of Health Connect's rate limits.
+  static const _parallelReads = 5;
+
+  static final _playStoreUrl = Uri.parse(
+    'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata',
+  );
+
   @override
   Future<Result<HealthAvailability>> availability() => _guard(_availability);
 
   @override
   Future<Result<HealthPermission>> permission() => _guard(() async {
-    _requirePlatform();
+    await _requireIosStore();
     return _permission(await _source.hasStepsPermission());
   });
 
@@ -35,12 +42,13 @@ class PlatformHealthSteps implements HealthSteps {
             ? HealthPermission.granted
             : HealthPermission.denied;
       case _Platform.ios:
+        await _requireIosStore();
         if (!await _source.requestStepsPermission()) {
           throw const UnknownFailure('HealthKit authorization failed');
         }
         return HealthPermission.undetermined;
       case _Platform.other:
-        throw const HealthFailure(HealthFailureReason.unavailable);
+        throw const HealthFailure();
     }
   });
 
@@ -59,12 +67,16 @@ class PlatformHealthSteps implements HealthSteps {
     switch (await _availability()) {
       case HealthAvailability.available:
         await (_platform == _Platform.android
-            ? _source.openHealthConnectSettings()
-            : _source.openAppSettings());
+            ? _openHealthConnectSettings()
+            : _open(Uri.parse('app-settings:')));
       case HealthAvailability.notInstalled:
-        await _source.installHealthConnect();
+        try {
+          await _source.openHealthConnectInStore();
+        } on PlatformException {
+          await _open(_playStoreUrl);
+        }
       case HealthAvailability.unsupported:
-        throw const HealthFailure(HealthFailureReason.unavailable);
+        throw const HealthFailure();
     }
   });
 
@@ -82,7 +94,7 @@ class PlatformHealthSteps implements HealthSteps {
           ),
         };
       case _Platform.ios:
-        return await _source.isHealthKitAvailable()
+        return await _isHealthKitAvailable()
             ? HealthAvailability.available
             : HealthAvailability.unsupported;
       case _Platform.other:
@@ -91,26 +103,94 @@ class PlatformHealthSteps implements HealthSteps {
   }
 
   Future<List<DailySteps>> _read(DateTime first, DateTime last) async {
-    _requirePlatform();
     if (startOfDay(last).isBefore(startOfDay(first))) {
       throw ValidationFailure('$last is before $first');
     }
     final days = localDays(first, last);
-    final counts = await Future.wait([
-      for (final day in days) _source.totalSteps(day.start, day.end),
-    ]);
-    if (counts.contains(null)) throw await _readFailure();
+    if (days.length > maxStepDays) {
+      throw ValidationFailure(
+        '${days.length} days requested, at most $maxStepDays',
+      );
+    }
+    switch (_platform) {
+      case _Platform.android:
+        // The plugin's step total skips its Health Connect check, and a
+        // refused read comes back only as a missing total; asking first
+        // tells both apart (a missing Health Connect throws here).
+        if (await _source.hasStepsPermission() == false) {
+          throw const PermissionFailure('Steps read access not granted');
+        }
+      case _Platform.ios:
+        await _requireIosStore();
+      case _Platform.other:
+        throw const HealthFailure();
+    }
+    final counts = <int>[];
+    for (var i = 0; i < days.length; i += _parallelReads) {
+      final batch = await Future.wait([
+        for (final day in days.skip(i).take(_parallelReads))
+          _source.totalSteps(day.start, day.end),
+      ]);
+      for (final count in batch) {
+        counts.add(count ?? (throw const UnknownFailure('Steps unreadable')));
+      }
+    }
     return [
       for (var i = 0; i < days.length; i++)
-        DailySteps(days[i].start, counts[i]!),
+        DailySteps(days[i].start, counts[i]),
     ];
   }
 
-  /// Health Connect reports a refused read only as a missing total.
-  Future<Failure> _readFailure() async =>
-      await _source.hasStepsPermission() == false
-      ? const HealthFailure(HealthFailureReason.denied)
-      : const UnknownFailure('Steps could not be read');
+  /// The app's own Health Connect permission page (Android 14+), else the
+  /// Health Connect home: the system one (14+), then the app's (9-13).
+  Future<void> _openHealthConnectSettings() async {
+    final package = await _source.packageName();
+    final newer = [
+      (
+        'android.health.connect.action.MANAGE_HEALTH_PERMISSIONS',
+        {'android.intent.extra.PACKAGE_NAME': package},
+      ),
+      ('android.health.connect.action.HEALTH_HOME_SETTINGS', null),
+    ];
+    for (final (action, arguments) in newer) {
+      try {
+        return await _source.launchAndroidAction(action, arguments: arguments);
+      } on PlatformException {
+        // Not on this Android version; try the next.
+      }
+    }
+    await _source.launchAndroidAction(
+      'androidx.health.ACTION_HEALTH_CONNECT_SETTINGS',
+    );
+  }
+
+  Future<void> _open(Uri url) async {
+    if (!await _source.openUrl(url)) {
+      throw UnknownFailure('Could not open $url');
+    }
+  }
+
+  /// A renamed plugin method must not hide HealthKit; assume it is there.
+  Future<bool> _isHealthKitAvailable() async {
+    try {
+      return await _source.isHealthKitAvailable();
+    } on MissingPluginException {
+      return true;
+    }
+  }
+
+  /// Throws [HealthFailure] on iOS devices without HealthKit and on other
+  /// platforms. Android checks Health Connect inside its calls.
+  Future<void> _requireIosStore() async {
+    switch (_platform) {
+      case _Platform.android:
+        return;
+      case _Platform.ios:
+        if (!await _isHealthKitAvailable()) throw const HealthFailure();
+      case _Platform.other:
+        throw const HealthFailure();
+    }
+  }
 
   static HealthPermission _permission(bool? granted) => switch (granted) {
     true => HealthPermission.granted,
@@ -124,12 +204,6 @@ class PlatformHealthSteps implements HealthSteps {
     _ => _Platform.other,
   };
 
-  static void _requirePlatform() {
-    if (_platform == _Platform.other) {
-      throw const HealthFailure(HealthFailureReason.unavailable);
-    }
-  }
-
   static Future<Result<T>> _guard<T>(Future<T> Function() body) =>
       guard(body, mapper: _mapError);
 }
@@ -140,8 +214,7 @@ enum _Platform { android, ios, other }
 /// is missing.
 Failure? _mapError(Object error) => switch (error) {
   UnsupportedError() => HealthFailure(
-    HealthFailureReason.unavailable,
-    error.message,
+    error.message ?? 'Health Connect unavailable',
     error,
   ),
   PlatformException() => UnknownFailure(error.message ?? error.code, error),

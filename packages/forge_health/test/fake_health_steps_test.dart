@@ -2,12 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_health/forge_health.dart';
 
-HealthFailureReason? reasonOf(Result<Object?> result) =>
-    switch (result.failureOrNull) {
-      HealthFailure(:final reason) => reason,
-      _ => null,
-    };
-
 void main() {
   late DateTime now;
   late FakeHealthSteps fake;
@@ -48,8 +42,8 @@ void main() {
   test('a request grants a denied permission', () async {
     fake.permissionStatus = HealthPermission.denied;
     expect(
-      reasonOf(await fake.stepsOn(DateTime(2026, 5, 11))),
-      HealthFailureReason.denied,
+      (await fake.stepsOn(DateTime(2026, 5, 11))).failureOrNull,
+      isA<PermissionFailure>(),
     );
     expect(
       (await fake.requestPermission()).valueOrNull,
@@ -80,19 +74,16 @@ void main() {
       (await fake.availability()).valueOrNull,
       HealthAvailability.notInstalled,
     );
-    expect(reasonOf(await fake.permission()), HealthFailureReason.unavailable);
+    expect((await fake.permission()).failureOrNull, isA<HealthFailure>());
     expect(
-      reasonOf(await fake.stepsOn(DateTime(2026, 5, 11))),
-      HealthFailureReason.unavailable,
+      (await fake.stepsOn(DateTime(2026, 5, 11))).failureOrNull,
+      isA<HealthFailure>(),
     );
     expect((await fake.openSettings()).isOk, isTrue);
     expect(fake.settingsOpened, 1);
 
     fake.status = HealthAvailability.unsupported;
-    expect(
-      reasonOf(await fake.openSettings()),
-      HealthFailureReason.unavailable,
-    );
+    expect((await fake.openSettings()).failureOrNull, isA<HealthFailure>());
     expect(fake.settingsOpened, 1);
   });
 
@@ -112,6 +103,23 @@ void main() {
       (await fake.dailySteps(
         DateTime(2026, 5, 2),
         DateTime(2026, 5, 1),
+      )).failureOrNull,
+      isA<ValidationFailure>(),
+    );
+  });
+
+  test('a range is capped at maxStepDays', () async {
+    expect(
+      (await fake.dailySteps(
+        DateTime(2027, 6, 1),
+        DateTime(2028, 5, 31),
+      )).valueOrNull,
+      hasLength(maxStepDays),
+    );
+    expect(
+      (await fake.dailySteps(
+        DateTime(2027, 6, 1),
+        DateTime(2028, 6, 1),
       )).failureOrNull,
       isA<ValidationFailure>(),
     );

@@ -10,23 +10,30 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockSource extends Mock implements HealthDataSource {}
 
-HealthFailureReason? reasonOf(Result<Object?> result) =>
-    switch (result.failureOrNull) {
-      HealthFailure(:final reason) => reason,
-      _ => null,
-    };
+/// Whether the test process's zone follows EU or US daylight saving time
+/// (2026: March 29 and October 25, or March 8 and November 1).
+/// `tools/check.sh` runs these tests again with `TZ=Europe/Berlin`.
+final followsEuOrUsDst = [
+  DateTime(2026, 3, 29),
+  DateTime(2026, 3, 8),
+].any((day) => DateTime(2026, 3, day.day + 1).difference(day).inHours == 23);
 
 void main() {
   late _MockSource source;
   late PlatformHealthSteps repository;
 
-  setUpAll(() => registerFallbackValue(DateTime(2026)));
+  setUpAll(() {
+    registerFallbackValue(DateTime(2026));
+    registerFallbackValue(Uri());
+  });
 
   setUp(() {
     source = _MockSource();
     repository = PlatformHealthSteps(source);
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     Log.onError = (_, _, _) {};
+    when(source.hasStepsPermission).thenAnswer((_) async => true);
+    when(source.isHealthKitAvailable).thenAnswer((_) async => true);
   });
 
   tearDown(() {
@@ -74,7 +81,6 @@ void main() {
 
     test('iOS follows HealthKit', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      when(source.isHealthKitAvailable).thenAnswer((_) async => true);
       expect(
         (await repository.availability()).valueOrNull,
         HealthAvailability.available,
@@ -83,6 +89,15 @@ void main() {
       expect(
         (await repository.availability()).valueOrNull,
         HealthAvailability.unsupported,
+      );
+    });
+
+    test('iOS counts as available if the plugin drops its check', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(source.isHealthKitAvailable).thenThrow(MissingPluginException());
+      expect(
+        (await repository.availability()).valueOrNull,
+        HealthAvailability.available,
       );
     });
 
@@ -98,7 +113,6 @@ void main() {
 
   group('permission', () {
     test('Android reports granted and denied', () async {
-      when(source.hasStepsPermission).thenAnswer((_) async => true);
       expect(
         (await repository.permission()).valueOrNull,
         HealthPermission.granted,
@@ -122,23 +136,36 @@ void main() {
     test('missing Health Connect is unavailable', () async {
       when(source.hasStepsPermission).thenThrow(UnsupportedError('missing'));
       expect(
-        reasonOf(await repository.permission()),
-        HealthFailureReason.unavailable,
+        (await repository.permission()).failureOrNull,
+        isA<HealthFailure>(),
       );
+    });
+
+    test('an iOS device without HealthKit is unavailable', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(source.isHealthKitAvailable).thenAnswer((_) async => false);
+      expect(
+        (await repository.permission()).failureOrNull,
+        isA<HealthFailure>(),
+      );
+      expect(
+        (await repository.requestPermission()).failureOrNull,
+        isA<HealthFailure>(),
+      );
+      verifyNever(source.requestStepsPermission);
     });
 
     test('other platforms are unavailable', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       expect(
-        reasonOf(await repository.permission()),
-        HealthFailureReason.unavailable,
+        (await repository.permission()).failureOrNull,
+        isA<HealthFailure>(),
       );
     });
   });
 
   group('requestPermission', () {
     test('Android skips the dialog when already granted', () async {
-      when(source.hasStepsPermission).thenAnswer((_) async => true);
       expect(
         (await repository.requestPermission()).valueOrNull,
         HealthPermission.granted,
@@ -212,54 +239,113 @@ void main() {
       expect(result.valueOrNull!.map((d) => d.count), [0, 0, 0]);
     });
 
-    // Run with TZ=Europe/Berlin or TZ=America/New_York to cross real DST
-    // changes; in UTC the same boundaries are 24 hours long.
     for (final (name, first, last) in [
       ('spring forward', DateTime(2026, 3, 6), DateTime(2026, 3, 31)),
       ('fall back', DateTime(2026, 10, 24), DateTime(2026, 11, 3)),
     ]) {
-      test('splits by calendar day across $name', () async {
+      test('windows are contiguous local midnights across $name', () async {
         stepsByDayOfMonth();
         final result = await repository.dailySteps(first, last);
         final days = queriedDays();
         expect(days.first.start, first);
         expect(days.last.end, DateTime(last.year, last.month, last.day + 1));
         for (var i = 0; i < days.length; i++) {
-          final day = days[i];
-          expect((day.start.hour, day.start.minute), (0, 0));
-          expect(
-            day.end,
-            DateTime(day.start.year, day.start.month, day.start.day + 1),
-          );
-          if (i > 0) expect(day.start, days[i - 1].end);
+          expect((days[i].start.hour, days[i].start.minute), (0, 0));
+          if (i > 0) expect(days[i].start, days[i - 1].end);
         }
-        expect(
-          days,
-          hasLength((last.difference(first).inHours / 24).round() + 1),
-        );
         expect(result.valueOrNull!.map((d) => d.day), days.map((d) => d.start));
       });
     }
 
-    test('a refused Health Connect read is denied', () async {
+    test('the DST change days are 23 and 25 hours long', () async {
       stepsByDayOfMonth();
-      when(() => source.totalSteps(DateTime(2026, 5, 2), any()))
-          .thenAnswer((_) async => null);
-      when(source.hasStepsPermission).thenAnswer((_) async => false);
+      await repository.dailySteps(DateTime(2026, 3, 1), DateTime(2026, 3, 31));
+      await repository.dailySteps(
+        DateTime(2026, 10, 20),
+        DateTime(2026, 11, 5),
+      );
+      final hours = queriedDays().map((d) => d.end.difference(d.start).inHours);
+      expect(hours, hasLength(31 + 17));
+      expect(hours.where((h) => h == 23), hasLength(1));
+      expect(hours.where((h) => h == 25), hasLength(1));
+      expect(hours.where((h) => h == 24), hasLength(31 + 17 - 2));
+    }, skip: followsEuOrUsDst ? false : 'needs EU or US daylight saving time');
+
+    test('reads at most five days at once', () async {
+      var inFlight = 0;
+      var peak = 0;
+      when(() => source.totalSteps(any(), any())).thenAnswer((_) async {
+        peak = ++inFlight > peak ? inFlight : peak;
+        await Future<void>.delayed(Duration.zero);
+        inFlight--;
+        return 1;
+      });
       final result = await repository.dailySteps(
         DateTime(2026, 5, 1),
-        DateTime(2026, 5, 3),
+        DateTime(2026, 5, 31),
       );
-      expect(reasonOf(result), HealthFailureReason.denied);
+      expect(result.valueOrNull, hasLength(31));
+      expect(peak, 5);
+    });
+
+    test('reads up to 366 days and rejects longer ranges', () async {
+      when(() => source.totalSteps(any(), any())).thenAnswer((_) async => 1);
+      final longest = await repository.dailySteps(
+        DateTime(2027, 6, 1),
+        DateTime(2028, 5, 31),
+      );
+      expect(longest.valueOrNull, hasLength(maxStepDays));
+      clearInteractions(source);
+      final tooLong = await repository.dailySteps(
+        DateTime(2027, 6, 1),
+        DateTime(2028, 6, 1),
+      );
+      expect(tooLong.failureOrNull, isA<ValidationFailure>());
+      verifyNever(() => source.totalSteps(any(), any()));
+    });
+
+    test('a read without Health Connect is unavailable', () async {
+      when(source.hasStepsPermission).thenThrow(UnsupportedError('missing'));
+      expect(
+        (await repository.stepsOn(DateTime(2026, 5, 1))).failureOrNull,
+        isA<HealthFailure>(),
+      );
+      verifyNever(() => source.totalSteps(any(), any()));
+    });
+
+    test('a read without Android access is a permission failure', () async {
+      when(source.hasStepsPermission).thenAnswer((_) async => false);
+      expect(
+        (await repository.dailySteps(
+          DateTime(2026, 5, 1),
+          DateTime(2026, 5, 3),
+        )).failureOrNull,
+        isA<PermissionFailure>(),
+      );
+      verifyNever(() => source.totalSteps(any(), any()));
     });
 
     test('a missing total with access granted is unknown', () async {
-      when(() => source.totalSteps(any(), any())).thenAnswer((_) async => null);
-      when(source.hasStepsPermission).thenAnswer((_) async => true);
+      stepsByDayOfMonth();
+      when(() => source.totalSteps(DateTime(2026, 5, 2), any()))
+          .thenAnswer((_) async => null);
       expect(
-        (await repository.stepsOn(DateTime(2026, 5, 1))).failureOrNull,
+        (await repository.dailySteps(
+          DateTime(2026, 5, 1),
+          DateTime(2026, 5, 3),
+        )).failureOrNull,
         isA<UnknownFailure>(),
       );
+    });
+
+    test('an iOS device without HealthKit is unavailable', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(source.isHealthKitAvailable).thenAnswer((_) async => false);
+      expect(
+        (await repository.stepsOn(DateTime(2026, 5, 1))).failureOrNull,
+        isA<HealthFailure>(),
+      );
+      verifyNever(() => source.totalSteps(any(), any()));
     });
 
     test('a platform error is unknown', () async {
@@ -284,46 +370,126 @@ void main() {
     test('other platforms are unavailable', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       expect(
-        reasonOf(await repository.stepsOn(DateTime(2026, 5, 1))),
-        HealthFailureReason.unavailable,
+        (await repository.stepsOn(DateTime(2026, 5, 1))).failureOrNull,
+        isA<HealthFailure>(),
       );
     });
   });
 
   group('openSettings', () {
-    test('Android opens Health Connect settings when available', () async {
-      when(source.healthConnectStatus)
-          .thenAnswer((_) async => HealthConnectSdkStatus.sdkAvailable);
-      when(source.openHealthConnectSettings).thenAnswer((_) async {});
-      expect((await repository.openSettings()).isOk, isTrue);
-      verify(source.openHealthConnectSettings).called(1);
+    const manage = 'android.health.connect.action.MANAGE_HEALTH_PERMISSIONS';
+    const home = 'android.health.connect.action.HEALTH_HOME_SETTINGS';
+    const legacy = 'androidx.health.ACTION_HEALTH_CONNECT_SETTINGS';
+    final playStore = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata',
+    );
+
+    void healthConnect(HealthConnectSdkStatus status) =>
+        when(source.healthConnectStatus).thenAnswer((_) async => status);
+
+    void launches(Set<String> resolvable) =>
+        when(
+          () => source.launchAndroidAction(
+            any(),
+            arguments: any(named: 'arguments'),
+          ),
+        ).thenAnswer((call) async {
+          if (!resolvable.contains(call.positionalArguments[0])) {
+            throw PlatformException(code: 'error', message: 'No activity');
+          }
+        });
+
+    List<Object?> launched() => verify(
+      () => source.launchAndroidAction(
+        captureAny(),
+        arguments: captureAny(named: 'arguments'),
+      ),
+    ).captured;
+
+    setUp(() {
+      when(source.packageName).thenAnswer((_) async => 'com.example.app');
     });
 
-    test('Android opens the store when Health Connect is missing', () async {
-      when(source.healthConnectStatus).thenAnswer(
-        (_) async =>
-            HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired,
-      );
-      when(source.installHealthConnect).thenAnswer((_) async {});
+    test('Android 14+ opens the app permission page', () async {
+      healthConnect(HealthConnectSdkStatus.sdkAvailable);
+      launches({manage, home, legacy});
       expect((await repository.openSettings()).isOk, isTrue);
-      verify(source.installHealthConnect).called(1);
+      expect(launched(), [
+        manage,
+        {'android.intent.extra.PACKAGE_NAME': 'com.example.app'},
+      ]);
+    });
+
+    test('falls back to the Health Connect home, then the app', () async {
+      healthConnect(HealthConnectSdkStatus.sdkAvailable);
+      launches({home});
+      expect((await repository.openSettings()).isOk, isTrue);
+      launches({legacy});
+      expect((await repository.openSettings()).isOk, isTrue);
+      expect(launched().whereType<String>(), [
+        manage,
+        home,
+        manage,
+        home,
+        legacy,
+      ]);
+    });
+
+    test('fails when no settings page opens', () async {
+      healthConnect(HealthConnectSdkStatus.sdkAvailable);
+      launches({});
+      expect(
+        (await repository.openSettings()).failureOrNull,
+        isA<UnknownFailure>(),
+      );
+    });
+
+    test('missing Health Connect opens the Play Store app', () async {
+      healthConnect(
+        HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired,
+      );
+      when(source.openHealthConnectInStore).thenAnswer((_) async {});
+      expect((await repository.openSettings()).isOk, isTrue);
+      verifyNever(() => source.openUrl(any()));
+    });
+
+    test('without the Play Store app it opens the web page', () async {
+      healthConnect(
+        HealthConnectSdkStatus.sdkUnavailableProviderUpdateRequired,
+      );
+      when(source.openHealthConnectInStore)
+          .thenThrow(PlatformException(code: 'error'));
+      when(() => source.openUrl(any())).thenAnswer((_) async => true);
+      expect((await repository.openSettings()).isOk, isTrue);
+      verify(() => source.openUrl(playStore)).called(1);
+
+      when(() => source.openUrl(any())).thenAnswer((_) async => false);
+      expect(
+        (await repository.openSettings()).failureOrNull,
+        isA<UnknownFailure>(),
+      );
     });
 
     test('unsupported devices have no settings', () async {
-      when(source.healthConnectStatus)
-          .thenAnswer((_) async => HealthConnectSdkStatus.sdkUnavailable);
+      healthConnect(HealthConnectSdkStatus.sdkUnavailable);
       expect(
-        reasonOf(await repository.openSettings()),
-        HealthFailureReason.unavailable,
+        (await repository.openSettings()).failureOrNull,
+        isA<HealthFailure>(),
       );
     });
 
     test('iOS opens the app settings', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      when(source.isHealthKitAvailable).thenAnswer((_) async => true);
-      when(source.openAppSettings).thenAnswer((_) async {});
+      when(source.isHealthKitAvailable).thenThrow(MissingPluginException());
+      when(() => source.openUrl(any())).thenAnswer((_) async => true);
       expect((await repository.openSettings()).isOk, isTrue);
-      verify(source.openAppSettings).called(1);
+      verify(() => source.openUrl(Uri.parse('app-settings:'))).called(1);
+
+      when(() => source.openUrl(any())).thenAnswer((_) async => false);
+      expect(
+        (await repository.openSettings()).failureOrNull,
+        isA<UnknownFailure>(),
+      );
     });
   });
 }

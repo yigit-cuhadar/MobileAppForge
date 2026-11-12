@@ -68,7 +68,7 @@ class FakeHealthSteps implements HealthSteps {
   @override
   Future<Result<void>> openSettings() => _run(() async {
     if (status == HealthAvailability.unsupported) {
-      throw const HealthFailure(HealthFailureReason.unavailable);
+      throw const HealthFailure();
     }
     settingsOpened++;
   });
@@ -76,14 +76,19 @@ class FakeHealthSteps implements HealthSteps {
   List<DailySteps> _read(DateTime first, DateTime last) {
     _requireAvailable();
     if (permissionStatus == HealthPermission.denied) {
-      throw const HealthFailure(HealthFailureReason.denied);
+      throw const PermissionFailure('Steps read access not granted');
     }
     if (startOfDay(last).isBefore(startOfDay(first))) {
       throw ValidationFailure('$last is before $first');
     }
+    final days = localDays(first, last);
+    if (days.length > maxStepDays) {
+      throw ValidationFailure(
+        '${days.length} days requested, at most $maxStepDays',
+      );
+    }
     return [
-      for (final day in localDays(first, last))
-        DailySteps(day.start, _count(day.start, day.end)),
+      for (final day in days) DailySteps(day.start, _count(day.start, day.end)),
     ];
   }
 
@@ -98,7 +103,7 @@ class FakeHealthSteps implements HealthSteps {
 
   void _requireAvailable() {
     if (status != HealthAvailability.available) {
-      throw const HealthFailure(HealthFailureReason.unavailable);
+      throw const HealthFailure();
     }
   }
 

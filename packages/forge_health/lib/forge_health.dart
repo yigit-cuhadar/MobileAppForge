@@ -15,8 +15,10 @@
 ///    iOS always answers [HealthPermission.undetermined]: HealthKit hides
 ///    read access, and a refusal reads as zero steps, so say where to allow
 ///    access next to a zero count.
-/// 3. `GetStepsOn` and `GetDailySteps` by local calendar day. Re-read on
-///    app resume: the user can change access in settings at any time.
+/// 3. `GetStepsOn` and `GetDailySteps` by local calendar day, at most
+///    `maxStepDays` per call. Android without access fails with
+///    `PermissionFailure`. Re-read on app resume: the user can change access
+///    in settings at any time.
 ///
 /// Health Connect reads only 30 days before the permission was first
 /// granted, and only while the app is in the foreground.
