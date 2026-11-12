@@ -5,7 +5,8 @@ import 'package:forge_core/forge_core.dart';
 import 'schedule.dart';
 
 /// An Android notification channel: the one every notification is posted
-/// to, or the countdowns' own (`Notifications.showCountdown`).
+/// to, or the ongoing ones' own (`Notifications.showCountdown`,
+/// `Notifications.showStopwatch`).
 final class NotificationChannel {
   const NotificationChannel({
     required this.id,
@@ -220,6 +221,34 @@ abstract interface class Notifications {
     required DateTime endsAt,
     required String title,
     String? body,
+    String? payload,
+  });
+
+  /// Like [showCountdown], but the chronometer counts up from [since], e.g.
+  /// the time a workout has run, and the notification stays until
+  /// cancelled.
+  Future<Result<void>> showStopwatch(
+    int id, {
+    required DateTime since,
+    required String title,
+    String? body,
+    String? payload,
+  });
+
+  /// [showStopwatch] at [at], rounded up to a whole second, which must be in
+  /// the future: exactly when the device allows exact alarms, else possibly
+  /// late (see [canScheduleExact]). Scheduling [id] again replaces the
+  /// pending one; [cancel] removes it. E.g. scheduled at a countdown's end,
+  /// it follows the countdown that the system removes then, even with the
+  /// app suspended; under another id, as a notification replaced at the
+  /// moment the countdown times out could be removed with it.
+  Future<Result<void>> scheduleStopwatch(
+    int id,
+    DateTime at, {
+    required DateTime since,
+    required String title,
+    String? body,
+    String? payload,
   });
 
   /// Cancels the pending or shown notification [id].
