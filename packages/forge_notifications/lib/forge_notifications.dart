@@ -60,5 +60,6 @@ export 'package:flutter_local_notifications/flutter_local_notifications.dart'
     show Importance;
 
 export 'src/local_notifications.dart';
+export 'src/notification_taps.dart';
 export 'src/notifications.dart';
 export 'src/schedule.dart' show ClockTime, iosPendingLimit, seriesLength;

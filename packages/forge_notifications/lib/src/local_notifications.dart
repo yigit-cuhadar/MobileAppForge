@@ -28,6 +28,7 @@ class LocalNotifications implements Notifications {
   final _plugin = FlutterLocalNotificationsPlugin();
   var _ready = false;
   var _launchReported = false;
+  Future<void> _syncing = Future.value();
 
   AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
       .resolvePlatformSpecificImplementation<
@@ -135,6 +136,16 @@ class LocalNotifications implements Notifications {
   });
 
   @override
+  Future<Result<void>> openSettings() => _guard(() async {
+    final opened =
+        await (_android?.openAppNotificationSettings() ??
+            _requireIos().openAppNotificationSettings());
+    if (opened != true) {
+      throw const UnknownFailure('Notification settings did not open');
+    }
+  });
+
+  @override
   Future<Result<void>> show(
     int id, {
     required String title,
@@ -163,6 +174,112 @@ class LocalNotifications implements Notifications {
     await _checkBudget({id}, 1);
     await _schedule(id, at, title, body, payload, await _scheduleMode());
   });
+
+  @override
+  Future<Result<void>> sync(
+    int baseId, {
+    required int count,
+    required List<OneOffNotification> wanted,
+  }) {
+    final result = _syncing.then(
+      (_) => _run(() => _sync(baseId, count, wanted)),
+    );
+    _syncing = result;
+    return result;
+  }
+
+  Future<void> _sync(
+    int baseId,
+    int count,
+    List<OneOffNotification> wanted,
+  ) async {
+    checkIdRange(baseId, count);
+    bool owned(int id) => id >= baseId && id < baseId + count;
+    final wantedIds = {for (final notification in wanted) notification.id};
+    if (wantedIds.length < wanted.length || !wantedIds.every(owned)) {
+      throw ValidationFailure(
+        'Synced notifications need distinct ids in $baseId to '
+        '${baseId + count - 1}',
+      );
+    }
+    final requests = await _plugin.pendingNotificationRequests();
+    final pendingIds = {for (final request in requests) request.id};
+    final have = {
+      for (final request in requests)
+        if (owned(request.id)) request.id: request.payload,
+    };
+    final mode = await _scheduleMode();
+    final now = _now;
+    final changed = <({OneOffNotification notification, tz.TZDateTime at})>[];
+    final unchanged = <int>{};
+    for (final notification in wanted) {
+      final at = ceilToSecond(tz.TZDateTime.from(notification.at, tz.local));
+      final payload = _signed(notification, at, mode);
+      if (have[notification.id] == payload) {
+        unchanged.add(notification.id);
+      } else {
+        changed.add((notification: notification, at: at));
+      }
+    }
+    changed.sort((a, b) => a.at.compareTo(b.at));
+
+    (Object, StackTrace)? last;
+    Future<void> attempt(Future<void> Function() change) async {
+      try {
+        await change();
+      } catch (error, stack) {
+        last = (error, stack);
+      }
+    }
+
+    // Cancelled first, so nothing stays pending at an outdated time and the
+    // freed places count for what is scheduled next.
+    for (final id in have.keys) {
+      if (unchanged.contains(id)) continue;
+      await attempt(() async {
+        await _plugin.cancel(id: id);
+        pendingIds.remove(id);
+      });
+    }
+    // Android has no limit to keep.
+    int? free = _android == null ? iosPendingLimit - pendingIds.length : null;
+    for (final (:notification, :at) in changed) {
+      await attempt(() async {
+        checkFuture(at, now);
+        final replacing = pendingIds.contains(notification.id);
+        if (!replacing && free != null && free! < 1) {
+          throw ValidationFailure(
+            'Notification ${notification.id} exceeds the limit of '
+            '$iosPendingLimit pending',
+          );
+        }
+        await _schedule(
+          notification.id,
+          at,
+          notification.title,
+          notification.body,
+          _signed(notification, at, mode),
+          mode,
+        );
+        if (!replacing && free != null) free = free! - 1;
+      });
+    }
+    if (last case (final error, final stack)) {
+      Error.throwWithStackTrace(error, stack);
+    }
+  }
+
+  static String _signed(
+    OneOffNotification notification,
+    tz.TZDateTime at,
+    AndroidScheduleMode mode,
+  ) => signPayload(
+    notification.payload,
+    at: at,
+    title: notification.title,
+    body: notification.body,
+    exact: mode == AndroidScheduleMode.exactAllowWhileIdle,
+  );
 
   @override
   Future<Result<void>> scheduleIn(
@@ -210,7 +327,7 @@ class LocalNotifications implements Notifications {
     required String body,
     String? payload,
   }) => _run(() async {
-    checkSeriesBase(baseId);
+    checkIdRange(baseId, seriesLength);
     final plan = planSeries(
       baseId,
       tz.TZDateTime.from(first, tz.local),
@@ -293,7 +410,7 @@ class LocalNotifications implements Notifications {
 
   @override
   Future<Result<void>> cancelEvery(int baseId) => _run(() async {
-    checkSeriesBase(baseId);
+    checkIdRange(baseId, seriesLength);
     for (final id in seriesIds(baseId)) {
       await _plugin.cancel(id: id);
     }
@@ -407,9 +524,12 @@ class LocalNotifications implements Notifications {
       ? NotificationPermission.granted
       : NotificationPermission.denied;
 
-  /// The plugin turns a null payload into ''.
-  static String? _payload(String? payload) =>
-      payload == null || payload.isEmpty ? null : payload;
+  /// The app's payload: without a `sync` signature, and null for '', which
+  /// the plugin turns a null payload into.
+  static String? _payload(String? payload) {
+    final unsigned = payload == null ? null : unsignPayload(payload);
+    return unsigned == null || unsigned.isEmpty ? null : unsigned;
+  }
 
   static Failure _incomplete(Object error, int baseId, List<int> scheduled) {
     final failure = error is Failure

@@ -18,6 +18,7 @@ class FakeNative {
   Map<String, Object?>? launch;
   var exactAllowed = true;
   var enabled = true;
+  var settingsOpen = true;
   Map<String, bool> iosPermissions = {};
 
   /// Fails the given method from its [failAfter]th call on.
@@ -61,6 +62,8 @@ class FakeNative {
         return iosPermissions;
       case 'requestPermissions':
         return true;
+      case 'openAppNotificationSettings':
+        return settingsOpen;
     }
     return null;
   }
@@ -671,6 +674,303 @@ void main() {
       PendingNotification(1, 'rest'),
       PendingNotification(2, null),
     ]);
+  });
+
+  group('sync', () {
+    OneOffNotification notice(
+      int id, {
+      int day = 13,
+      String body = 'Upper',
+      String? payload = 'reminder',
+    }) => OneOffNotification(
+      id,
+      DateTime.utc(2026, 11, day, 7),
+      title: 'Workout today',
+      body: body,
+      payload: payload,
+    );
+
+    Future<Result<void>> sync(List<OneOffNotification> wanted) =>
+        at(() => notifications.sync(100, count: 28, wanted: wanted));
+
+    test(
+      'schedules what is missing; taps and pending see the payload',
+      () async {
+        await init();
+
+        final result = await sync([notice(105)]);
+
+        expect(result.isOk, isTrue);
+        final args = native.named('zonedSchedule').single.arguments as Map;
+        expect(
+          [args['id'], args['title'], args['body'], args['scheduledDateTime']],
+          [105, 'Workout today', 'Upper', '2026-11-13T08:00:00'],
+        );
+        expect(
+          args['platformSpecifics']['scheduleMode'],
+          'exactAllowWhileIdle',
+        );
+        expect(native.named('cancel'), isEmpty);
+        expect((await notifications.pending()).valueOrNull, const [
+          PendingNotification(105, 'reminder'),
+        ]);
+        await tap(native.pending[105]!);
+        expect(taps, ['reminder']);
+      },
+    );
+
+    test('a synced notification without payload reports none', () async {
+      await init();
+
+      await sync([notice(105, payload: null)]);
+      await tap(native.pending[105]!);
+
+      expect(taps, [null]);
+      expect((await notifications.pending()).valueOrNull, const [
+        PendingNotification(105, null),
+      ]);
+    });
+
+    test('leaves an equal one alone and replaces a changed one', () async {
+      await init();
+      await sync([
+        notice(105),
+        notice(106, day: 15),
+        notice(107),
+        notice(108, payload: 'a'),
+      ]);
+      native.calls.clear();
+
+      final result = await sync([
+        notice(105),
+        notice(106, day: 14),
+        notice(107, body: 'Lower'),
+        notice(108, payload: 'b'),
+      ]);
+
+      expect(result.isOk, isTrue);
+      // Earliest first.
+      expect(scheduledIds(), [107, 108, 106]);
+      expect([
+        for (final call in native.named('cancel')) call.arguments['id'],
+      ], unorderedEquals([106, 107, 108]));
+    });
+
+    test('cancels only the unwanted pending ones of its range', () async {
+      await init();
+      native.pending.addAll({99: '', 105: 'x', 127: '', 128: '', 1: ''});
+
+      await sync(const []);
+
+      expect(
+        [for (final call in native.named('cancel')) call.arguments['id']],
+        [105, 127],
+      );
+      expect(native.pending.keys, [99, 128, 1]);
+    });
+
+    test('tries every notification and returns the last failure', () async {
+      await init();
+
+      final result = await sync([notice(105, day: 10), notice(106)]);
+
+      expect(result.failureOrNull, isA<ValidationFailure>());
+      expect(scheduledIds(), [106]);
+    });
+
+    test('a failure to read the pending ones changes nothing', () async {
+      await init();
+      native.failing = 'pendingNotificationRequests';
+
+      final result = await sync([notice(105)]);
+
+      expect(result.failureOrNull, isA<UnknownFailure>());
+      expect(native.named('zonedSchedule'), isEmpty);
+    });
+
+    test('rejects ids outside the range or given twice', () async {
+      await init();
+
+      final outside = await sync([notice(128)]);
+      final twice = await sync([notice(105), notice(105, day: 14)]);
+
+      expect(outside.failureOrNull, isA<ValidationFailure>());
+      expect(twice.failureOrNull, isA<ValidationFailure>());
+      expect(native.named('pendingNotificationRequests'), isEmpty);
+    });
+
+    test('a range that is empty or past 32 bits is refused', () async {
+      await init();
+
+      final empty = await notifications.sync(100, count: 0, wanted: const []);
+      final overflowing = await notifications.sync(
+        0x7FFFFFFF,
+        count: 2,
+        wanted: const [],
+      );
+
+      expect(empty.failureOrNull, isA<ValidationFailure>());
+      expect(overflowing.failureOrNull, isA<ValidationFailure>());
+      expect(native.named('pendingNotificationRequests'), isEmpty);
+    });
+
+    test('a notification now in the past cancels its pending one', () async {
+      await init();
+      native.pending[105] = 'outdated';
+
+      final result = await sync([notice(105, day: 10)]);
+
+      expect(result.failureOrNull, isA<ValidationFailure>());
+      expect(native.pending, isEmpty);
+      expect(native.named('zonedSchedule'), isEmpty);
+    });
+
+    test('a failing cancel lets the rest run and is returned', () async {
+      await init();
+      native
+        ..pending[105] = 'x'
+        ..failing = 'cancel';
+
+      final result = await sync([notice(106)]);
+
+      expect(result.failureOrNull, isA<UnknownFailure>());
+      expect(scheduledIds(), [106]);
+    });
+
+    test('overlapping calls leave exactly the last wanted', () async {
+      await init();
+
+      final first = sync([notice(105), notice(106)]);
+      final second = sync([notice(107)]);
+
+      expect((await first).isOk, isTrue);
+      expect((await second).isOk, isTrue);
+      expect(native.pending.keys, [107]);
+    });
+
+    test('a granted exact-alarm permission reschedules', () async {
+      await init();
+      native.exactAllowed = false;
+      await sync([notice(105)]);
+      native
+        ..exactAllowed = true
+        ..calls.clear();
+
+      await sync([notice(105)]);
+
+      expect(
+        native
+            .named('zonedSchedule')
+            .single
+            .arguments['platformSpecifics']['scheduleMode'],
+        'exactAllowWhileIdle',
+      );
+    });
+
+    test('the same instant in another time zone is left alone', () async {
+      await init();
+      await sync([notice(105)]);
+      deviceZone = 'America/New_York';
+      await notifications.refreshTimeZone();
+      native.calls.clear();
+
+      final result = await sync([notice(105)]);
+
+      expect(result.isOk, isTrue);
+      expect(native.named('zonedSchedule'), isEmpty);
+      expect(native.named('cancel'), isEmpty);
+    });
+
+    test('the launching tap arrives without the signature', () async {
+      await init();
+      await sync([notice(105)]);
+      native.launch = launchedBy(native.pending[105]!);
+      notifications = LocalNotifications(
+        channel: channel,
+        androidIcon: 'ic_notification',
+      );
+
+      await init();
+
+      expect(taps, ['reminder']);
+    });
+
+    group('on iOS', () {
+      setUp(() => usePlatform(TargetPlatform.iOS));
+
+      // 28 daily reminders from 12 November, ids 100 to 127.
+      List<OneOffNotification> month({int hour = 7}) => [
+        for (var i = 0; i < 28; i++)
+          OneOffNotification(
+            100 + i,
+            DateTime.utc(2026, 11, 12 + i, hour),
+            title: 'T',
+            body: 'B',
+          ),
+      ];
+
+      test('replacing in-range ones never counts against the limit', () async {
+        await init();
+        native.pending.addAll({for (var i = 0; i < 36; i++) i: ''});
+        await sync(month());
+        native.calls.clear();
+
+        final result = await sync(month(hour: 8));
+
+        expect(result.isOk, isTrue);
+        expect(scheduledIds(), hasLength(28));
+        expect(native.pending, hasLength(iosPendingLimit));
+      });
+
+      test(
+        'schedules the earliest that fit, cancelling outdated ones',
+        () async {
+          await init();
+          native.pending.addAll({
+            for (var i = 0; i < 40; i++) i: '',
+            for (var id = 100; id < 128; id++) id: 'outdated',
+          });
+
+          final result = await sync(month());
+
+          expect(result.failureOrNull, isA<ValidationFailure>());
+          expect(scheduledIds(), [for (var id = 100; id < 124; id++) id]);
+          expect(native.pending, hasLength(iosPendingLimit));
+          expect(native.pending.values, isNot(contains('outdated')));
+        },
+      );
+    });
+  });
+
+  group('openSettings', () {
+    test('opens the settings on Android and iOS', () async {
+      await init();
+      final android = await notifications.openSettings();
+      usePlatform(TargetPlatform.iOS);
+      final ios = await notifications.openSettings();
+
+      expect(android.isOk, isTrue);
+      expect(ios.isOk, isTrue);
+      expect(native.named('openAppNotificationSettings'), hasLength(2));
+    });
+
+    test('works when init failed', () async {
+      native.failing = 'initialize';
+
+      expect((await init()).isOk, isFalse);
+      final result = await notifications.openSettings();
+
+      expect(result.isOk, isTrue);
+    });
+
+    test('fails when they did not open', () async {
+      await init();
+      native.settingsOpen = false;
+
+      final result = await notifications.openSettings();
+
+      expect(result.failureOrNull, isA<UnknownFailure>());
+    });
   });
 
   group('permissions on Android', () {
