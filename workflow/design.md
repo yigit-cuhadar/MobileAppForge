@@ -15,8 +15,8 @@ theme, so nothing is styled that will be rebuilt. It is build work, not design:
 2. For each flow to rebuild, show two or three wireframe variants (layout and
    steps only) with a recommendation, the navigation skeleton first. The user
    picks.
-3. Record the picks under Decisions and add the flows as a feature group in
-   `SPEC.md`. Nothing is removed without the user saying so; say where each
+3. Record the picks under Feature notes and add the flows as a feature group
+   in `SPEC.md`. Nothing is removed without the user saying so; say where each
    moved thing lives.
 4. Build them one at a time as in `workflow/build.md`.
 
