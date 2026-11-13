@@ -37,9 +37,7 @@ rm -f SPEC.md.bak AGENTS.md.bak ios/Runner.xcodeproj/project.pbxproj.bak
 
 # Analytics and Crashlytics start off natively; forge_firebase's Telemetry
 # turns them on for a user who agreed. Edited as text to keep comments.
-plist=ios/Runner/Info.plist
-if ! grep -q FIREBASE_ANALYTICS_COLLECTION_ENABLED "$plist"; then
-  perl -0pi -e 's|<dict>\n|<dict>
+perl -0pi -e 's|<dict>\n|<dict>
 \t<!-- Analytics and Crashlytics collect nothing until the user agrees;
 \t     the app turns them on (forge_firebase Telemetry). -->
 \t<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
@@ -51,11 +49,8 @@ if ! grep -q FIREBASE_ANALYTICS_COLLECTION_ENABLED "$plist"; then
 \t<false/>
 \t<key>GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS</key>
 \t<false/>
-|' "$plist"
-fi
-manifest=android/app/src/main/AndroidManifest.xml
-if ! grep -q firebase_analytics_collection_enabled "$manifest"; then
-  perl -0pi -e 's|(\n\s*</application>)|
+|' ios/Runner/Info.plist
+perl -0pi -e 's|(\n\s*</application>)|
         <!-- Analytics and Crashlytics collect nothing until the user agrees;
              the app turns them on (forge_firebase Telemetry). -->
         <meta-data
@@ -74,8 +69,7 @@ if ! grep -q firebase_analytics_collection_enabled "$manifest"; then
             android:value="false" />
         <meta-data
             android:name="google_analytics_default_allow_ad_personalization_signals"
-            android:value="false" />$1|' "$manifest"
-fi
+            android:value="false" />$1|' android/app/src/main/AndroidManifest.xml
 
 if [ -n "$bundle" ]; then
   # The Android namespace (Kotlin package) keeps its generated value; only the

@@ -11,7 +11,7 @@ Talk to the user in their language. Code, comments and commits are English.
 | Path | Purpose |
 |---|---|
 | `workflow/` | One file per phase. Read only the phase you are in. |
-| `packages/` | `forge_core`, `forge_ui`, `forge_firebase`, `forge_auth` — used by every app. |
+| `packages/` | The shared `forge_*` packages. Every app starts with `forge_core`, `forge_ui`, `forge_firebase` and `forge_auth`. |
 | `template/` | Overlay copied onto `flutter create` by `tools/new_app.sh`. |
 | `tools/` | `new_app.sh`, `firebase_setup.sh`, `secret.sh`, `check.sh`. |
 | `apps/<name>/SPEC.md` | The app's state. Resume any app from here. |
@@ -25,8 +25,9 @@ Talk to the user in their language. Code, comments and commits are English.
 4. **Release** — not automated yet. Build it with the first app that reaches
    it (App Store Connect API + Play Developer API), then move it into `tools/`.
 
-To resume: read `apps/<name>/SPEC.md`, find the first unticked feature or open
-question, read that phase's workflow file, continue.
+To resume: read `apps/<name>/SPEC.md` down to Feature notes, find the first
+unticked feature or open question, read that phase's workflow file and the
+notes of the feature you will touch, continue.
 
 ## Working with the user
 
@@ -38,7 +39,8 @@ question, read that phase's workflow file, continue.
   moment it comes up (in Claude Code: the question dialog), one question per
   decision. Never leave it as a note inside a status report or a sub-agent's
   summary. Work that does not depend on the answer goes on meanwhile.
-- Decide the rest yourself and note it in `SPEC.md` under Decisions.
+- Decide the rest yourself and note it in `SPEC.md`: app-wide decisions under
+  Decisions, how a feature behaves under Feature notes.
 - Never ask the user to do by hand what an API or CLI can do. If a credential
   is missing, ask them to run `tools/secret.sh set <NAME>` (it prompts; the
   value never enters the chat) and then do the work yourself. Read secrets
