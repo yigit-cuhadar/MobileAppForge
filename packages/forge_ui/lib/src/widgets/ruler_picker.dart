@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,7 +12,10 @@ import '../spacing.dart';
 /// [onChanged] reports each step the user moves to, with the floating-point
 /// noise of `min + n * step` rounded away. A new [value] from the parent
 /// moves the ruler to the nearest tick without reporting it, so a value
-/// between ticks stays as given until the user drags.
+/// between ticks stays as given until the user drags. It also ends a drag
+/// under way, so the ruler never fights the finger for its position.
+///
+/// The last tick is the last step that does not pass [max].
 class RulerPicker extends StatefulWidget {
   const RulerPicker({
     super.key,
@@ -44,7 +49,24 @@ class _RulerPickerState extends State<RulerPicker> {
   /// is no pick of the user's.
   bool _following = false;
 
-  int get _count => ((widget.max - widget.min) / widget.step).round() + 1;
+  // The epsilon keeps a last step that lands on max from rounding away.
+  int get _count =>
+      ((widget.max - widget.min) / widget.step + 1e-9).floor() + 1;
+
+  /// As many decimals as [RulerPicker.step] has, so whole steps read
+  /// without a trailing ".0".
+  int get _decimals {
+    var decimals = 0;
+    while (decimals < 10) {
+      final scaled = widget.step * math.pow(10, decimals);
+      if ((scaled - scaled.round()).abs() < 1e-9) break;
+      decimals++;
+    }
+    return decimals;
+  }
+
+  String _label(int index) =>
+      _valueAt(index.clamp(0, _count - 1)).toStringAsFixed(_decimals);
 
   int _indexOf(double value) =>
       ((value - widget.min) / widget.step).round().clamp(0, _count - 1);
@@ -106,9 +128,9 @@ class _RulerPickerState extends State<RulerPicker> {
     final first = (widget.min / widget.step).round();
     return Semantics(
       slider: true,
-      value: '${_valueAt(_index)}',
-      increasedValue: '${_valueAt((_index + 1).clamp(0, _count - 1))}',
-      decreasedValue: '${_valueAt((_index - 1).clamp(0, _count - 1))}',
+      value: _label(_index),
+      increasedValue: _label(_index + 1),
+      decreasedValue: _label(_index - 1),
       onIncrease: () => _nudge(1),
       onDecrease: () => _nudge(-1),
       child: SizedBox(
@@ -116,34 +138,39 @@ class _RulerPickerState extends State<RulerPicker> {
         child: LayoutBuilder(
           builder: (context, constraints) => Stack(
             children: [
-              NotificationListener<ScrollUpdateNotification>(
-                onNotification: _onScroll,
-                child: ListView.builder(
-                  controller: _controller,
-                  scrollDirection: Axis.horizontal,
-                  physics: const _SnapPhysics(parent: ClampingScrollPhysics()),
-                  // The first and last tick can reach the pointer.
-                  padding: EdgeInsets.symmetric(
-                    horizontal:
-                        (constraints.maxWidth - RulerPicker.tickSpacing) / 2,
+              // The ticks say nothing the slider does not.
+              ExcludeSemantics(
+                child: NotificationListener<ScrollUpdateNotification>(
+                  onNotification: _onScroll,
+                  child: ListView.builder(
+                    controller: _controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const _SnapPhysics(
+                      parent: ClampingScrollPhysics(),
+                    ),
+                    // The first and last tick can reach the pointer.
+                    padding: EdgeInsets.symmetric(
+                      horizontal:
+                          (constraints.maxWidth - RulerPicker.tickSpacing) / 2,
+                    ),
+                    itemExtent: RulerPicker.tickSpacing,
+                    itemCount: _count,
+                    itemBuilder: (context, index) {
+                      final tick = first + index;
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: SizedBox(
+                          width: 1,
+                          height: tick % 10 == 0
+                              ? Gap.xl
+                              : tick % 5 == 0
+                              ? Gap.lg
+                              : Gap.md,
+                          child: ColoredBox(color: colors.onSurfaceVariant),
+                        ),
+                      );
+                    },
                   ),
-                  itemExtent: RulerPicker.tickSpacing,
-                  itemCount: _count,
-                  itemBuilder: (context, index) {
-                    final tick = first + index;
-                    return Align(
-                      alignment: Alignment.topCenter,
-                      child: SizedBox(
-                        width: 1,
-                        height: tick % 10 == 0
-                            ? Gap.xl
-                            : tick % 5 == 0
-                            ? Gap.lg
-                            : Gap.md,
-                        child: ColoredBox(color: colors.onSurfaceVariant),
-                      ),
-                    );
-                  },
                 ),
               ),
               IgnorePointer(

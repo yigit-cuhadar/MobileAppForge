@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -98,6 +99,79 @@ void main() {
       await drag(tester, RulerPicker.tickSpacing * 5);
       expect(changes.last, lessThan(71));
       expect(changes.last, greaterThanOrEqualTo(66));
+    });
+
+    testWidgets('never reports past max when the range is no whole number '
+        'of steps', (tester) async {
+      await pump(tester, min: 0, max: 10, step: 4, value: 4);
+
+      await drag(tester, -RulerPicker.tickSpacing * 20);
+
+      expect(changes.last, 8);
+    });
+
+    testWidgets('a fling comes to rest on a tick', (tester) async {
+      await pump(tester, step: 1, value: 100);
+
+      await tester.fling(find.byType(RulerPicker), const Offset(-123, 0), 1000);
+      await tester.pumpAndSettle();
+
+      final pixels = tester
+          .state<ScrollableState>(find.byType(Scrollable))
+          .position
+          .pixels;
+      expect(pixels % RulerPicker.tickSpacing, closeTo(0, 1e-6));
+      expect(changes.last, 100 + pixels / RulerPicker.tickSpacing - 70);
+    });
+
+    group('semantics', () {
+      testWidgets('one slider node, whole steps without decimals', (
+        tester,
+      ) async {
+        final handle = tester.ensureSemantics();
+        await pump(tester, step: 1, value: 80);
+
+        expect(
+          tester.getSemantics(find.byType(RulerPicker)),
+          matchesSemantics(
+            isSlider: true,
+            value: '80',
+            increasedValue: '81',
+            decreasedValue: '79',
+            hasIncreaseAction: true,
+            hasDecreaseAction: true,
+          ),
+        );
+        handle.dispose();
+      });
+
+      testWidgets('increase and decrease move one step and report it', (
+        tester,
+      ) async {
+        final handle = tester.ensureSemantics();
+        await pump(tester, value: 80);
+        final node = tester.getSemantics(find.byType(RulerPicker));
+
+        node.owner!.performAction(node.id, SemanticsAction.increase);
+        await tester.pumpAndSettle();
+        expect(changes, [80.1]);
+        expect(
+          tester.getSemantics(find.byType(RulerPicker)),
+          matchesSemantics(
+            isSlider: true,
+            value: '80.1',
+            increasedValue: '80.2',
+            decreasedValue: '80.0',
+            hasIncreaseAction: true,
+            hasDecreaseAction: true,
+          ),
+        );
+
+        node.owner!.performAction(node.id, SemanticsAction.decrease);
+        await tester.pumpAndSettle();
+        expect(changes, [80.1, 80.0]);
+        handle.dispose();
+      });
     });
   });
 }
