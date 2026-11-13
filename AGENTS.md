@@ -20,7 +20,8 @@ Talk to the user in their language. Code, comments and commits are English.
 
 1. **Discovery** — `workflow/discovery.md`. Ends with an approved `SPEC.md`.
 2. **Build** — `workflow/build.md`. Scaffold, then one feature at a time.
-3. **Design** — `workflow/design.md`. Only after every feature is ticked.
+3. **Design** — `workflow/design.md`. After every feature is ticked; a UX pass
+   first when flows need rework.
 4. **Release** — not automated yet. Build it with the first app that reaches
    it (App Store Connect API + Play Developer API), then move it into `tools/`.
 
