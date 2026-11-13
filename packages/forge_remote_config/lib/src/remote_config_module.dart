@@ -11,15 +11,11 @@ sealed class RemoteConfigBackend {
   const RemoteConfigBackend();
 }
 
-/// Firebase Remote Config. A fetch gives up after [fetchTimeout]; values
-/// younger than [minimumFetchInterval] are not fetched again.
+/// Firebase Remote Config. Values younger than [minimumFetchInterval] are
+/// not fetched again.
 final class FirebaseRemoteConfigBackend extends RemoteConfigBackend {
-  const FirebaseRemoteConfigBackend({
-    required this.fetchTimeout,
-    required this.minimumFetchInterval,
-  });
+  const FirebaseRemoteConfigBackend({required this.minimumFetchInterval});
 
-  final Duration fetchTimeout;
   final Duration minimumFetchInterval;
 }
 
@@ -30,7 +26,7 @@ final class FakeRemoteConfigBackend extends RemoteConfigBackend {
 }
 
 /// Registers [RemoteConfigRepository] with the app's [defaults]: bools,
-/// numbers and strings, of the type each key is read as. Call after
+/// numbers and strings. Call after
 /// Firebase is initialized, then `initialize()` the repository once.
 class RemoteConfigModule implements FeatureModule {
   const RemoteConfigModule({required this.defaults, required this.backend});
@@ -41,15 +37,11 @@ class RemoteConfigModule implements FeatureModule {
   @override
   void register(GetIt sl) {
     switch (backend) {
-      case FirebaseRemoteConfigBackend(
-        :final fetchTimeout,
-        :final minimumFetchInterval,
-      ):
+      case FirebaseRemoteConfigBackend(:final minimumFetchInterval):
         sl.registerLazySingleton<RemoteConfigRepository>(
           () => FirebaseRemoteConfigRepository(
             FirebaseRemoteConfig.instance,
             defaults: defaults,
-            fetchTimeout: fetchTimeout,
             minimumFetchInterval: minimumFetchInterval,
           ),
         );

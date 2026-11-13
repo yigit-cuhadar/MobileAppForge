@@ -11,15 +11,31 @@ import 'package:mocktail/mocktail.dart';
 class MockRemoteConfig extends Mock implements FirebaseRemoteConfig {}
 
 // ignore: invalid_use_of_protected_member
-RemoteConfigValue value(String? raw, ValueSource source) =>
-    RemoteConfigValue(raw == null ? null : utf8.encode(raw), source);
+RemoteConfigValue remote(String raw) =>
+    RemoteConfigValue(utf8.encode(raw), ValueSource.valueRemote);
 
-final unknown = value(null, ValueSource.valueStatic);
+// ignore: invalid_use_of_protected_member
+final unknown = RemoteConfigValue(null, ValueSource.valueStatic);
 
+const defaults = <String, Object>{
+  'layout': 'a',
+  'on': true,
+  'count': 3,
+  'ratio': 0.5,
+  'whole': 1,
+  'whole_double': 2.0,
+  'fraction': 1.5,
+};
+
+/// The SDK's two stores: [fetched] by `fetch`, [active] by `activate`,
+/// which reads see.
 void main() {
   late MockRemoteConfig config;
   late FirebaseRemoteConfigRepository repository;
-  late Completer<bool> fetch;
+  late Map<String, String> fetched;
+  late Map<String, String> active;
+  late Map<String, String> server;
+  late Completer<void> fetch;
 
   setUpAll(() {
     registerFallbackValue(
@@ -32,51 +48,69 @@ void main() {
 
   setUp(() {
     config = MockRemoteConfig();
-    fetch = Completer();
+    fetched = {};
+    active = {};
+    server = {};
+    fetch = Completer()..complete();
     when(() => config.setConfigSettings(any())).thenAnswer((_) async {});
-    when(() => config.setDefaults(any())).thenAnswer((_) async {});
     when(() => config.ensureInitialized()).thenAnswer((_) async {});
-    when(() => config.fetchAndActivate()).thenAnswer((_) => fetch.future);
-    when(() => config.getValue(any())).thenReturn(unknown);
+    when(() => config.activate()).thenAnswer((_) async {
+      active = {...fetched};
+      return true;
+    });
+    when(() => config.fetch()).thenAnswer((_) async {
+      await fetch.future;
+      fetched = {...server};
+    });
+    when(() => config.getValue(any())).thenAnswer((call) {
+      final raw = active[call.positionalArguments.single as String];
+      return raw == null ? unknown : remote(raw);
+    });
     repository = FirebaseRemoteConfigRepository(
       config,
-      defaults: const {'layout': 'a', 'on': true, 'count': 3, 'ratio': 0.5},
-      fetchTimeout: const Duration(seconds: 10),
+      defaults: defaults,
       minimumFetchInterval: const Duration(hours: 1),
     );
   });
 
   group('initialize', () {
-    test(
-      'sets settings and defaults, then loads the activated values',
-      () async {
-        final result = await repository.initialize();
+    test('activates the last fetch, then fetches in the background', () async {
+      final result = await repository.initialize();
 
-        expect(result.isOk, isTrue);
-        final settings =
-            verifyInOrder([
-                  () => config.setConfigSettings(captureAny()),
-                  () => config.setDefaults(const {
-                    'layout': 'a',
-                    'on': true,
-                    'count': 3,
-                    'ratio': 0.5,
-                  }),
-                  () => config.ensureInitialized(),
-                  () => config.fetchAndActivate(),
-                ]).first.captured.single
-                as RemoteConfigSettings;
-        expect(settings.fetchTimeout, const Duration(seconds: 10));
-        expect(settings.minimumFetchInterval, const Duration(hours: 1));
+      expect(result.isOk, isTrue);
+      final settings =
+          verifyInOrder([
+                () => config.setConfigSettings(captureAny()),
+                () => config.ensureInitialized(),
+                () => config.activate(),
+                () => config.fetch(),
+              ]).first.captured.single
+              as RemoteConfigSettings;
+      expect(settings.minimumFetchInterval, const Duration(hours: 1));
+      verifyNever(() => config.fetchAndActivate());
+    });
+
+    test(
+      'values fetched in a session apply from the next initialize',
+      () async {
+        server['layout'] = 'b';
+
+        await repository.initialize();
+        await pumpEventQueue();
+        expect(repository.getString('layout'), 'a');
+
+        await repository.initialize();
+        expect(repository.getString('layout'), 'b');
       },
     );
 
     test('does not wait for the fetch', () async {
-      // The fetch never completes here.
+      fetch = Completer();
       expect((await repository.initialize()).isOk, isTrue);
     });
 
     test('a failed fetch never reaches the app', () async {
+      fetch = Completer();
       expect((await repository.initialize()).isOk, isTrue);
 
       fetch.completeError(
@@ -94,35 +128,53 @@ void main() {
       final result = await repository.initialize();
 
       expect(result.failureOrNull, isA<UnknownFailure>());
-      verify(() => config.fetchAndActivate()).called(1);
+      verify(() => config.fetch()).called(1);
     });
   });
 
   group('reads', () {
-    test('the app default stands in while the SDK has no value', () {
-      expect(repository.getString('layout'), 'a');
-      expect(repository.getBool('on'), isTrue);
-      expect(repository.getInt('count'), 3);
-      expect(repository.getDouble('ratio'), 0.5);
+    test('a key without a server value reads the app default', () async {
+      void expectDefaults() {
+        expect(repository.getString('layout'), 'a');
+        expect(repository.getBool('on'), isTrue);
+        expect(repository.getInt('count'), 3);
+        expect(repository.getDouble('ratio'), 0.5);
+      }
+
+      expectDefaults();
+      await repository.initialize();
+      expectDefaults();
     });
 
-    test('an activated or default value comes from the SDK', () {
-      when(() => config.getValue('layout'))
-          .thenReturn(value('b', ValueSource.valueRemote));
-      when(() => config.getValue('on'))
-          .thenReturn(value('false', ValueSource.valueRemote));
-      when(() => config.getValue('count'))
-          .thenReturn(value('7', ValueSource.valueDefault));
-      when(() => config.getValue('ratio'))
-          .thenReturn(value('0.25', ValueSource.valueRemote));
+    test('a number default serves int when integral, and double', () {
+      expect(repository.getDouble('whole'), 1.0);
+      expect(repository.getInt('whole'), 1);
+      expect(repository.getInt('whole_double'), 2);
+      expect(repository.getDouble('whole_double'), 2.0);
+      expect(repository.getInt('fraction'), 0);
+      expect(repository.getDouble('fraction'), 1.5);
+    });
+
+    test('a server value is parsed as the SDK parses it', () {
+      active = {
+        'layout': 'b',
+        'on': 'false',
+        'count': '7',
+        'ratio': '0.25',
+        'whole': '7.0',
+        'flag': '1',
+      };
 
       expect(repository.getString('layout'), 'b');
       expect(repository.getBool('on'), isFalse);
       expect(repository.getInt('count'), 7);
+      expect(repository.getDouble('count'), 7.0);
       expect(repository.getDouble('ratio'), 0.25);
+      expect(repository.getInt('whole'), 0);
+      expect(repository.getBool('flag'), isTrue);
     });
 
-    test('a key without a default reads as the SDK static value', () {
+    test('a key without a value or default reads as empty', () {
       expect(repository.getString('missing'), '');
       expect(repository.getBool('missing'), isFalse);
       expect(repository.getInt('missing'), 0);
