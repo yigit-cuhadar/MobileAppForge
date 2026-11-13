@@ -94,6 +94,18 @@ class FirebaseTelemetry implements Telemetry {
     });
   }
 
+  @override
+  Future<void> logEvent(
+    String name, [
+    Map<String, Object> parameters = const {},
+  ]) async {
+    try {
+      await _analytics.logEvent(name: name, parameters: parameters);
+    } catch (error) {
+      Log.d('FirebaseTelemetry', 'event $name not logged: $error');
+    }
+  }
+
   Future<Result<void>> _run(Future<void> Function() body) {
     final run = _tail.then((_) => body());
     _tail = run.catchError((Object _) {});
