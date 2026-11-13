@@ -7,6 +7,7 @@ import '../domain/auth_user.dart';
 import 'auth_cubit.dart';
 import 'auth_form_cubit.dart';
 import 'auth_strings.dart';
+import 'provider_mark.dart';
 
 /// Combined sign-in / sign-up screen. Needs `AuthCubit` above it. Navigation
 /// after success belongs to the app: either its router reacts to `AuthCubit`,
@@ -218,13 +219,14 @@ class _AuthViewState extends State<_AuthView> {
                             ),
                             for (final provider in widget.providers) ...[
                               const SizedBox(height: Gap.sm),
-                              OutlinedButton(
+                              OutlinedButton.icon(
                                 onPressed: state.isLoading
                                     ? null
                                     : () => context
                                           .read<AuthFormCubit>()
                                           .signInWith(provider),
-                                child: Text(switch (provider) {
+                                icon: ProviderMark(provider),
+                                label: Text(switch (provider) {
                                   SocialProvider.google => s.continueWithGoogle,
                                   SocialProvider.apple => s.continueWithApple,
                                 }),
