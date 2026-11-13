@@ -34,6 +34,10 @@ question, read that phase's workflow file, continue.
   model, auth methods, paid services (Blaze plan, Cloud Functions), anything
   public or irreversible (creating repos/projects, publishing, deleting data).
   Offer 2-4 options with a recommendation first.
+- Put each such decision to the user as a question with options at the
+  moment it comes up (in Claude Code: the question dialog), one question per
+  decision. Never leave it as a note inside a status report or a sub-agent's
+  summary. Work that does not depend on the answer goes on meanwhile.
 - Decide the rest yourself and note it in `SPEC.md` under Decisions.
 - Never ask the user to do by hand what an API or CLI can do. If a credential
   is missing, ask them to run `tools/secret.sh set <NAME>` (it prompts; the
