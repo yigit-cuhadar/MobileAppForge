@@ -17,4 +17,9 @@ abstract interface class Telemetry {
   /// collecting, and drops this device's analytics id and unsent crash
   /// reports.
   Future<Result<void>> forget(String uid);
+
+  /// Records the event [name] with [parameters] if collection is on, and
+  /// drops it otherwise. Never fails: an event that cannot be recorded is
+  /// only logged, as losing one is expected.
+  Future<void> logEvent(String name, [Map<String, Object> parameters]);
 }

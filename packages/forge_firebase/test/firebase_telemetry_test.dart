@@ -170,4 +170,43 @@ void main() {
       expect((await subject.apply('u1', false)).isOk, isFalse);
     },
   );
+
+  group('logEvent', () {
+    test('forwards the name and parameters to Analytics', () async {
+      when(
+        () => analytics.logEvent(
+          name: any(named: 'name'),
+          parameters: any(named: 'parameters'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await telemetry().logEvent('paywall_view', {'layout': 'a'});
+      await telemetry().logEvent('app_tour');
+
+      verify(
+        () => analytics.logEvent(
+          name: 'paywall_view',
+          parameters: {'layout': 'a'},
+        ),
+      ).called(1);
+      verify(() => analytics.logEvent(name: 'app_tour', parameters: const {}))
+          .called(1);
+    });
+
+    test('a failure is swallowed and not reported', () async {
+      when(
+        () => analytics.logEvent(
+          name: any(named: 'name'),
+          parameters: any(named: 'parameters'),
+        ),
+      ).thenThrow(Exception('no plugin'));
+      final logged = <Object>[];
+      final logError = Log.onError;
+      Log.onError = (error, _, _) => logged.add(error);
+      addTearDown(() => Log.onError = logError);
+
+      await expectLater(telemetry().logEvent('paywall_view'), completes);
+      expect(logged, isEmpty);
+    });
+  });
 }
