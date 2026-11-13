@@ -1,0 +1,21 @@
+name: forge_camera
+description: MobileAppForge shared package.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.1
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  forge_ui:
+    path: ../forge_ui
+  camera: ^0.12.2
+
+dev_dependencies:
+  camera_platform_interface: ^2.15.0
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
