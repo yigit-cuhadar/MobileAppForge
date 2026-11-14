@@ -116,6 +116,11 @@ SPEC keeps design decisions and the studio links, never how things look.
 - Every studio build checks the tags and stops on an untagged part or a tag
   naming a missing component. A component used nowhere is allowed; it
   sits last in its group.
+- Each studio is also kept in git as the page it publishes: MobileAppForge
+  Studio at `design/studio.html` in this repo, an app's studio at
+  `design/studio.html` in the app's repo. Change a studio by editing that
+  page's data (`<script id="data">`), publish it to the studio's link, and
+  commit the same file in the same change.
 
 ## Tests
 
