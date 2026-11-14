@@ -36,6 +36,35 @@ void main() {
       );
     });
 
+    testWidgets('dragging the thumb across turns it on; a short drag '
+        'springs back', (tester) async {
+      final changes = <bool>[];
+      await pump(tester, ForgeSwitch(value: false, onChanged: changes.add));
+
+      await tester.drag(find.byType(ForgeSwitch), const Offset(30, 0));
+      await tester.pumpAndSettle();
+      expect(changes, [true]);
+
+      changes.clear();
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(ForgeSwitch)),
+      );
+      await gesture.moveBy(const Offset(30, 0));
+      await gesture.moveBy(const Offset(-25, 0));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(changes, isEmpty);
+    });
+
+    testWidgets('dragging a disabled switch does nothing', (tester) async {
+      await pump(tester, const ForgeSwitch(value: false, onChanged: null));
+
+      await tester.drag(find.byType(ForgeSwitch), const Offset(30, 0));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('reads as disabled without onChanged', (tester) async {
       await pump(tester, const ForgeSwitch(value: true, onChanged: null));
 
