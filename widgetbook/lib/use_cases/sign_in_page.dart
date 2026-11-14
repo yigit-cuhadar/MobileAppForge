@@ -26,7 +26,11 @@ class _ProviderMark extends StatelessWidget {
   }
 }
 
-SignInPage _page(BuildContext context, {SignInOption? running}) => SignInPage(
+SignInPage _page(
+  BuildContext context, {
+  SignInOption? running,
+  SignInEmailForm? email,
+}) => SignInPage(
   mark: const Text('A'),
   name: context.knobs.string(label: 'Name', initialValue: '[APP NAME]'),
   tagline: context.knobs.string(label: 'Tagline', initialValue: '[TAGLINE]'),
@@ -44,8 +48,15 @@ SignInPage _page(BuildContext context, {SignInOption? running}) => SignInPage(
   onUseEmail: () {},
   guestLabel: 'Continue as guest',
   onGuest: () {},
-  terms: 'By continuing you agree to the Terms and Privacy Policy.',
+  terms: SignInTerms(
+    text: 'By continuing you agree to the {terms} and {privacy}.',
+    termsLabel: 'Terms',
+    onTerms: () {},
+    privacyLabel: 'Privacy Policy',
+    onPrivacy: () {},
+  ),
   signingInLabel: 'Signing in…',
+  email: email,
   running: running,
 );
 
@@ -57,7 +68,7 @@ Widget signingIn(BuildContext context) => _page(
   context,
   running: context.knobs.object.segmented<SignInOption>(
     label: 'Running',
-    options: SignInOption.values,
+    options: [SignInOption.apple, SignInOption.google, SignInOption.guest],
     labelBuilder: (option) => option.name,
   ),
 );
@@ -83,23 +94,54 @@ Widget signInError(BuildContext context) => Stack(
   ],
 );
 
-SignInEmailPage _email({String? passwordError}) => SignInEmailPage(
-  backLabel: 'Other options',
-  onBack: () {},
-  title: 'Sign in with email',
-  emailLabel: 'Email',
-  passwordLabel: 'Password',
-  signInLabel: 'Sign in',
-  onSignIn: (_, _) {},
-  passwordError: passwordError,
+SignInEmailForm _signIn({String? emailError, String? passwordError}) =>
+    SignInEmailForm(
+      backLabel: 'Other options',
+      onBack: () {},
+      title: 'Sign in with email',
+      emailLabel: 'Email',
+      passwordLabel: 'Password',
+      submitLabel: 'Sign in',
+      onSubmit: (_, _) {},
+      forgotPasswordLabel: 'Forgot password?',
+      onForgotPassword: (_) {},
+      switchLabel: "Don't have an account? Create one",
+      onSwitch: () {},
+      emailError: emailError,
+      passwordError: passwordError,
+    );
+
+@widgetbook.UseCase(name: 'Email', type: SignInPage)
+Widget email(BuildContext context) => _page(context, email: _signIn());
+
+@widgetbook.UseCase(name: 'Email · validation', type: SignInPage)
+Widget emailValidation(BuildContext context) => _page(
+  context,
+  email: _signIn(
+    emailError: 'Enter a valid email',
+    passwordError: 'Use at least 6 characters',
+  ),
 );
 
-@widgetbook.UseCase(name: 'Email form', type: SignInEmailPage)
-Widget emailForm(BuildContext context) => _email();
+@widgetbook.UseCase(name: 'Email · signing in', type: SignInPage)
+Widget emailSigningIn(BuildContext context) =>
+    _page(context, email: _signIn(), running: SignInOption.email);
 
-@widgetbook.UseCase(name: 'Email form · field error', type: SignInEmailPage)
-Widget emailFormError(BuildContext context) =>
-    _email(passwordError: 'Wrong password. Try again.');
+@widgetbook.UseCase(name: 'Email · create account', type: SignInPage)
+Widget emailCreateAccount(BuildContext context) => _page(
+  context,
+  email: SignInEmailForm(
+    backLabel: 'Other options',
+    onBack: () {},
+    title: 'Create account',
+    emailLabel: 'Email',
+    passwordLabel: 'Password',
+    submitLabel: 'Create account',
+    onSubmit: (_, _) {},
+    switchLabel: 'Already have an account? Sign in',
+    onSwitch: () {},
+  ),
+);
 
 /// The dialog `confirmReplaceGuestData` shows, over the scrim.
 @widgetbook.UseCase(name: 'Replace guest data', type: SignInPage)

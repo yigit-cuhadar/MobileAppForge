@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:forge_ui/src/widgets/busy_ring.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -93,7 +94,7 @@ void main() {
       await tester.tap(find.text('Saving'));
 
       expect(taps, 0);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(BusyRing), findsOneWidget);
     });
 
     testWidgets('a locked button shows a lock and stays tappable', (
@@ -113,6 +114,26 @@ void main() {
           (w) => w is ForgeIcon && w.icon == ForgeIcons.lock,
         ),
         findsOneWidget,
+      );
+    });
+
+    testWidgets('draws a trailing icon after the label', (tester) async {
+      await pump(
+        tester,
+        ForgeButton(
+          label: 'Get [SYSTEM APP]',
+          trailingIcon: ForgeIcons.openInNew,
+          onPressed: () {},
+        ),
+      );
+
+      final icon = find.byWidgetPredicate(
+        (w) => w is ForgeIcon && w.icon == ForgeIcons.openInNew,
+      );
+      expect(icon, findsOneWidget);
+      expect(
+        tester.getCenter(icon).dx,
+        greaterThan(tester.getCenter(find.text('Get [SYSTEM APP]')).dx),
       );
     });
 

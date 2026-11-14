@@ -114,6 +114,10 @@ void main() {
       ),
     );
 
+    expect(
+      button(tester, 'Get [SYSTEM APP]').trailingIcon,
+      ForgeIcons.openInNew,
+    );
     await tester.tap(find.text('Get [SYSTEM APP]'));
     await tester.tap(find.text('Not now'));
     expect(taps, ['get', 'later']);

@@ -7,6 +7,7 @@ import '../theme/forge_palette.dart';
 import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
+import 'busy_ring.dart';
 import 'pressable.dart';
 
 enum ForgeButtonVariant {
@@ -54,6 +55,7 @@ class ForgeButton extends StatelessWidget {
     this.size = ForgeButtonSize.regular,
     this.loading = false,
     this.locked = false,
+    this.trailingIcon,
   });
 
   final String label;
@@ -64,6 +66,7 @@ class ForgeButton extends StatelessWidget {
   final ForgeButtonSize size;
   final bool loading;
   final bool locked;
+  final ForgeIconData? trailingIcon;
 
   /// The drawn height of the small form.
   static const double smallHeight = 32;
@@ -119,13 +122,7 @@ class ForgeButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (loading) ...[
-                  SizedBox.square(
-                    dimension: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: look.ink,
-                    ),
-                  ),
+                  BusyRing(size: 14, stroke: 2, sweep: 0.75, color: look.ink),
                   const SizedBox(width: Gap.sm),
                 ] else if (locked) ...[
                   ForgeIcon(ForgeIcons.lock, size: iconSize, color: look.ink),
@@ -139,6 +136,10 @@ class ForgeButton extends StatelessWidget {
                     style: labelStyle.copyWith(color: look.ink),
                   ),
                 ),
+                if (trailingIcon case final icon?) ...[
+                  const SizedBox(width: Gap.sm),
+                  ForgeIcon(icon, size: iconSize, color: look.ink),
+                ],
               ],
             ),
           ),
