@@ -94,6 +94,29 @@ point the app at the local copy with a gitignored `pubspec_overrides.yaml`
 (`dependency_overrides` with `path: ../../packages/<name>`); merge and tag the
 package before the app PR that needs it.
 
+## Design studios
+
+Each app's design lives in its studio artifact; MobileAppForge Studio holds
+the shared components. The studio is the only design source: an app's
+SPEC keeps design decisions and the studio links, never how things look.
+
+- Each thing is drawn once. A Forge component is drawn only in MobileAppForge
+  Studio; an app's studio lists the Forge components it uses with their
+  screens and links each to its card. A screen is a screen board, not also a
+  component card; a component's forms and states share one card; a rule
+  lives in one guide, and component looks live in their cards.
+- MobileAppForge Studio is app-free like the packages: neutral placeholder
+  content ("Item title", [VALUE]), sample pages with [APP NAME], neutral
+  state names (done, light, planned, missed, today) that apps map, and no
+  app's name or origin story. Its cards list usage inside Forge only.
+- Every drawn part names its component in the markup (`data-c="Name"`);
+  "uses" and "used in" notes are built from these tags, never kept by hand.
+- Before drawing a new part, pick its component; a part with no component
+  is a decision for the owner first, then a new component.
+- Every studio build checks the tags and stops on an untagged part or a tag
+  naming a missing component. A component used nowhere is allowed; it
+  sits last in its group.
+
 ## Tests
 
 Unit-test use cases with logic, repositories and cubits (`mocktail`,
