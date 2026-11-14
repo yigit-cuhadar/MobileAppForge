@@ -6,3 +6,4 @@ Built with MobileAppForge. Work from the forge root (this repo is cloned at
 - State of the app and what to do next: `SPEC.md`.
 - Run: `flutter run` (debug and profile use the dev Firebase project, release uses prod)
 - Check before every commit: `dart format lib test && flutter analyze && flutter test`
+- Widgetbook of the app's components: `cd widgetbook && dart run build_runner build -d && flutter run -d chrome`

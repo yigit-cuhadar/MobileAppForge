@@ -1,0 +1,24 @@
+name: forge_widgetbook
+description: Widgetbook of the forge_ui components.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  forge_ui:
+    path: ../packages/forge_ui
+  widgetbook: ^3.25.0
+  widgetbook_annotation: ^3.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  widgetbook_generator: ^3.24.0
+  build_runner: ^2.16.1
+
+flutter:
+  uses-material-design: true

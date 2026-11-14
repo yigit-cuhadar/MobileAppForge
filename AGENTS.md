@@ -14,6 +14,7 @@ Talk to the user in their language. Code, comments and commits are English.
 | `packages/` | The shared `forge_*` packages. Every app starts with `forge_core`, `forge_ui`, `forge_firebase` and `forge_auth`. |
 | `template/` | Overlay copied onto `flutter create` by `tools/new_app.sh`. |
 | `tools/` | `new_app.sh`, `firebase_setup.sh`, `secret.sh`, `check.sh`. |
+| `widgetbook/` | Widgetbook of the `forge_ui` components. Each app has its own in `apps/<name>/widgetbook`. |
 | `apps/<name>/SPEC.md` | The app's state. Resume any app from here. |
 
 ## Phases
@@ -65,10 +66,11 @@ Clean Architecture, feature-first: `lib/features/<feature>/{domain,data,presenta
 - DI: `get_it` through `sl`. Each feature has one `FeatureModule`, registered
   in `lib/app/bootstrap.dart`. Only modules and pages creating cubits touch `sl`.
 - Routing: `go_router`, every route in `lib/app/router.dart`.
-- No code generation (`build_runner`, freezed, json_serializable): write
-  `fromMap`/`toMap` by hand.
 - UI before the design phase: `forge_ui` widgets, `Gap` spacing, theme colors
   only. No custom styling, no hard-coded colors or sizes.
+- Write current Flutter and Dart best practice. Code generation through
+  `build_runner` is allowed: new models may use freezed and
+  json_serializable; existing hand-written models stay as they are.
 - Small use cases of a feature share one `<feature>_usecases.dart`.
   `packages/forge_auth` is the reference implementation of all of the above.
 
@@ -90,11 +92,12 @@ codes or strings; the app passes those in.
 
 Changing a package: edit, `tools/check.sh <package>`, PR to this repo, then
 tag `vX.Y.Z` on main. Apps pin the tag's commit and upgrade deliberately by
-changing the `ref` of every forge package to the new tag's commit
-(`git rev-list -n1 vX.Y.Z`). While a package and an app are developed together,
-point the app at the local copy with a gitignored `pubspec_overrides.yaml`
-(`dependency_overrides` with `path: ../../packages/<name>`); merge and tag the
-package before the app PR that needs it.
+changing the `ref` of every forge package, in the app and its `widgetbook/`,
+to the new tag's commit (`git rev-list -n1 vX.Y.Z`). While a package and an
+app are developed together, point the app and its `widgetbook/` at the local
+copy with a gitignored `pubspec_overrides.yaml` (`dependency_overrides` with
+a `path` to `packages/<name>`); merge and tag the package before the app PR
+that needs it.
 
 ## Design studios
 
@@ -123,6 +126,16 @@ SPEC keeps design decisions and the studio links, never how things look.
   `design/studio.html` in the app's repo. Change a studio by editing that
   page's data (`<script id="data">`), publish it to the studio's link, and
   commit the same file in the same change.
+
+## Widgetbook
+
+Every component built in code has Widgetbook use cases for the forms and
+states on its studio card: a Forge component in `widgetbook/`, an app
+component in `apps/<name>/widgetbook`. Use cases are `@UseCase` functions
+(widgetbook_generator); the catalog has the preset and brightness, device
+frame, text scale and 8px grid addons. Run it locally on the web
+(`flutter run -d chrome` in the catalog's folder); CI generates and builds
+both catalogs on every PR.
 
 ## Tests
 
