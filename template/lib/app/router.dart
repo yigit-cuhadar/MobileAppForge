@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:forge_auth/forge_auth.dart';
-import 'package:forge_ui/forge_ui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/home/presentation/home_page.dart';
@@ -31,7 +30,9 @@ GoRouter buildRouter(AuthCubit auth) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (_, _) => const Scaffold(body: LoadingView()),
+        // The plain ground for the moment auth takes to start; an app
+        // with its own SplashScreen puts it here.
+        builder: (_, _) => const Scaffold(),
       ),
       GoRoute(path: Routes.auth, builder: (_, _) => const AuthPage()),
       GoRoute(path: Routes.home, builder: (_, _) => const HomePage()),

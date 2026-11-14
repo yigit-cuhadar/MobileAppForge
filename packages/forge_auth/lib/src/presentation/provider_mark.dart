@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import '../domain/auth_user.dart';
 
 /// The provider's logo shown before a social sign-in button's label. Sized
-/// from the button's text and faded with it while the button is disabled.
+/// from the button's text; the colour mark fades while the button is
+/// disabled, as it cannot take the disabled label colour.
 class ProviderMark extends StatelessWidget {
-  const ProviderMark(this.provider, {super.key});
+  const ProviderMark(this.provider, {super.key, required this.enabled});
 
   final SocialProvider provider;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +22,7 @@ class ProviderMark extends StatelessWidget {
     return ExcludeSemantics(
       child: switch (provider) {
         SocialProvider.google => Opacity(
-          opacity: IconTheme.of(context).color?.a ?? 1,
+          opacity: enabled ? 1 : 0.4,
           child: CustomPaint(
             size: Size.square(size),
             painter: const _GoogleGPainter(),

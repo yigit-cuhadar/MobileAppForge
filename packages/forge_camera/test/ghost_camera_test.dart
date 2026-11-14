@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_camera/forge_camera.dart';
+import 'package:forge_ui/forge_ui.dart';
 
 const _back = CameraDescription(
   name: 'back',
@@ -94,12 +95,16 @@ void main() {
   late List<String> captured;
 
   Widget camera({String? ghostFile}) => MaterialApp(
+    theme: ForgeTheme.light(),
     home: Scaffold(
       body: GhostCamera(
         ghostFile: ghostFile,
         captureLabel: 'capture',
         switchLabel: 'switch',
-        unavailableText: 'unavailable',
+        startingTitle: 'starting',
+        startingDetail: 'starting detail',
+        unavailableTitle: 'unavailable',
+        unavailableDetail: 'unavailable detail',
         onCaptured: captured.add,
       ),
     ),

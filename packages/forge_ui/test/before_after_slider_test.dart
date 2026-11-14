@@ -1,94 +1,79 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forge_ui/src/widgets/before_after_slider.dart';
+import 'package:forge_ui/forge_ui.dart';
+import 'package:forge_ui/src/widgets/forge_slider.dart' show SliderTrack;
+
+import 'test_photo.dart';
 
 void main() {
-  test('the split is the share of the width left of the touch, kept '
-      'inside', () {
-    expect(splitAt(100, 400), 0.25);
-    expect(splitAt(400, 400), 1);
-    expect(splitAt(-20, 400), 0);
-    expect(splitAt(500, 400), 1);
-    expect(splitAt(10, 0), 0.5);
-  });
-
-  group('BeforeAfterSlider', () {
-    const width = 400.0;
-
-    Future<void> pump(WidgetTester tester) => tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: width,
-              height: 300,
-              child: BeforeAfterSlider(
-                before: ColoredBox(color: Colors.black, child: Text('before')),
-                after: ColoredBox(color: Colors.white, child: Text('after')),
-              ),
-            ),
+  Future<void> pump(WidgetTester tester) => tester.pumpWidget(
+    MaterialApp(
+      theme: ForgeTheme.light(),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: BeforeAfterSlider(
+            views: [
+              for (final name in ['View A', 'View B'])
+                BeforeAfterView(
+                  name: name,
+                  before: photo,
+                  after: photo,
+                  beforeDate: '$name 1',
+                  afterDate: '$name 2',
+                  change: '[CHANGE]',
+                ),
+            ],
+            sliderLabel: 'Before and after',
           ),
         ),
       ),
-    );
+    ),
+  );
 
-    Rect slider(WidgetTester tester) =>
-        tester.getRect(find.byType(BeforeAfterSlider));
+  Opacity later(WidgetTester tester) => tester.widget(
+    find.descendant(
+      of: find.byType(BeforeAfterSlider),
+      matching: find.byType(Opacity),
+    ),
+  );
 
-    /// Where the bar is, from the slider's left edge.
-    double bar(WidgetTester tester) =>
-        tester.getCenter(find.byKey(BeforeAfterSlider.barKey)).dx -
-        slider(tester).left;
+  testWidgets('opens on the later photo of the first view', (tester) async {
+    await pump(tester);
 
-    /// The picture holding [text].
-    Finder picture(String text) => find
-        .ancestor(of: find.text(text), matching: find.byType(ColoredBox))
-        .first;
+    expect(find.text('View A'), findsNWidgets(2));
+    expect(find.text('View A 1 → View A 2 · [CHANGE]'), findsOneWidget);
+    expect(find.text('View A 2 · 100%'), findsOneWidget);
+    expect(later(tester).opacity, 1);
+  });
 
-    testWidgets('starts in the middle with both pictures the slider\'s '
-        'size', (tester) async {
-      await pump(tester);
+  testWidgets('a tap on the slider fades to that blend', (tester) async {
+    await pump(tester);
+    final track = tester.getRect(find.byType(SliderTrack));
 
-      expect(bar(tester), width / 2);
-      expect(
-        tester.getRect(picture('before')),
-        tester.getRect(picture('after')),
-      );
-      expect(tester.getSize(picture('after')), slider(tester).size);
-    });
+    await tester.tapAt(track.centerLeft + Offset(track.width * 0.3, 0));
+    await tester.pump();
 
-    testWidgets('dragging moves the bar with the finger', (tester) async {
-      await pump(tester);
-      final start = slider(tester).center;
+    expect(later(tester).opacity, closeTo(0.3, 0.01));
+    expect(find.text('View A 1 · 30%'), findsOneWidget);
+  });
 
-      await tester.dragFrom(start, const Offset(-100, 0));
-      await tester.pump();
-      expect(bar(tester), closeTo(100, 1));
+  testWidgets('a chip switches the view', (tester) async {
+    await pump(tester);
 
-      await tester.dragFrom(slider(tester).center, const Offset(50, 0));
-      await tester.pump();
-      expect(bar(tester), closeTo(width / 2 + 50, 1));
-    });
+    await tester.tap(find.widgetWithText(ForgeChip, 'View B'));
+    await tester.pump();
 
-    testWidgets('the bar stops at the edges', (tester) async {
-      await pump(tester);
-      final center = slider(tester).center;
+    expect(find.text('View B 1 → View B 2 · [CHANGE]'), findsOneWidget);
+  });
 
-      await tester.dragFrom(center, const Offset(-600, 0));
-      await tester.pump();
-      expect(bar(tester), 0);
+  testWidgets('the slider reads out its name and blend', (tester) async {
+    await pump(tester);
 
-      await tester.dragFrom(center, const Offset(600, 0));
-      await tester.pump();
-      expect(bar(tester), width);
-    });
-
-    testWidgets('a tap moves the bar there', (tester) async {
-      await pump(tester);
-
-      await tester.tapAt(slider(tester).centerLeft + const Offset(300, 0));
-      await tester.pump();
-      expect(bar(tester), 300);
-    });
+    final slider = tester
+        .getSemantics(find.bySemanticsLabel('Before and after'))
+        .getSemanticsData();
+    expect(slider.value, '100%');
+    expect(slider.hasAction(SemanticsAction.increase), isTrue);
   });
 }

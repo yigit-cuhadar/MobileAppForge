@@ -1,104 +1,197 @@
 import 'package:flutter/material.dart';
 
 import '../spacing.dart';
+import '../theme/forge_style.dart';
+import '../theme/forge_theme.dart';
+import 'card_frame.dart';
+import 'forge_chip.dart';
+import 'forge_slider.dart';
+import 'photo_tile.dart';
 
-/// The split of a slider [width] wide for a touch at [dx]: the share of the
-/// width left of the bar, kept from 0 to 1.
-double splitAt(double dx, double width) =>
-    width <= 0 ? 0.5 : (dx / width).clamp(0.0, 1.0);
+/// One view a [BeforeAfterSlider] compares: two photos of it and their
+/// dates, with what changed between them.
+class BeforeAfterView {
+  const BeforeAfterView({
+    required this.name,
+    required this.before,
+    required this.after,
+    required this.beforeDate,
+    required this.afterDate,
+    required this.change,
+  });
 
-/// Two pictures in one place: [before] shows left of a vertical bar,
-/// [after] right of it, and dragging or tapping moves the bar. Both are
-/// laid out to the slider's whole size, so with the same fit the bar
-/// reveals the same region of each. Give it a bounded size.
+  final String name;
+  final ImageProvider before;
+  final ImageProvider after;
+  final String beforeDate;
+  final String afterDate;
+  final String change;
+}
+
+/// A card comparing two photos of the same view, stacked: a slider under
+/// the frame fades from the earlier one to the later one, with the two
+/// dates at its ends and the shown date and blend on a dark tag. Chips
+/// switch between the [views]. It opens on the later photo of the first
+/// view.
 class BeforeAfterSlider extends StatefulWidget {
   const BeforeAfterSlider({
     super.key,
-    required this.before,
-    required this.after,
+    required this.views,
+    required this.sliderLabel,
   });
 
-  final Widget before;
-  final Widget after;
+  final List<BeforeAfterView> views;
 
-  /// The bar, for finding it in tests.
-  static const barKey = ValueKey('BeforeAfterSlider.bar');
+  /// The slider's name for screen readers.
+  final String sliderLabel;
 
-  static const _barWidth = 2.0;
-  static const _handleSize = Gap.xl;
+  static const double photoHeight = 300;
 
   @override
   State<BeforeAfterSlider> createState() => _BeforeAfterSliderState();
 }
 
 class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
-  double _split = 0.5;
+  int _view = 0;
+
+  /// The later photo's share, from 0 to 1.
+  double _blend = 1;
+
+  void _setBlend(double blend) =>
+      setState(() => _blend = blend.clamp(0.0, 1.0));
+
+  @override
+  void didUpdateWidget(BeforeAfterSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_view >= widget.views.length) _view = 0;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final x = width * _split;
-        void move(Offset at) => setState(() => _split = splitAt(at.dx, width));
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => move(details.localPosition),
-          onHorizontalDragStart: (details) => move(details.localPosition),
-          onHorizontalDragUpdate: (details) => move(details.localPosition),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              widget.after,
-              ClipRect(clipper: _LeftOf(_split), child: widget.before),
-              Positioned(
-                key: BeforeAfterSlider.barKey,
-                left: x - BeforeAfterSlider._barWidth / 2,
-                width: BeforeAfterSlider._barWidth,
-                top: 0,
-                bottom: 0,
-                child: ColoredBox(color: colors.primary),
-              ),
-              Positioned(
-                left: x - BeforeAfterSlider._handleSize / 2,
-                width: BeforeAfterSlider._handleSize,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colors.primary,
-                      shape: BoxShape.circle,
+    final style = ForgeStyle.of(context);
+    final colors = style.colors;
+    final text = Theme.of(context).textTheme;
+    final view = widget.views[_view];
+    final small = style.data.copyWith(fontSize: 11, height: 14 / 11);
+    final percent = '${(_blend * 100).round()}%';
+    final shownDate = _blend >= 0.5 ? view.afterDate : view.beforeDate;
+    return CardFrame(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: Gap.md,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) => Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                spacing: Gap.sm,
+                children: [
+                  Expanded(
+                    child: Text(
+                      view.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.titleMedium,
                     ),
-                    child: SizedBox.square(
-                      dimension: BeforeAfterSlider._handleSize,
-                      child: Icon(
-                        Icons.compare_arrows,
-                        color: colors.onPrimary,
-                        size: Gap.md,
+                  ),
+                  // In a narrow card the dates take at most half the row.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth / 2,
+                    ),
+                    child: Text(
+                      '${view.beforeDate} → ${view.afterDate} · ${view.change}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: small.copyWith(color: colors.inkMuted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: BeforeAfterSlider.photoHeight,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(style.radii.md),
+                child: ColoredBox(
+                  color: colors.surfaceSunken,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image(image: view.before, fit: BoxFit.cover),
+                      Opacity(
+                        opacity: _blend,
+                        child: Image(image: view.after, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        top: Gap.sm,
+                        right: Gap.sm,
+                        child: PhotoTag(
+                          label: '$shownDate · $percent',
+                          style: small,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              spacing: Gap.sm,
+              children: [
+                Text(
+                  view.beforeDate,
+                  style: small.copyWith(color: colors.inkMuted),
+                ),
+                Expanded(
+                  child: Semantics(
+                    slider: true,
+                    label: widget.sliderLabel,
+                    value: percent,
+                    increasedValue:
+                        '${((_blend + 0.1).clamp(0.0, 1.0) * 100).round()}%',
+                    decreasedValue:
+                        '${((_blend - 0.1).clamp(0.0, 1.0) * 100).round()}%',
+                    onIncrease: () => _setBlend(_blend + 0.1),
+                    onDecrease: () => _setBlend(_blend - 0.1),
+                    child: SliderArea(
+                      onChanged: _setBlend,
+                      builder: (context, dragging) => SizedBox(
+                        height: ForgeTheme.tapMin,
+                        child: Center(
+                          child: SliderTrack(
+                            fraction: _blend,
+                            dragging: dragging,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+                Text(
+                  view.afterDate,
+                  style: small.copyWith(color: colors.inkMuted),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.sm,
+              children: [
+                for (var i = 0; i < widget.views.length; i++)
+                  ForgeChip(
+                    label: widget.views[i].name,
+                    selected: i == _view,
+                    onPressed: () => setState(() => _view = i),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
-}
-
-/// The part left of [split] (a share of the width).
-class _LeftOf extends CustomClipper<Rect> {
-  const _LeftOf(this.split);
-  final double split;
-
-  @override
-  Rect getClip(Size size) =>
-      Rect.fromLTWH(0, 0, size.width * split, size.height);
-
-  @override
-  bool shouldReclip(_LeftOf oldClipper) => oldClipper.split != split;
 }

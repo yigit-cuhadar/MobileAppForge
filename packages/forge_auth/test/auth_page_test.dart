@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_auth/forge_auth.dart';
 import 'package:forge_auth/src/presentation/provider_mark.dart';
 import 'package:forge_core/forge_core.dart';
+import 'package:forge_ui/forge_ui.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthCubit extends MockCubit<AuthState> implements AuthCubit {}
@@ -31,6 +32,7 @@ void main() {
     when(() => auth.state).thenReturn(const Unauthenticated());
     return tester.pumpWidget(
       MaterialApp(
+        theme: ForgeTheme.light(),
         home: BlocProvider<AuthCubit>.value(
           value: auth,
           child: const AuthPage(providers: SocialProvider.values),

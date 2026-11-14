@@ -20,7 +20,10 @@ class GhostCamera extends StatefulWidget {
     required this.onCaptured,
     required this.captureLabel,
     required this.switchLabel,
-    required this.unavailableText,
+    required this.startingTitle,
+    required this.startingDetail,
+    required this.unavailableTitle,
+    required this.unavailableDetail,
     this.ghostFile,
   });
 
@@ -36,8 +39,13 @@ class GhostCamera extends StatefulWidget {
   /// Tooltip of the button switching cameras.
   final String switchLabel;
 
+  /// Shown with a small ring while the camera starts.
+  final String startingTitle;
+  final String startingDetail;
+
   /// Shown when there is no camera or access to it was refused.
-  final String unavailableText;
+  final String unavailableTitle;
+  final String unavailableDetail;
 
   @override
   State<GhostCamera> createState() => _GhostCameraState();
@@ -179,10 +187,19 @@ class _GhostCameraState extends State<GhostCamera> {
 
   @override
   Widget build(BuildContext context) {
-    if (_unavailable) return EmptyView(message: widget.unavailableText);
+    if (_unavailable) {
+      return EmptyView(
+        icon: ForgeIcons.noPhotography,
+        title: widget.unavailableTitle,
+        message: widget.unavailableDetail,
+      );
+    }
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) {
-      return const LoadingView();
+      return WorkingView(
+        title: widget.startingTitle,
+        message: widget.startingDetail,
+      );
     }
     final ghost = widget.ghostFile;
     return Column(
