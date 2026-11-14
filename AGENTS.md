@@ -104,7 +104,7 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
 ## Git
 
 - `gh` CLI for everything on GitHub. Forge: `yigit-cuhadar/MobileAppForge`
-  (public). Apps: `yigit-cuhadar/<name>` (private).
+  (public). Apps: `yigit-cuhadar/<name>` (get_workout is public).
 - Never commit to `main`. One branch and PR per feature; squash-merge when CI
   is green. Commit messages: imperative, what and why.
 - Before every commit: `dart format`, `flutter analyze`, `flutter test` in the
