@@ -17,11 +17,10 @@ int decimalsOf(double step) {
 double stepValue(double min, double step, int index) =>
     double.parse((min + index * step).toStringAsFixed(10));
 
-/// [value] with [decimals] decimals in the current locale's digits. From
-/// 10,000 up its thousands are grouped ("50,000"); four digits, such as a
-/// year, stay whole ("1995").
-String formatNumber(double value, int decimals) {
+/// [value] with [decimals] decimals in the current locale's digits, its
+/// thousands grouped ("1,000") unless [grouped] is false, as for a year.
+String formatNumber(double value, int decimals, {bool grouped = true}) {
   final format = NumberFormat.decimalPatternDigits(decimalDigits: decimals);
-  if (value.abs() < 10000) format.turnOffGrouping();
+  if (!grouped) format.turnOffGrouping();
   return format.format(value);
 }

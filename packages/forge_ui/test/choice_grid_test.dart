@@ -28,6 +28,7 @@ void main() {
               selected: selected,
               onSelected: picks.add,
               onSkip: skip ? () => skips++ : null,
+              skipLabel: skip ? 'Skip' : null,
             ),
           ),
         ),

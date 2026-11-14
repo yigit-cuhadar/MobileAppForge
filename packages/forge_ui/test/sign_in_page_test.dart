@@ -252,4 +252,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(answer, isFalse);
   });
+
+  testWidgets('the terms links are semibold ink', (tester) async {
+    await pump(tester, page([]));
+
+    final colors = ForgeStyle.of(tester.element(find.text('Terms'))).colors;
+    for (final label in ['Terms', 'Privacy Policy']) {
+      final style = tester.widget<Text>(find.text(label)).style!;
+      expect(style.fontWeight, FontWeight.w600);
+      expect(style.color, colors.ink);
+      expect(style.decoration, isNot(TextDecoration.underline));
+    }
+  });
+
+  testWidgets('the main button of the email form is the regular 40px', (
+    tester,
+  ) async {
+    await pump(tester, page([], email: signInForm([])));
+
+    final button = find.ancestor(
+      of: find.text('Sign in'),
+      matching: find.byType(ForgeButton),
+    );
+    expect(tester.widget<ForgeButton>(button).size, ForgeButtonSize.regular);
+  });
 }

@@ -37,5 +37,6 @@ class _LiveState extends State<_Live> {
     selected: _selected,
     onSelected: (index) => setState(() => _selected = index),
     onSkip: widget.skip ? () => setState(() => _selected = null) : null,
+    skipLabel: widget.skip ? 'Skip' : null,
   );
 }

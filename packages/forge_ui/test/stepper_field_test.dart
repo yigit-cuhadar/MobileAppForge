@@ -16,6 +16,7 @@ void main() {
     double? hint,
     String? errorText,
     bool enabled = true,
+    bool grouped = true,
     double width = 200,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -33,6 +34,7 @@ void main() {
               hint: hint,
               errorText: errorText,
               enabled: enabled,
+              grouped: grouped,
               onChanged: changes.add,
             ),
           ),
@@ -137,6 +139,18 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
       '60000',
     );
+  });
+
+  testWidgets('groups the thousands by default', (tester) async {
+    await pump(tester, value: 1000, step: 1);
+
+    expect(find.text('1,000'), findsOneWidget);
+  });
+
+  testWidgets('a year stays whole when grouping is off', (tester) async {
+    await pump(tester, value: 1995, step: 1, grouped: false);
+
+    expect(find.text('1995'), findsOneWidget);
   });
 
   testWidgets('disabled, it fades and takes no taps', (tester) async {

@@ -131,7 +131,7 @@ class StatTile extends StatelessWidget {
     required VoidCallback this.onTap,
     required String this.message,
     required VoidCallback this.onRetry,
-    String this.retryLabel = 'Retry',
+    required String this.retryLabel,
   }) : _form = _Form.error,
        figure = null,
        unit = null,

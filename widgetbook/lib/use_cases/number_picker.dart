@@ -23,6 +23,7 @@ Widget numberPickerWheel(BuildContext context) => _card(
       step: 1,
       value: value,
       onChanged: onChanged,
+      grouped: false,
     ),
   ),
 );

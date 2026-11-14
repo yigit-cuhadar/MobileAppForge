@@ -45,6 +45,7 @@ void main() {
     step: 1,
     value: value,
     onChanged: changes.add,
+    grouped: false,
   );
 
   /// Drags [by] from just above the picker's bottom, on the wheel or the
@@ -128,6 +129,33 @@ void main() {
       await drag(tester, const Offset(0, NumberPicker.wheelPitch * 3));
 
       expect(changes.last, 1992);
+    });
+  });
+
+  group('grouping', () {
+    testWidgets('groups the thousands by default', (tester) async {
+      await pump(
+        tester,
+        NumberPicker.wheel(
+          label: 'Amount',
+          min: 0,
+          max: 100000,
+          step: 1000,
+          value: 50000,
+          onChanged: changes.add,
+        ),
+      );
+
+      expect(find.text('50,000'), findsOneWidget);
+      expect(find.text('1,000'), findsNothing);
+      expect(find.text('49,000'), findsOneWidget);
+    });
+
+    testWidgets('a year stays whole when grouping is off', (tester) async {
+      await pump(tester, wheel());
+
+      expect(find.text('1995'), findsOneWidget);
+      expect(find.text('1,995'), findsNothing);
     });
   });
 

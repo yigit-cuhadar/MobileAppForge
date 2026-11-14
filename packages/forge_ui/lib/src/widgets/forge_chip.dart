@@ -22,7 +22,7 @@ class ForgeChip extends StatelessWidget {
     this.count,
     this.locked = false,
   }) : sample = null,
-       _removable = false;
+       removeHint = null;
 
   /// A small 28px chip for a chart series: the series' [sample] (a short
   /// line in its colour, or an icon) before the label, no check.
@@ -34,20 +34,21 @@ class ForgeChip extends StatelessWidget {
     this.selected = false,
   }) : count = null,
        locked = false,
-       _removable = false;
+       removeHint = null;
 
   /// An active filter above a list: the chosen look with a close icon on
-  /// the right; tapping it calls [onRemoved].
+  /// the right; tapping it calls [onRemoved]. Screen readers announce
+  /// [removeHint] ("Removes the filter").
   const ForgeChip.removable({
     super.key,
     required this.label,
     required VoidCallback onRemoved,
+    required String this.removeHint,
   }) : onPressed = onRemoved,
        selected = true,
        count = null,
        locked = false,
-       sample = null,
-       _removable = true;
+       sample = null;
 
   final String label;
   final VoidCallback onPressed;
@@ -55,7 +56,9 @@ class ForgeChip extends StatelessWidget {
   final int? count;
   final bool locked;
   final Widget? sample;
-  final bool _removable;
+  final String? removeHint;
+
+  bool get _removable => removeHint != null;
 
   static const double height = 36;
   static const double seriesHeight = 28;
@@ -79,12 +82,15 @@ class ForgeChip extends StatelessWidget {
             spacing: Gap.sm,
             children: [
               sample,
-              Text(
-                label,
-                maxLines: 1,
-                style: text.labelMedium!.copyWith(
-                  color: ink,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.labelMedium!.copyWith(
+                    color: ink,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -107,12 +113,15 @@ class ForgeChip extends StatelessWidget {
           if (locked) ForgeIcon(ForgeIcons.lock, size: 14, color: ink),
           if (selected && count == null && !_removable)
             ForgeIcon(ForgeIcons.check, size: 14, weight: 3, color: ink),
-          Text(
-            label,
-            maxLines: 1,
-            style: text.bodySmall!.copyWith(
-              color: ink,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall!.copyWith(
+                color: ink,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           if (count != null)
@@ -148,6 +157,7 @@ class ForgeChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      hint: removeHint,
       child: Pressable(
         onTap: onPressed,
         height: height,

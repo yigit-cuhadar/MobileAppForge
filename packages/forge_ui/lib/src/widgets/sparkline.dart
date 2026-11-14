@@ -69,7 +69,7 @@ class Sparkline extends StatelessWidget {
     required this.title,
     required String this.message,
     required VoidCallback this.onRetry,
-    String this.retryLabel = 'Retry',
+    required String this.retryLabel,
   }) : _state = _State.error,
        onTap = null,
        figure = null,

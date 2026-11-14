@@ -51,6 +51,7 @@ void main() {
         onTap: () => taps++,
         message: "Couldn't load this section",
         onRetry: () => retries++,
+        retryLabel: 'Retry',
       ),
     );
 

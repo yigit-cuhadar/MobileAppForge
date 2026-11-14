@@ -87,12 +87,17 @@ class ListRow extends StatelessWidget {
     this.end = ListRowEnd.none,
     this.onTap,
     this.onInfo,
+    this.infoLabel,
     this.checked,
     this.destructive = false,
     this.missing = false,
     this.locked = false,
     this.busy = false,
   }) : assert(checked == null || leading == null),
+       assert(
+         (onInfo == null) == (infoLabel == null),
+         'Give the info icon a label and an action together.',
+       ),
        loading = false,
        _skeleton = 0;
 
@@ -109,6 +114,7 @@ class ListRow extends StatelessWidget {
       end = ListRowEnd.none,
       onTap = null,
       onInfo = null,
+      infoLabel = null,
       checked = null,
       destructive = false,
       missing = false,
@@ -133,6 +139,9 @@ class ListRow extends StatelessWidget {
   /// Shows an info icon after the title; the app opens a sheet that
   /// explains the field.
   final VoidCallback? onInfo;
+
+  /// What screen readers call the info icon ("About this field").
+  final String? infoLabel;
 
   /// Puts a checkbox in front; a checked row turns accent-soft.
   final bool? checked;
@@ -202,10 +211,15 @@ class ListRow extends StatelessWidget {
         ? colors.onAccentSoft
         : colors.inkMuted;
     final line = error ?? detail;
-    final leading = checked == null ? this.leading : _Checkbox(checked: on);
+    final info = onInfo == null ? null : _BandLink();
+    final handle = this.leading is ListRowDragHandle ? _BandLink() : null;
+    final leading = checked != null
+        ? _Checkbox(checked: on)
+        : handle != null
+        ? _BandTarget(link: handle, child: this.leading!)
+        : this.leading;
 
     final prominent = this.leading is ListRowDateBox || onInfo != null;
-    final info = _InfoLink();
     Widget title = Text(
       this.title!,
       style: (prominent ? text.titleMedium! : text.bodyMedium!).copyWith(
@@ -217,14 +231,19 @@ class ListRow extends StatelessWidget {
         spacing: Gap.xs,
         children: [
           Flexible(child: title),
-          _InfoTarget(
-            link: info,
-            child: GestureDetector(
-              onTap: onInfo,
-              child: ForgeIcon(
-                ForgeIcons.info,
-                size: 16,
-                color: colors.inkMuted,
+          _BandTarget(
+            link: info!,
+            child: Semantics(
+              container: true,
+              button: true,
+              label: infoLabel,
+              child: GestureDetector(
+                onTap: onInfo,
+                child: ForgeIcon(
+                  ForgeIcons.info,
+                  size: 16,
+                  color: colors.inkMuted,
+                ),
               ),
             ),
           ),
@@ -284,9 +303,9 @@ class ListRow extends StatelessWidget {
       color: tint,
       child: InkWell(
         onTap: onTap,
-        child: onInfo == null
+        child: info == null && handle == null
             ? _frame(row)
-            : _InfoArea(link: info, child: _frame(row)),
+            : _BandArea(links: [?info, ?handle], child: _frame(row)),
       ),
     );
     if (checked != null) {
@@ -367,8 +386,8 @@ class ListRowDateBox extends StatelessWidget {
   }
 }
 
-/// The leading handle of a row in a reorderable list; dragging it moves
-/// the row at [index].
+/// The leading handle of a row in a reorderable list; dragging it, or
+/// anywhere in a 44px square around it, moves the row at [index].
 class ListRowDragHandle extends StatelessWidget {
   const ListRowDragHandle({super.key, required this.index});
 
@@ -411,73 +430,74 @@ class _Checkbox extends StatelessWidget {
   }
 }
 
-/// Lets the row find its info icon when hit-testing.
-class _InfoLink {
+/// Lets the row find a small control (the info icon, the drag handle)
+/// when hit-testing.
+class _BandLink {
   RenderBox? target;
 }
 
-/// Marks the info icon for its row's [_InfoArea].
-class _InfoTarget extends SingleChildRenderObjectWidget {
-  const _InfoTarget({required this.link, required super.child});
+/// Marks a small control for its row's [_BandArea].
+class _BandTarget extends SingleChildRenderObjectWidget {
+  const _BandTarget({required this.link, required super.child});
 
-  final _InfoLink link;
+  final _BandLink link;
 
   @override
   RenderProxyBox createRenderObject(BuildContext context) =>
-      _RenderInfoTarget(link);
+      _RenderBandTarget(link);
 
   @override
-  void updateRenderObject(BuildContext context, _RenderInfoTarget target) =>
+  void updateRenderObject(BuildContext context, _RenderBandTarget target) =>
       target.link = link;
 }
 
-class _RenderInfoTarget extends RenderProxyBox {
-  _RenderInfoTarget(_InfoLink link) {
+class _RenderBandTarget extends RenderProxyBox {
+  _RenderBandTarget(_BandLink link) {
     this.link = link;
   }
 
-  set link(_InfoLink link) => link.target = this;
+  set link(_BandLink link) => link.target = this;
 }
 
-/// Sends taps within a tap-min square around the info icon to the icon,
-/// though the icon is drawn smaller and the layout stays as drawn.
-class _InfoArea extends SingleChildRenderObjectWidget {
-  const _InfoArea({required this.link, required super.child});
+/// Sends touches within a tap-min square around each linked control to
+/// that control, though it is drawn smaller and the layout stays as drawn.
+class _BandArea extends SingleChildRenderObjectWidget {
+  const _BandArea({required this.links, required super.child});
 
-  final _InfoLink link;
+  final List<_BandLink> links;
 
   @override
   RenderProxyBox createRenderObject(BuildContext context) =>
-      _RenderInfoArea(link);
+      _RenderBandArea(links);
 
   @override
-  void updateRenderObject(BuildContext context, _RenderInfoArea area) =>
-      area.link = link;
+  void updateRenderObject(BuildContext context, _RenderBandArea area) =>
+      area.links = links;
 }
 
-class _RenderInfoArea extends RenderProxyBox {
-  _RenderInfoArea(this.link);
+class _RenderBandArea extends RenderProxyBox {
+  _RenderBandArea(this.links);
 
-  _InfoLink link;
+  List<_BandLink> links;
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    final target = link.target;
-    if (target != null &&
-        target.attached &&
-        target.hasSize &&
-        size.contains(position)) {
-      final local = target.globalToLocal(localToGlobal(position));
-      final centre = target.size.center(Offset.zero);
-      final area = Rect.fromCenter(
-        center: centre,
-        width: max(ForgeTheme.tapMin, target.size.width),
-        height: max(ForgeTheme.tapMin, target.size.height),
-      );
-      if (area.contains(local)) {
-        target.hitTest(result, position: centre);
-        result.add(BoxHitTestEntry(this, position));
-        return true;
+    if (size.contains(position)) {
+      for (final link in links) {
+        final target = link.target;
+        if (target == null || !target.attached || !target.hasSize) continue;
+        final local = target.globalToLocal(localToGlobal(position));
+        final centre = target.size.center(Offset.zero);
+        final area = Rect.fromCenter(
+          center: centre,
+          width: max(ForgeTheme.tapMin, target.size.width),
+          height: max(ForgeTheme.tapMin, target.size.height),
+        );
+        if (area.contains(local)) {
+          target.hitTest(result, position: centre);
+          result.add(BoxHitTestEntry(this, position));
+          return true;
+        }
       }
     }
     return super.hitTest(result, position: position);
