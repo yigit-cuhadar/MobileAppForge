@@ -24,3 +24,11 @@ jobs:
       - name: Test
         run: |
           if find test -name '*_test.dart' 2>/dev/null | grep -q .; then flutter test; fi
+      - name: Widgetbook generates, analyzes and builds
+        working-directory: widgetbook
+        run: |
+          flutter pub get
+          dart run build_runner build -d
+          dart format --output=none --set-exit-if-changed lib
+          flutter analyze
+          flutter build web

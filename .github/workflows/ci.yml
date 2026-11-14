@@ -28,3 +28,14 @@ jobs:
           cd apps/smoke_app
           dart format --output=none --set-exit-if-changed lib
           flutter analyze
+          cd widgetbook
+          dart run build_runner build -d
+          flutter analyze
+      - name: Widgetbook generates, analyzes and builds
+        working-directory: widgetbook
+        run: |
+          flutter pub get
+          dart run build_runner build -d
+          dart format --output=none --set-exit-if-changed lib
+          flutter analyze
+          flutter build web
