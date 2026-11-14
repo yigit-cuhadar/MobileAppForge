@@ -34,9 +34,16 @@ class BeforeAfterView {
 /// switch between the [views]. It opens on the later photo of the first
 /// view.
 class BeforeAfterSlider extends StatefulWidget {
-  const BeforeAfterSlider({super.key, required this.views});
+  const BeforeAfterSlider({
+    super.key,
+    required this.views,
+    required this.sliderLabel,
+  });
 
   final List<BeforeAfterView> views;
+
+  /// The slider's name for screen readers.
+  final String sliderLabel;
 
   static const double photoHeight = 300;
 
@@ -76,17 +83,34 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: Gap.md,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              spacing: Gap.sm,
-              children: [
-                Expanded(child: Text(view.name, style: text.titleMedium)),
-                Text(
-                  '${view.beforeDate} → ${view.afterDate} · ${view.change}',
-                  style: small.copyWith(color: colors.inkMuted),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) => Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                spacing: Gap.sm,
+                children: [
+                  Expanded(
+                    child: Text(
+                      view.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.titleMedium,
+                    ),
+                  ),
+                  // In a narrow card the dates take at most half the row.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth / 2,
+                    ),
+                    child: Text(
+                      '${view.beforeDate} → ${view.afterDate} · ${view.change}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: small.copyWith(color: colors.inkMuted),
+                    ),
+                  ),
+                ],
+              ),
             ),
             SizedBox(
               height: BeforeAfterSlider.photoHeight,
@@ -125,6 +149,7 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
                 Expanded(
                   child: Semantics(
                     slider: true,
+                    label: widget.sliderLabel,
                     value: percent,
                     increasedValue:
                         '${((_blend + 0.1).clamp(0.0, 1.0) * 100).round()}%',

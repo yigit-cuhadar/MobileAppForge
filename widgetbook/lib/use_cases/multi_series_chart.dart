@@ -153,5 +153,6 @@ Widget errorSeries(BuildContext context) => _page([
     errorTitle: "Couldn't load the chart",
     message: 'Check your connection and try again.',
     onRetry: () {},
+    retryLabel: 'Retry',
   ),
 ]);

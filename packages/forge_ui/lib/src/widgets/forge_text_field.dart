@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../spacing.dart';
 import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
+import 'pressable.dart';
 
 /// An outlined text field: the [label] above a 44px box. It takes a 2px
 /// accent outline while typing, a 2px danger outline with the message under
@@ -61,7 +62,8 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
       borderSide: BorderSide(color: color, width: width),
     );
 
-    return FormField<String>(
+    return _TextFormField(
+      controller: _controller,
       enabled: widget.enabled,
       validator: widget.validator == null
           ? null
@@ -124,9 +126,33 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
   }
 }
 
+/// A [FormField] whose [Form.reset] clears the text, as [TextFormField]
+/// does.
+class _TextFormField extends FormField<String> {
+  const _TextFormField({
+    required this.controller,
+    super.enabled,
+    super.validator,
+    required super.builder,
+  });
+
+  final TextEditingController controller;
+
+  @override
+  FormFieldState<String> createState() => _TextFormFieldState();
+}
+
+class _TextFormFieldState extends FormFieldState<String> {
+  @override
+  void reset() {
+    (widget as _TextFormField).controller.clear();
+    super.reset();
+  }
+}
+
 /// A compact number box at the end of a list row: the value in mono,
 /// right-aligned, with its [unit] small inside. The row's title is its
-/// [label], read out by screen readers.
+/// [label], read out by screen readers. It takes taps across a 44px band.
 class ForgeNumberField extends StatefulWidget {
   const ForgeNumberField({
     super.key,
@@ -141,6 +167,7 @@ class ForgeNumberField extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final TextEditingController? controller;
 
+  /// The drawn box.
   static const Size size = Size(96, 36);
 
   @override
@@ -168,47 +195,52 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
     final p = style.colors;
     final value = style.data.copyWith(fontSize: 14, color: p.ink);
     final typing = _focus.hasFocus;
-    return Container(
-      width: ForgeNumberField.size.width,
+    return Pressable(
+      onTap: _focus.requestFocus,
       height: ForgeNumberField.size.height,
-      padding: EdgeInsets.symmetric(horizontal: Gap.sm - (typing ? 1 : 0)),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(ForgeRadii.button),
+      width: ForgeNumberField.size.width,
+      builder: (context, _) => Container(
+        width: ForgeNumberField.size.width,
+        height: ForgeNumberField.size.height,
+        padding: EdgeInsets.symmetric(horizontal: Gap.sm - (typing ? 1 : 0)),
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(ForgeRadii.button),
+          ),
+          border: typing
+              ? Border.all(color: p.accent, width: 2)
+              : Border.all(color: p.lineStrong),
         ),
-        border: typing
-            ? Border.all(color: p.accent, width: 2)
-            : Border.all(color: p.lineStrong),
-      ),
-      child: Row(
-        spacing: Gap.xs,
-        children: [
-          Expanded(
-            child: Semantics(
-              label: widget.label,
-              child: TextField(
-                controller: widget.controller,
-                focusNode: _focus,
-                onChanged: widget.onChanged,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textAlign: TextAlign.end,
-                style: value,
-                decoration: InputDecoration.collapsed(
-                  hintText: '—',
-                  hintStyle: value.copyWith(color: p.inkSubtle),
+        child: Row(
+          spacing: Gap.xs,
+          children: [
+            Expanded(
+              child: Semantics(
+                label: widget.label,
+                child: TextField(
+                  controller: widget.controller,
+                  focusNode: _focus,
+                  onChanged: widget.onChanged,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.end,
+                  style: value,
+                  decoration: InputDecoration.collapsed(
+                    hintText: '—',
+                    hintStyle: value.copyWith(color: p.inkSubtle),
+                  ),
                 ),
               ),
             ),
-          ),
-          Text(
-            widget.unit,
-            style: Theme.of(context).textTheme.labelMedium!
-                .copyWith(color: p.inkMuted, fontWeight: FontWeight.w400),
-          ),
-        ],
+            Text(
+              widget.unit,
+              style: Theme.of(context).textTheme.labelMedium!
+                  .copyWith(color: p.inkMuted, fontWeight: FontWeight.w400),
+            ),
+          ],
+        ),
       ),
     );
   }

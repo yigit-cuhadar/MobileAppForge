@@ -63,10 +63,25 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    final slowAfter = widget.slowAfter;
-    if (slowAfter != null) {
-      _timer = Timer(slowAfter, () => setState(() => _slow = true));
+    _startSlowTimer();
+  }
+
+  @override
+  void didUpdateWidget(SplashScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A start after Retry is a new start: the slow line waits again.
+    if (widget.slowAfter != oldWidget.slowAfter) {
+      _timer?.cancel();
+      _slow = false;
+      _startSlowTimer();
     }
+  }
+
+  void _startSlowTimer() {
+    final slowAfter = widget.slowAfter;
+    _timer = slowAfter == null
+        ? null
+        : Timer(slowAfter, () => setState(() => _slow = true));
   }
 
   @override

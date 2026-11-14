@@ -17,7 +17,7 @@ class HomePage extends StatelessWidget {
           IconButton(onPressed: auth.signOut, icon: const Icon(Icons.logout)),
         ],
       ),
-      body: EmptyView(message: auth.user?.email ?? ''),
+      body: EmptyView(title: 'Signed in', message: auth.user?.email ?? ''),
     );
   }
 }

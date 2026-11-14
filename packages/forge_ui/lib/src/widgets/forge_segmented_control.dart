@@ -52,19 +52,21 @@ class ForgeSegmentedControl<T> extends StatelessWidget {
     final style = ForgeStyle.of(context);
     final p = style.colors;
     final label = Theme.of(context).textTheme.bodySmall!;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
     return LayoutBuilder(
       builder: (context, constraints) => GestureDetector(
         behavior: HitTestBehavior.opaque,
         excludeFromSemantics: true,
-        // The band above and below the track picks the segment under x.
+        // The band above and below the track picks the segment under x;
+        // right to left, the first segment sits on the right.
         onTapUp: (details) {
-          final index =
+          final fromLeft =
               (details.localPosition.dx /
                       constraints.maxWidth *
                       segments.length)
                   .floor()
                   .clamp(0, segments.length - 1);
-          _tap(segments[index]);
+          _tap(segments[rtl ? segments.length - 1 - fromLeft : fromLeft]);
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(

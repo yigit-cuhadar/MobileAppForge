@@ -50,6 +50,34 @@ void main() {
       expect(find.text('Enter a name.'), findsNothing);
     });
 
+    testWidgets('Form.reset clears the text and the message', (tester) async {
+      final form = GlobalKey<FormState>();
+      await pump(
+        tester,
+        Form(
+          key: form,
+          child: ForgeTextField(
+            label: 'Name',
+            validator: (v) => v!.length < 3 ? 'Too short.' : null,
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), 'ab');
+      expect(form.currentState!.validate(), isFalse);
+      await tester.pump();
+      expect(find.text('Too short.'), findsOneWidget);
+
+      form.currentState!.reset();
+      await tester.pump();
+
+      expect(find.text('ab'), findsNothing);
+      expect(find.text('Too short.'), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+    });
+
     testWidgets('a disabled field takes no input', (tester) async {
       await pump(tester, const ForgeTextField(label: 'Email', enabled: false));
 
@@ -91,7 +119,14 @@ void main() {
       );
 
       expect(
-        tester.getSize(find.byType(ForgeNumberField)),
+        tester.getSize(
+          find
+              .descendant(
+                of: find.byType(ForgeNumberField),
+                matching: find.byType(Container),
+              )
+              .first,
+        ),
         ForgeNumberField.size,
       );
       expect(find.text('kg'), findsOneWidget);
@@ -99,6 +134,33 @@ void main() {
       await tester.enterText(find.byType(TextField), '36.5');
 
       expect(changes, ['36.5']);
+    });
+
+    testWidgets('takes taps across a 44px band', (tester) async {
+      await pump(
+        tester,
+        Align(
+          alignment: Alignment.topRight,
+          child: ForgeNumberField(
+            label: 'Field one',
+            unit: 'kg',
+            onChanged: (_) {},
+          ),
+        ),
+      );
+      final band = tester.getRect(find.byType(ForgeNumberField));
+      expect(band.height, ForgeTheme.tapMin);
+
+      await tester.tapAt(Offset(band.center.dx, band.top + 1));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText))
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
     });
   });
 }

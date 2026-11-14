@@ -59,12 +59,15 @@ class ForgeTag extends StatelessWidget {
             ForgeIcon(ForgeIcons.lock, size: 11, weight: 2.6, color: ink),
             const SizedBox(width: Gap.xs),
           ],
-          Text(
-            label,
-            maxLines: 1,
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: ink,
-              fontWeight: premium ? FontWeight.w700 : FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                color: ink,
+                fontWeight: premium ? FontWeight.w700 : FontWeight.w600,
+              ),
             ),
           ),
         ],

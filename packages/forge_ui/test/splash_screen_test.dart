@@ -52,4 +52,36 @@ void main() {
     await tester.tap(find.text('Retry'));
     expect(retries, 1);
   });
+
+  testWidgets('a start after Retry waits again before the slow line', (
+    tester,
+  ) async {
+    const starting = SplashScreen(
+      mark: SizedBox.square(dimension: 26),
+      name: '[APP NAME]',
+      background: background,
+      foreground: foreground,
+      slowAfter: Duration(seconds: 2),
+    );
+    await pump(tester, starting);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(ClipRRect), findsOneWidget);
+
+    await pump(
+      tester,
+      SplashScreen.failed(
+        background: background,
+        foreground: foreground,
+        title: "Couldn't start",
+        message: 'Check your connection and try again.',
+        retryLabel: 'Retry',
+        onRetry: () {},
+      ),
+    );
+    await pump(tester, starting);
+    expect(find.byType(ClipRRect), findsNothing);
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(ClipRRect), findsOneWidget);
+  });
 }

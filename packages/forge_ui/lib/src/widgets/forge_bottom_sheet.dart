@@ -79,7 +79,12 @@ class ForgeBottomSheet extends StatelessWidget {
                 if (headerAction case final headerAction?)
                   Transform.translate(
                     // Aligns the action's label with the content's edge.
-                    offset: const Offset(Gap.sm, 0),
+                    offset: Offset(
+                      Directionality.of(context) == TextDirection.rtl
+                          ? -Gap.sm
+                          : Gap.sm,
+                      0,
+                    ),
                     child: headerAction,
                   ),
               ],

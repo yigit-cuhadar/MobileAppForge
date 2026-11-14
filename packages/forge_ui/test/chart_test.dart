@@ -94,6 +94,27 @@ void main() {
     expect(find.text('W'), findsOneWidget);
   });
 
+  testWidgets('Chart.bar draws no bar for a negative value', (tester) async {
+    await pump(
+      tester,
+      const Chart.bar(
+        title: 'Count · this week',
+        bars: [
+          ChartBar(label: 'M', value: -2, valueLabel: '-2'),
+          ChartBar(label: 'T', value: 4, valueLabel: '4'),
+        ],
+        semanticLabel: 'Count this week',
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final bar = find.descendant(
+      of: find.ancestor(of: find.text('-2'), matching: find.byType(Column)),
+      matching: find.byType(Container),
+    );
+    expect(tester.getSize(bar.first).height, 0);
+  });
+
   testWidgets('loading keeps the title and shimmers the rest', (tester) async {
     await pump(tester, const Chart.loading(title: 'Value', detail: '12 weeks'));
     expect(find.text('Value'), findsOneWidget);
@@ -132,6 +153,7 @@ void main() {
         errorTitle: "Couldn't load the chart",
         message: 'Check your connection and try again.',
         onRetry: () => retries++,
+        retryLabel: 'Retry',
       ),
     );
     await tester.tap(find.text('Retry'));
@@ -203,6 +225,38 @@ void main() {
       );
     });
 
+    testWidgets('a line with no values yet draws nothing and taps safely', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        MultiSeriesChart(
+          title: 'Series',
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              values: const [],
+              format: format,
+              look: SeriesLook.accent,
+            ),
+          ],
+          dateLabel: (i) => 'Day $i',
+          startLabel: 'Aug 25',
+          endLabel: 'Nov 10',
+          onSeriesTap: (_) {},
+          addLabel: 'Add',
+          onAdd: () {},
+          semanticLabel: 'Series over 12 weeks',
+        ),
+      );
+      expect(tester.takeException(), isNull);
+
+      final box = tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
+      await tester.tapAt(box.center);
+      await tester.pump();
+      expect(find.text('Day 0'), findsNothing);
+    });
+
     testWidgets('loading shimmers chips, chart and end labels', (tester) async {
       await pump(
         tester,
@@ -220,6 +274,7 @@ void main() {
           errorTitle: "Couldn't load the chart",
           message: 'Check your connection and try again.',
           onRetry: () => retries++,
+          retryLabel: 'Retry',
         ),
       );
       await tester.tap(find.text('Retry'));

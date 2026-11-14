@@ -72,6 +72,9 @@ class ForgeSlider extends StatelessWidget {
     final valueText = '${_text(value)} $unit';
     final steps = step == null
         ? null
+        // One value only: its one mark sits under the thumb at the start.
+        : max <= min
+        ? const [0.0]
         : [
             for (var i = 0; i <= ((max - min) / step! + 1e-9).floor(); i++)
               i * step! / (max - min),

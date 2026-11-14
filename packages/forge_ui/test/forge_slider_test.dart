@@ -141,4 +141,34 @@ void main() {
     expect(changes, [65]);
     handle.dispose();
   });
+
+  testWidgets('steps over an empty range mark the start, not NaN', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: width,
+              child: ForgeSlider(
+                label: 'Label',
+                unit: 'u',
+                min: 5,
+                max: 5,
+                step: 1,
+                value: 5,
+                onChanged: changes.add,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final steps = tester.widget<SliderTrack>(find.byType(SliderTrack)).steps!;
+    expect(steps, [0.0]);
+  });
 }

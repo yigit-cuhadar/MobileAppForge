@@ -20,6 +20,7 @@ Widget beforeAfterSlider(BuildContext context) => ListView(
             change: '[CHANGE]',
           ),
       ],
+      sliderLabel: 'Before and after',
     ),
   ],
 );

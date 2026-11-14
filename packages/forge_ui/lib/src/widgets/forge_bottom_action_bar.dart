@@ -85,7 +85,8 @@ class ForgeBottomActionBar extends StatelessWidget {
           ),
           ConstrainedBox(
             constraints: const BoxConstraints(minWidth: _countActionWidth),
-            child: primary,
+            // A full-width (large) button sizes to its label here.
+            child: IntrinsicWidth(child: primary),
           ),
         ],
       ),

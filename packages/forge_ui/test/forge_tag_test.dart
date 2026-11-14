@@ -30,4 +30,29 @@ void main() {
       );
     }
   });
+
+  testWidgets('a long label ends in an ellipsis in a tight row', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 80,
+              child: Row(
+                children: [
+                  Flexible(child: ForgeTag('A label far too long to fit')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byType(ForgeTag)).width, 80);
+  });
 }

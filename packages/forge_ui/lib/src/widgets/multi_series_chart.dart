@@ -228,7 +228,7 @@ class MultiSeriesChart extends StatelessWidget {
     required String errorTitle,
     required String this.message,
     required VoidCallback this.onRetry,
-    String this.retryLabel = 'Retry',
+    required String this.retryLabel,
   }) : _state = _State.error,
        _messageTitle = errorTitle,
        series = null,
@@ -517,6 +517,8 @@ class _PlotState extends State<_Plot> {
       return (v) => scaleY(v, 0, max, _Plot.barTop, _Plot.baseline);
     }
     final all = [...s.values, ?s.target];
+    // A line with nothing to draw yet.
+    if (all.isEmpty) return (_) => _Plot.lineBottom;
     final min = all.reduce(math.min);
     final max = all.reduce(math.max);
     return (v) => scaleY(v, min, max, _Plot.lineTop, _Plot.lineBottom);

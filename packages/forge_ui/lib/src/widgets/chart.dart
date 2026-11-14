@@ -116,7 +116,7 @@ class Chart extends StatelessWidget {
     required String errorTitle,
     required String this.message,
     required VoidCallback this.onRetry,
-    String this.retryLabel = 'Retry',
+    required String this.retryLabel,
   }) : _state = _State.error,
        _messageTitle = errorTitle,
        values = null,
@@ -493,7 +493,8 @@ class _BarChart extends StatelessWidget {
           ?target,
         ].fold<double>(0, math.max) /
         peak;
-    double share(double value) => top <= 0 ? 0 : value / top;
+    // Bars grow up from zero: a negative value draws none.
+    double share(double value) => top <= 0 ? 0 : math.max(0.0, value) / top;
     return Semantics(
       container: true,
       label: semanticLabel,

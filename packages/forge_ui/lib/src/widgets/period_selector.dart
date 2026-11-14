@@ -35,6 +35,8 @@ class PeriodSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
+    // The arrows point outward: previous toward the start side.
+    final rtl = Directionality.of(context) == TextDirection.rtl;
     return Container(
       height: ForgeTheme.tapMin,
       padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
@@ -46,7 +48,7 @@ class PeriodSelector extends StatelessWidget {
       child: Row(
         children: [
           _Arrow(
-            icon: ForgeIcons.chevronLeft,
+            icon: rtl ? ForgeIcons.chevronRight : ForgeIcons.chevronLeft,
             label: previousLabel,
             onTap: onPrevious,
           ),
@@ -70,7 +72,7 @@ class PeriodSelector extends StatelessWidget {
           Opacity(
             opacity: onNext == null ? _fadedOpacity : 1,
             child: _Arrow(
-              icon: ForgeIcons.chevronRight,
+              icon: rtl ? ForgeIcons.chevronLeft : ForgeIcons.chevronRight,
               label: nextLabel,
               onTap: onNext,
             ),

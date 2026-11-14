@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 import 'package:forge_ui/src/widgets/forge_slider.dart' show SliderTrack;
@@ -23,6 +24,7 @@ void main() {
                   change: '[CHANGE]',
                 ),
             ],
+            sliderLabel: 'Before and after',
           ),
         ),
       ),
@@ -63,5 +65,15 @@ void main() {
     await tester.pump();
 
     expect(find.text('View B 1 → View B 2 · [CHANGE]'), findsOneWidget);
+  });
+
+  testWidgets('the slider reads out its name and blend', (tester) async {
+    await pump(tester);
+
+    final slider = tester
+        .getSemantics(find.bySemanticsLabel('Before and after'))
+        .getSemanticsData();
+    expect(slider.value, '100%');
+    expect(slider.hasAction(SemanticsAction.increase), isTrue);
   });
 }

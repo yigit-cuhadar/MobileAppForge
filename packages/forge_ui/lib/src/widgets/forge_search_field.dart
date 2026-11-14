@@ -84,7 +84,7 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
     final body = Theme.of(context).textTheme.bodyMedium!;
     final pill = Container(
       height: ForgeTheme.tapMin,
-      padding: const EdgeInsets.only(left: Gap.md, right: Gap.sm),
+      padding: const EdgeInsetsDirectional.only(start: Gap.md, end: Gap.sm),
       decoration: BoxDecoration(
         color: p.surfaceSunken,
         borderRadius: BorderRadius.circular(ForgeTheme.tapMin / 2),
@@ -161,9 +161,9 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
                 children: [
                   ForgeIcon(ForgeIcons.filterList, size: 18, color: p.ink),
                   if (widget.activeFilters > 0)
-                    Positioned(
+                    PositionedDirectional(
                       top: Gap.xs,
-                      right: Gap.xs,
+                      end: Gap.xs,
                       child: Container(
                         constraints: const BoxConstraints(minWidth: 16),
                         height: 16,

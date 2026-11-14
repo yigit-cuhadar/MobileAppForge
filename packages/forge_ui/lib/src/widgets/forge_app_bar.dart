@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
@@ -30,34 +31,50 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
     final strings = MaterialLocalizations.of(context);
     final leading = route?.impliesAppBarDismissal ?? false
         ? ForgeAppBarAction.icon(
-            icon: close ? ForgeIcons.close : ForgeIcons.chevronLeft,
+            icon: close
+                ? ForgeIcons.close
+                : Directionality.of(context) == TextDirection.rtl
+                ? ForgeIcons.chevronRight
+                : ForgeIcons.chevronLeft,
             label: close
                 ? strings.closeButtonTooltip
                 : strings.backButtonTooltip,
             onPressed: () => Navigator.maybePop(context),
           )
         : null;
-    return Material(
-      color: ForgeStyle.of(context).colors.ground,
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: height,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-            child: NavigationToolbar(
-              leading: leading,
-              middle: Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge,
+    final ground = ForgeStyle.of(context).colors.ground;
+    // Status bar icons in the contrast of the page's ground.
+    final overlay =
+        ThemeData.estimateBrightnessForColor(ground) == Brightness.dark
+        ? SystemUiOverlayStyle.light
+        : SystemUiOverlayStyle.dark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlay.copyWith(statusBarColor: Colors.transparent),
+      child: Material(
+        color: ground,
+        child: SafeArea(
+          bottom: false,
+          child: SizedBox(
+            height: height,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+              child: NavigationToolbar(
+                leading: leading,
+                middle: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: actions,
+                ),
+                middleSpacing: Gap.xs,
               ),
-              trailing: Row(mainAxisSize: MainAxisSize.min, children: actions),
-              middleSpacing: Gap.xs,
             ),
           ),
         ),
@@ -127,9 +144,9 @@ class ForgeAppBarAction extends StatelessWidget {
             children: [
               ForgeIcon(icon, size: 22, color: colors.ink),
               if (count != null)
-                Positioned(
+                PositionedDirectional(
                   top: 6,
-                  right: 5,
+                  end: 5,
                   child: Container(
                     constraints: const BoxConstraints(
                       minWidth: 16,

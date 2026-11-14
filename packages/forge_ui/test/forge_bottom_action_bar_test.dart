@@ -81,6 +81,30 @@ void main() {
     expect(style.fontWeight, FontWeight.w400);
   });
 
+  testWidgets('a large Button beside a count sizes to its label, at least '
+      '120 wide', (tester) async {
+    await pump(
+      tester,
+      ForgeBottomActionBar.count(
+        count: '3 chosen',
+        action: ForgeButton(
+          label: 'Next',
+          onPressed: () {},
+          size: ForgeButtonSize.large,
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final button = tester.getRect(find.byType(ForgeButton));
+    expect(button.width, greaterThanOrEqualTo(120));
+    expect(
+      button.right,
+      tester.getSize(find.byType(ForgeBottomActionBar)).width - Gap.md,
+    );
+    expect(tester.getRect(find.text('3 chosen')).right, lessThan(button.left));
+  });
+
   testWidgets('the bar pads to the bottom inset', (tester) async {
     tester.view.padding = const FakeViewPadding(bottom: 34 * 3);
     addTearDown(tester.view.resetPadding);

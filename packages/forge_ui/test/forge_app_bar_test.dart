@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -141,5 +142,27 @@ void main() {
     );
 
     expect(find.byType(Text), findsOneWidget);
+  });
+
+  testWidgets('status bar icons contrast with the ground', (tester) async {
+    for (final (theme, expected) in [
+      (ForgeTheme.light(), Brightness.dark),
+      (ForgeTheme.dark(), Brightness.light),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: const Scaffold(appBar: ForgeAppBar(title: 'Home')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+        find.descendant(
+          of: find.byType(ForgeAppBar),
+          matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+        ),
+      );
+      expect(region.value.statusBarIconBrightness, expected);
+    }
   });
 }
