@@ -34,6 +34,9 @@ class ModelViewer extends StatefulWidget {
     this.partColors = const {},
     this.highlightedPart,
     this.highlightColor,
+    this.outlinedParts = const {},
+    this.outlineColor,
+    this.outlineWidth = 2,
     this.selectable,
     this.onPartTap,
     this.onScrub,
@@ -59,6 +62,16 @@ class ModelViewer extends StatefulWidget {
 
   /// Defaults to the theme's primary colour.
   final Color? highlightColor;
+
+  /// Parts ringed by an [outlineColor] line [outlineWidth] wide around what
+  /// is visible of them, over their own colour.
+  final Set<String> outlinedParts;
+
+  /// Defaults to the theme's error colour.
+  final Color? outlineColor;
+
+  /// In logical pixels.
+  final double outlineWidth;
 
   /// Which parts can be tapped or scrubbed. Defaults to all.
   final bool Function(String part)? selectable;
@@ -195,6 +208,9 @@ class _ModelViewerState extends State<ModelViewer> {
           partColors: widget.partColors,
           highlightedPart: widget.highlightedPart,
           highlightColor: widget.highlightColor ?? colors.primary,
+          outlinedParts: widget.outlinedParts,
+          outlineColor: widget.outlineColor ?? colors.error,
+          outlineWidth: widget.outlineWidth,
         ),
       ),
     );

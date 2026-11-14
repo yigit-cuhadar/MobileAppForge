@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 import 'package:forge_ui/src/widgets/day_circle.dart';
+import 'package:forge_ui/src/widgets/card_frame.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -39,6 +40,29 @@ void main() {
     await tester.tap(find.text('11'));
     await tester.tap(find.text('13'));
     expect(tapped, [2, 4]);
+  });
+
+  testWidgets('WeekStrip.plain draws no card or title', (tester) async {
+    final tapped = <int>[];
+    await pump(
+      tester,
+      WeekStrip.plain(
+        days: [
+          for (var i = 0; i < 7; i++)
+            WeekStripDay(
+              weekday: weekdays[i],
+              number: '${9 + i}',
+              state: DayState.none,
+            ),
+        ],
+        onDayTap: tapped.add,
+      ),
+    );
+
+    expect(find.byType(CardFrame), findsNothing);
+    expect(find.text('M'), findsOneWidget);
+    await tester.tap(find.text('15'));
+    expect(tapped, [6]);
   });
 
   group('MonthGrid', () {

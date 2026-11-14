@@ -1,5 +1,6 @@
 /// Taking pictures with the `camera` plugin: [GhostCamera], a portrait
-/// preview with an earlier picture laid faintly over it.
+/// preview with an earlier picture laid faintly over it, driven by the app
+/// through a [GhostCameraController].
 ///
 /// ## App setup (camera 0.12)
 ///
@@ -21,4 +22,5 @@
 /// implementation (such as `camera_avfoundation`) with `dependency_overrides`.
 library;
 
-export 'src/ghost_camera.dart' show GhostCamera;
+export 'src/ghost_camera.dart'
+    show GhostCamera, GhostCameraController, GhostCameraStatus;

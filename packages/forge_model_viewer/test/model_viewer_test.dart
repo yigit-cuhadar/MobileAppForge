@@ -1,4 +1,4 @@
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_model_viewer/forge_model_viewer.dart';
@@ -242,5 +242,39 @@ void main() {
       isFalse,
     );
     handle.dispose();
+  });
+
+  testWidgets('rings an outlined part, over its neighbour too', (tester) async {
+    const ring = Color(0xFFFF0000);
+    await pumpViewer(
+      tester,
+      ModelViewer(
+        model: model,
+        baseColor: const Color(0xFF00FF00),
+        outlinedParts: const {'left'},
+        outlineColor: ring,
+        outlineWidth: 4,
+      ),
+    );
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.descendant(
+        of: find.byType(ModelViewer),
+        matching: find.byType(RepaintBoundary),
+      ),
+    );
+    final pixels = (await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      final bytes = await image.toByteData();
+      image.dispose();
+      return bytes;
+    }))!;
+    // RGBA at x on the row through the middle of both quads.
+    int at(int x) => pixels.getUint32((100 * 200 + x) * 4);
+    const red = 0xFF0000FF;
+    // The left quad spans x 15..99, the right one 100..184.
+    expect([at(11), at(14), at(100), at(103)], everyElement(red));
+    expect(at(60), isNot(anyOf(red, 0)));
+    expect(at(104), isNot(anyOf(red, 0)));
+    expect([at(10), at(186)], everyElement(0));
   });
 }
