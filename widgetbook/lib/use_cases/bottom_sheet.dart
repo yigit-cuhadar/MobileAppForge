@@ -10,12 +10,12 @@ Widget _shown(BuildContext context, ForgeBottomSheet sheet) => ColoredBox(
     children: [
       Expanded(
         child: Center(
-          child: FilledButton(
+          child: ForgeButton(
+            label: 'Open',
             onPressed: () => showForgeBottomSheet<void>(
               context: context,
               builder: (_) => sheet,
             ),
-            child: const Text('Open'),
           ),
         ),
       ),
@@ -26,7 +26,7 @@ Widget _shown(BuildContext context, ForgeBottomSheet sheet) => ColoredBox(
 
 Widget _options(List<String> labels) => Column(
   mainAxisSize: MainAxisSize.min,
-  children: [for (final label in labels) ListTile(title: Text(label))],
+  children: [for (final label in labels) ListRow(title: label, onTap: () {})],
 );
 
 @widgetbook.UseCase(name: 'Choose one', type: ForgeBottomSheet)
@@ -34,7 +34,7 @@ Widget chooseOneSheet(BuildContext context) => _shown(
   context,
   ForgeBottomSheet(
     title: context.knobs.string(label: 'Title', initialValue: 'Choose one'),
-    action: FilledButton(onPressed: () {}, child: const Text('Save')),
+    action: ForgeButton(label: 'Save', onPressed: () {}),
     child: _options([
       'Option one',
       'Option two (default)',
@@ -49,8 +49,12 @@ Widget headerActionSheet(BuildContext context) => _shown(
   context,
   ForgeBottomSheet(
     title: 'Filters',
-    headerAction: TextButton(onPressed: () {}, child: const Text('Clear all')),
-    action: FilledButton(onPressed: () {}, child: const Text('Show results')),
+    headerAction: ForgeButton(
+      label: 'Clear all',
+      onPressed: () {},
+      variant: ForgeButtonVariant.text,
+    ),
+    action: ForgeButton(label: 'Show results', onPressed: () {}),
     child: _options(['Option one', 'Option two', 'Option three']),
   ),
 );

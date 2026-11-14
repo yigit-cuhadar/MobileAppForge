@@ -35,7 +35,13 @@ Widget emptyView(BuildContext context) => _page(
       label: 'Message',
       initialValue: 'Items you add show up here.',
     ),
-    actions: [ElevatedButton(onPressed: () {}, child: const Text('Browse'))],
+    actions: [
+      ForgeButton(
+        label: 'Browse',
+        onPressed: () {},
+        variant: ForgeButtonVariant.secondary,
+      ),
+    ],
   ),
 );
 
@@ -45,8 +51,12 @@ Widget emptyViewTwoButtons(BuildContext context) => _page(
     title: 'Nothing here yet',
     message: 'Add one yourself or pick from the list.',
     actions: [
-      FilledButton(onPressed: () {}, child: const Text('Add item')),
-      ElevatedButton(onPressed: () {}, child: const Text('Browse')),
+      ForgeButton(label: 'Add item', onPressed: () {}),
+      ForgeButton(
+        label: 'Browse',
+        onPressed: () {},
+        variant: ForgeButtonVariant.secondary,
+      ),
     ],
   ),
 );
@@ -83,7 +93,13 @@ Widget compactEmptyView(BuildContext context) => _inCard(
   EmptyView(
     title: 'No entries yet',
     message: 'Add an entry to start the line.',
-    actions: [ElevatedButton(onPressed: () {}, child: const Text('Add entry'))],
+    actions: [
+      ForgeButton(
+        label: 'Add entry',
+        onPressed: () {},
+        variant: ForgeButtonVariant.secondary,
+      ),
+    ],
     compact: true,
   ),
 );

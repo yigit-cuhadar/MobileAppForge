@@ -6,12 +6,7 @@ import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 Widget _page(Widget child) =>
     ListView(padding: const EdgeInsets.all(Gap.md), children: [child]);
 
-/// Stands in for the Forge Premium tag until it is swapped in.
-Widget _premium() => const Chip(
-  avatar: ForgeIcon(ForgeIcons.lock, size: 12),
-  label: Text('Premium'),
-  visualDensity: VisualDensity.compact,
-);
+Widget _premium() => const ForgeTag('Premium', kind: ForgeTagKind.premium);
 
 @widgetbook.UseCase(name: 'Plain', type: ListRow)
 Widget plainRows(BuildContext context) => _page(
@@ -44,7 +39,11 @@ Widget dateBoxRows(BuildContext context) => _page(
         title: 'Item title',
         detail: 'Today · [DETAIL]',
         leading: const ListRowDateBox(weekday: 'Fri', day: '13', today: true),
-        trailing: FilledButton(onPressed: () {}, child: const Text('Start')),
+        trailing: ForgeButton(
+          label: 'Start',
+          onPressed: () {},
+          size: ForgeButtonSize.small,
+        ),
       ),
       ListRow(
         title: 'Item title',
@@ -57,9 +56,11 @@ Widget dateBoxRows(BuildContext context) => _page(
         title: 'Item title',
         error: 'Missed',
         leading: const ListRowDateBox(weekday: 'Wed', day: '11'),
-        trailing: ElevatedButton(
+        trailing: ForgeButton(
+          label: 'Do it now',
           onPressed: () {},
-          child: const Text('Do it now'),
+          variant: ForgeButtonVariant.secondary,
+          size: ForgeButtonSize.small,
         ),
       ),
     ],
@@ -80,7 +81,11 @@ Widget infoHintRow(BuildContext context) => _page(
             child: Text('One line that explains the field.'),
           ),
         ),
-        trailing: const SizedBox(width: 84, child: TextField()),
+        trailing: ForgeNumberField(
+          label: '[VALUE]',
+          unit: 'kg',
+          onChanged: (_) {},
+        ),
       ),
     ],
   ),
@@ -208,7 +213,12 @@ Widget unlockingRows(BuildContext context) => _page(
       ListRow(
         title: 'Item title',
         error: "Couldn't unlock. Check your connection.",
-        trailing: OutlinedButton(onPressed: () {}, child: const Text('Retry')),
+        trailing: ForgeButton(
+          label: 'Retry',
+          onPressed: () {},
+          variant: ForgeButtonVariant.outline,
+          size: ForgeButtonSize.small,
+        ),
       ),
     ],
   ),

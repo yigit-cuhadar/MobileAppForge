@@ -7,7 +7,8 @@ import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 Widget _shown(ForgeSnackbar snackbar) => Scaffold(
   body: Builder(
     builder: (context) => Center(
-      child: FilledButton(
+      child: ForgeButton(
+        label: 'Show',
         onPressed: () => showForgeSnackbar(
           context,
           message: snackbar.message,
@@ -15,7 +16,6 @@ Widget _shown(ForgeSnackbar snackbar) => Scaffold(
           onAction: snackbar.onAction,
           error: snackbar.error,
         ),
-        child: const Text('Show'),
       ),
     ),
   ),

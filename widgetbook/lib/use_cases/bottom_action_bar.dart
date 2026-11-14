@@ -7,33 +7,20 @@ import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 Widget _page(ForgeBottomActionBar bar) =>
     Scaffold(body: const SizedBox(), bottomNavigationBar: bar);
 
-/// Stand-ins for Button's 48px bottom-of-page forms.
+/// Button's 48px bottom-of-page forms.
 Widget _primary(String label, {bool enabled = true, bool loading = false}) =>
-    Builder(
-      builder: (context) => FilledButton(
-        onPressed: enabled && !loading ? () {} : null,
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(64, ForgeTheme.buttonHeightLg),
-          textStyle: ForgeStyle.of(context).buttonLg,
-        ),
-        child: loading
-            ? const SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(label),
-      ),
+    ForgeButton(
+      label: label,
+      onPressed: enabled ? () {} : null,
+      loading: loading,
+      size: ForgeButtonSize.large,
     );
 
-Widget _secondary(String label) => Builder(
-  builder: (context) => ElevatedButton(
-    onPressed: () {},
-    style: ElevatedButton.styleFrom(
-      minimumSize: const Size(64, ForgeTheme.buttonHeightLg),
-      textStyle: ForgeStyle.of(context).buttonLg,
-    ),
-    child: Text(label),
-  ),
+Widget _secondary(String label) => ForgeButton(
+  label: label,
+  onPressed: () {},
+  variant: ForgeButtonVariant.secondary,
+  size: ForgeButtonSize.large,
 );
 
 @widgetbook.UseCase(name: 'One action', type: ForgeBottomActionBar)

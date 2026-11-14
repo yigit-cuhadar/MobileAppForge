@@ -12,9 +12,10 @@ Widget permissionOffNotice(BuildContext context) => _page(
     icon: ForgeIcons.notificationsOff,
     title: 'Notifications are off',
     message: "Reminders can't reach you until you turn them on.",
-    action: ElevatedButton(
+    action: ForgeButton(
+      label: 'Open settings',
       onPressed: () {},
-      child: const Text('Open settings'),
+      variant: ForgeButtonVariant.secondary,
     ),
   ),
 );
@@ -26,7 +27,11 @@ Widget premiumEndedNotice(BuildContext context) => _page(
     title: 'Premium has ended',
     message:
         '[ITEM] came from Premium. It carries on once you get Premium again.',
-    action: ElevatedButton(onPressed: () {}, child: const Text('See Premium')),
+    action: ForgeButton(
+      label: 'See Premium',
+      onPressed: () {},
+      variant: ForgeButtonVariant.secondary,
+    ),
   ),
 );
 
@@ -63,11 +68,12 @@ class _ActionTipState extends State<_ActionTip> {
           icon: ForgeIcons.straighten,
           title: 'Reminder title',
           detail: 'One line of detail',
-          action: FilledButton(onPressed: () {}, child: const Text('Start')),
+          action: ForgeButton(label: 'Start', onPressed: () {}),
           onDismiss: () => setState(() => _shown = false),
         )
-      : TextButton(
+      : ForgeButton(
+          label: 'Show again',
           onPressed: () => setState(() => _shown = true),
-          child: const Text('Show again'),
+          variant: ForgeButtonVariant.text,
         );
 }

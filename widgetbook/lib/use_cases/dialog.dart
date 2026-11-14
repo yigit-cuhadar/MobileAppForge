@@ -7,8 +7,11 @@ import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 Widget _shown(BuildContext context, ForgeDialog dialog) =>
     ColoredBox(color: Theme.of(context).colorScheme.scrim, child: dialog);
 
-Widget get _cancel =>
-    ElevatedButton(onPressed: () {}, child: const Text('Cancel'));
+Widget get _cancel => ForgeButton(
+  label: 'Cancel',
+  onPressed: () {},
+  variant: ForgeButtonVariant.secondary,
+);
 
 @widgetbook.UseCase(name: 'Danger action', type: ForgeDialog)
 Widget dangerDialog(BuildContext context) => _shown(
@@ -16,13 +19,10 @@ Widget dangerDialog(BuildContext context) => _shown(
   ForgeDialog(
     title: 'Discard changes?',
     message: "Your changes will be lost. This can't be undone.",
-    action: OutlinedButton(
+    action: ForgeButton(
+      label: 'Discard',
       onPressed: () {},
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Theme.of(context).colorScheme.error,
-        side: BorderSide(color: Theme.of(context).colorScheme.error),
-      ),
-      child: const Text('Discard'),
+      variant: ForgeButtonVariant.danger,
     ),
     cancel: _cancel,
   ),
@@ -37,7 +37,7 @@ Widget mainActionDialog(BuildContext context) => _shown(
       label: 'Message',
       initialValue: 'You can still edit it later.',
     ),
-    action: FilledButton(onPressed: () {}, child: const Text('Mark as done')),
+    action: ForgeButton(label: 'Mark as done', onPressed: () {}),
     cancel: _cancel,
   ),
 );
@@ -48,14 +48,16 @@ Widget fieldDialog(BuildContext context) => _shown(
   ForgeDialog(
     title: 'Set a goal',
     message: 'Pick a number from 1,000 to 50,000.',
-    field: const TextField(
-      decoration: InputDecoration(
-        labelText: 'Goal',
-        suffixText: '[UNIT]',
-        errorText: 'Enter a number from 1,000 to 50,000.',
+    field: Form(
+      autovalidateMode: AutovalidateMode.always,
+      child: ForgeTextField(
+        label: 'Goal',
+        controller: TextEditingController(text: '500'),
+        keyboardType: TextInputType.number,
+        validator: (_) => 'Enter a number from 1,000 to 50,000.',
       ),
     ),
-    action: FilledButton(onPressed: () {}, child: const Text('Save')),
+    action: ForgeButton(label: 'Save', onPressed: () {}),
     cancel: _cancel,
   ),
 );

@@ -76,13 +76,14 @@ Widget openedInfoCard(BuildContext context) => Padding(
   child: Align(
     alignment: Alignment.topRight,
     child: Builder(
-      builder: (context) => TextButton(
+      builder: (context) => ForgeButton(
+        label: '[VALUE]',
         onPressed: () => showForgeInfo(
           context: context,
           title: '[VALUE] on [DETAIL]',
           facts: _facts,
         ),
-        child: const Text('[VALUE]'),
+        variant: ForgeButtonVariant.text,
       ),
     ),
   ),

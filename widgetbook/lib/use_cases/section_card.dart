@@ -62,12 +62,7 @@ Widget lockedSectionCard(BuildContext context) => _page(
   SectionCard.locked(
     title: 'Section title',
     onTap: () {},
-    // Stands in for the Forge Premium tag until it is swapped in.
-    tag: const Chip(
-      avatar: ForgeIcon(ForgeIcons.lock, size: 12),
-      label: Text('Premium'),
-      visualDensity: VisualDensity.compact,
-    ),
+    tag: const ForgeTag('Premium', kind: ForgeTagKind.premium),
     message: '[PREMIUM FEATURE ONE] with Premium.',
   ),
 );
