@@ -88,6 +88,22 @@ void main() {
       expect(retries, 1);
     });
 
+    testWidgets('the compact form sits tighter', (tester) async {
+      Widget view({required bool compact}) => ErrorView(
+        title: "Couldn't load the chart",
+        message: 'Check your connection and try again.',
+        onRetry: () {},
+        compact: compact,
+      );
+      await pump(tester, view(compact: false));
+      final full = tester.getSize(find.byType(Column).first).height;
+      await pump(tester, view(compact: true));
+      final compact = tester.getSize(find.byType(Column).first).height;
+
+      // 8px instead of 16px twice.
+      expect(full - compact, 2 * (Gap.md - Gap.sm));
+    });
+
     testWidgets('empty shows its actions', (tester) async {
       await pump(
         tester,

@@ -127,6 +127,28 @@ void main() {
       expect(fill(tester), colors(tester).danger);
     });
 
+    testWidgets('the compact form has no ticks', (tester) async {
+      await pump(
+        tester,
+        const BandBar.compact(
+          label: 'Item one',
+          valueLabel: '14',
+          value: 0.56,
+          low: 0.4,
+          high: 0.8,
+        ),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(BandBar),
+          matching: find.byType(Container),
+        ),
+        findsNothing,
+      );
+      expect(fill(tester), colors(tester).accent);
+    });
+
     testWidgets('below the band the fill is a soft accent', (tester) async {
       await band(tester, 0.32);
       final c = colors(tester);

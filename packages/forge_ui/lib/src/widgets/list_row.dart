@@ -1,10 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_palette.dart';
 import '../theme/forge_style.dart';
+import '../theme/forge_theme.dart';
 import 'busy_ring.dart';
 import 'card_frame.dart';
 import 'skeleton.dart';
@@ -44,6 +48,9 @@ class ListRowCard extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         buildDefaultDragHandles: false,
         onReorderItem: onReorder,
+        // Lifted flat, like every Forge card: no shadow.
+        proxyDecorator: (row, index, animation) =>
+            Material(color: ForgeStyle.of(context).colors.surface, child: row),
         children: [
           for (final (i, row) in children.indexed)
             DecoratedBox(
@@ -65,7 +72,9 @@ enum ListRowEnd { none, chevron, external }
 
 /// One row of a [ListRowCard]: an optional [leading] part, the [title] with
 /// a [detail] line under it, the [value] in ink-muted, a [trailing] part
-/// (a Tag, Button, Switch or TextField) and the [end] mark.
+/// (a Tag, Button, Switch or TextField) and the [end] mark. A row with a
+/// [ListRowDateBox] or an info icon has a title-style title and sits
+/// tighter.
 class ListRow extends StatelessWidget {
   const ListRow({
     super.key,
@@ -84,12 +93,14 @@ class ListRow extends StatelessWidget {
     this.locked = false,
     this.busy = false,
   }) : assert(checked == null || leading == null),
-       loading = false;
+       loading = false,
+       _skeleton = 0;
 
   /// Keeps the row's height and shows shimmering bars where its title,
-  /// detail and value will be.
-  const ListRow.loading({super.key})
-    : title = null,
+  /// detail and value will be; their lengths vary with the row's [index].
+  const ListRow.loading({super.key, int index = 0})
+    : _skeleton = index % 3,
+      title = null,
       detail = null,
       error = null,
       leading = null,
@@ -141,16 +152,21 @@ class ListRow extends StatelessWidget {
   /// at the end.
   final bool busy;
   final bool loading;
+  final int _skeleton;
 
   static const _minHeight = 52.0;
+
+  // Title and detail bar widths of loading rows, in turn.
+  static const _skeletons = [(0.55, 0.35), (0.45, 0.30), (0.60, 0.40)];
 
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
     final text = Theme.of(context).textTheme;
     if (loading) {
+      final (titleWidth, detailWidth) = _skeletons[_skeleton];
       return _frame(
-        const Row(
+        Row(
           spacing: Gap.md,
           children: [
             Expanded(
@@ -159,12 +175,12 @@ class ListRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: Gap.sm,
                 children: [
-                  SkeletonBar(widthFactor: 0.55, height: 12),
-                  SkeletonBar(widthFactor: 0.35, height: 10),
+                  SkeletonBar(widthFactor: titleWidth, height: 12),
+                  SkeletonBar(widthFactor: detailWidth, height: 10),
                 ],
               ),
             ),
-            SkeletonBar(width: 40, height: 10),
+            const SkeletonBar(width: 40, height: 10),
           ],
         ),
       );
@@ -188,19 +204,23 @@ class ListRow extends StatelessWidget {
     final line = error ?? detail;
     final leading = checked == null ? this.leading : _Checkbox(checked: on);
 
+    final prominent = this.leading is ListRowDateBox || onInfo != null;
+    final info = _InfoLink();
     Widget title = Text(
       this.title!,
-      style: text.bodyMedium!.copyWith(color: titleColor),
+      style: (prominent ? text.titleMedium! : text.bodyMedium!).copyWith(
+        color: titleColor,
+      ),
     );
     if (onInfo != null) {
       title = Row(
+        spacing: Gap.xs,
         children: [
           Flexible(child: title),
-          InkResponse(
-            onTap: onInfo,
-            radius: Gap.md,
-            child: Padding(
-              padding: const EdgeInsets.all(Gap.xs),
+          _InfoTarget(
+            link: info,
+            child: GestureDetector(
+              onTap: onInfo,
               child: ForgeIcon(
                 ForgeIcons.info,
                 size: 16,
@@ -213,7 +233,7 @@ class ListRow extends StatelessWidget {
     }
 
     final row = Row(
-      spacing: Gap.md,
+      spacing: prominent ? Gap.sm : Gap.md,
       children: [
         ?leading,
         Expanded(
@@ -259,16 +279,22 @@ class ListRow extends StatelessWidget {
         : missing
         ? Color.lerp(colors.surface, colors.danger, 0.08)
         : null;
-    return MergeSemantics(
-      child: Semantics(
-        checked: checked,
-        child: Material(
-          type: tint == null ? MaterialType.transparency : MaterialType.canvas,
-          color: tint,
-          child: InkWell(onTap: onTap, child: _frame(row)),
-        ),
+    Widget result = Material(
+      type: tint == null ? MaterialType.transparency : MaterialType.canvas,
+      color: tint,
+      child: InkWell(
+        onTap: onTap,
+        child: onInfo == null
+            ? _frame(row)
+            : _InfoArea(link: info, child: _frame(row)),
       ),
     );
+    if (checked != null) {
+      result = MergeSemantics(
+        child: Semantics(checked: checked, child: result),
+      );
+    }
+    return result;
   }
 
   Widget? _endMark(ForgePalette colors) => switch (end) {
@@ -382,5 +408,78 @@ class _Checkbox extends StatelessWidget {
           ? ForgeIcon(ForgeIcons.check, size: 14, color: colors.onAccent)
           : null,
     );
+  }
+}
+
+/// Lets the row find its info icon when hit-testing.
+class _InfoLink {
+  RenderBox? target;
+}
+
+/// Marks the info icon for its row's [_InfoArea].
+class _InfoTarget extends SingleChildRenderObjectWidget {
+  const _InfoTarget({required this.link, required super.child});
+
+  final _InfoLink link;
+
+  @override
+  RenderProxyBox createRenderObject(BuildContext context) =>
+      _RenderInfoTarget(link);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderInfoTarget target) =>
+      target.link = link;
+}
+
+class _RenderInfoTarget extends RenderProxyBox {
+  _RenderInfoTarget(_InfoLink link) {
+    this.link = link;
+  }
+
+  set link(_InfoLink link) => link.target = this;
+}
+
+/// Sends taps within a tap-min square around the info icon to the icon,
+/// though the icon is drawn smaller and the layout stays as drawn.
+class _InfoArea extends SingleChildRenderObjectWidget {
+  const _InfoArea({required this.link, required super.child});
+
+  final _InfoLink link;
+
+  @override
+  RenderProxyBox createRenderObject(BuildContext context) =>
+      _RenderInfoArea(link);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderInfoArea area) =>
+      area.link = link;
+}
+
+class _RenderInfoArea extends RenderProxyBox {
+  _RenderInfoArea(this.link);
+
+  _InfoLink link;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final target = link.target;
+    if (target != null &&
+        target.attached &&
+        target.hasSize &&
+        size.contains(position)) {
+      final local = target.globalToLocal(localToGlobal(position));
+      final centre = target.size.center(Offset.zero);
+      final area = Rect.fromCenter(
+        center: centre,
+        width: max(ForgeTheme.tapMin, target.size.width),
+        height: max(ForgeTheme.tapMin, target.size.height),
+      );
+      if (area.contains(local)) {
+        target.hitTest(result, position: centre);
+        result.add(BoxHitTestEntry(this, position));
+        return true;
+      }
+    }
+    return super.hitTest(result, position: position);
   }
 }

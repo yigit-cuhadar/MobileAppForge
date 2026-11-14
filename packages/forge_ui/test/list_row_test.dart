@@ -59,17 +59,56 @@ void main() {
     expect(textColor(tester, 'Delete'), colors(tester).danger);
   });
 
-  testWidgets('the info icon calls onInfo, not onTap', (tester) async {
+  testWidgets('the info icon takes taps across a 44px square, the rest '
+      'of the row opens it', (tester) async {
     var info = 0;
     var taps = 0;
     await pump(
       tester,
-      ListRow(title: 'Field', onInfo: () => info++, onTap: () => taps++),
+      SizedBox(
+        width: 360,
+        child: ListRow(
+          title: 'Field',
+          onInfo: () => info++,
+          onTap: () => taps++,
+        ),
+      ),
     );
 
-    await tester.tap(find.byType(ForgeIcon));
-    expect(info, 1);
-    expect(taps, 0);
+    final icon = find.byType(ForgeIcon);
+    expect(tester.getSize(icon), const Size(16, 16));
+    final centre = tester.getCenter(icon);
+    await tester.tap(find.byType(ListRow), warnIfMissed: false);
+    await tester.tapAt(centre);
+    await tester.tapAt(centre + const Offset(20, 0));
+    await tester.tapAt(centre + const Offset(0, -20));
+    expect(info, 3);
+    await tester.tapAt(centre + const Offset(40, 0));
+    expect(taps, 2);
+  });
+
+  testWidgets('date box and info rows have a title-style title', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      Column(
+        children: [
+          const ListRow(
+            title: 'Dated',
+            leading: ListRowDateBox(weekday: 'Thu', day: '12'),
+          ),
+          ListRow(title: 'Field', onInfo: () {}),
+          const ListRow(title: 'Plain'),
+        ],
+      ),
+    );
+
+    double? size(String text) =>
+        tester.widget<Text>(find.text(text)).style?.fontSize;
+    expect(size('Dated'), 15);
+    expect(size('Field'), 15);
+    expect(size('Plain'), 14);
   });
 
   testWidgets('a checked row reads as checked and turns accent-soft', (
@@ -135,10 +174,17 @@ void main() {
   testWidgets('a loading row keeps its height with three skeleton bars', (
     tester,
   ) async {
-    await pump(tester, const SizedBox(width: 360, child: ListRow.loading()));
+    await pump(
+      tester,
+      const SizedBox(width: 360, child: ListRow.loading(index: 1)),
+    );
 
     expect(find.byType(SkeletonBar), findsNWidgets(3));
     expect(tester.getSize(find.byType(ListRow)).height, 52);
+    expect(
+      tester.widget<SkeletonBar>(find.byType(SkeletonBar).first).widthFactor,
+      0.45,
+    );
   });
 
   testWidgets('the date box is 40 by 44', (tester) async {
@@ -179,6 +225,8 @@ void main() {
     final drag = await tester.startGesture(tester.getCenter(handle));
     await drag.moveBy(const Offset(0, 120));
     await tester.pump();
+    final lifted = tester.widgetList<Material>(find.byType(Material));
+    expect(lifted.every((m) => m.elevation == 0), isTrue);
     await drag.up();
     await tester.pumpAndSettle();
 

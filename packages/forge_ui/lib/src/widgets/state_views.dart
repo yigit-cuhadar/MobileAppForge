@@ -56,12 +56,16 @@ class ErrorView extends StatelessWidget {
     required this.message,
     required this.onRetry,
     this.retryLabel = 'Retry',
+    this.compact = false,
   });
 
   final String title;
   final String message;
   final VoidCallback onRetry;
   final String retryLabel;
+
+  /// The tighter form inside a card (a chart, a plan list): 8px apart.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => _Message(
@@ -70,6 +74,7 @@ class ErrorView extends StatelessWidget {
     title: title,
     message: message,
     actions: [OutlinedButton(onPressed: onRetry, child: Text(retryLabel))],
+    compact: compact,
   );
 }
 
@@ -82,12 +87,16 @@ class EmptyView extends StatelessWidget {
     required this.title,
     required this.message,
     this.actions = const [],
+    this.compact = false,
   });
 
   final ForgeIconData icon;
   final String title;
   final String message;
   final List<Widget> actions;
+
+  /// The tighter form inside a card (a chart, a plan list): 8px apart.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => _Message(
@@ -96,6 +105,7 @@ class EmptyView extends StatelessWidget {
     title: title,
     message: message,
     actions: actions,
+    compact: compact,
   );
 }
 
@@ -131,6 +141,7 @@ class _Message extends StatelessWidget {
     required this.title,
     required this.message,
     required this.actions,
+    required this.compact,
   });
 
   final ForgeIconData icon;
@@ -138,6 +149,7 @@ class _Message extends StatelessWidget {
   final String title;
   final String message;
   final List<Widget> actions;
+  final bool compact;
 
   static const _circle = 44.0;
 
@@ -156,6 +168,7 @@ class _Message extends StatelessWidget {
     title: title,
     message: message,
     actions: actions,
+    compact: compact,
   );
 }
 
@@ -165,32 +178,34 @@ class _Centred extends StatelessWidget {
     required this.title,
     required this.message,
     this.actions = const [],
+    this.compact = false,
   });
 
   final Widget top;
   final String title;
   final String message;
   final List<Widget> actions;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final gap = compact ? Gap.sm : Gap.md;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Gap.md,
-          vertical: Gap.lg,
-        ),
+        padding: compact
+            ? const EdgeInsets.symmetric(vertical: Gap.sm)
+            : const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             top,
-            const SizedBox(height: Gap.md),
+            SizedBox(height: gap),
             Text(title, textAlign: TextAlign.center, style: text.titleMedium),
             const SizedBox(height: Gap.xs),
             Text(message, textAlign: TextAlign.center, style: text.bodySmall),
             if (actions.isNotEmpty) ...[
-              const SizedBox(height: Gap.md),
+              SizedBox(height: gap),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 spacing: Gap.sm,

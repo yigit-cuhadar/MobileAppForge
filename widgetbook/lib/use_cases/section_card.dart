@@ -13,16 +13,16 @@ Widget filledSectionCard(BuildContext context) => _page(
     detail: context.knobs.string(label: 'Detail', initialValue: '[DETAIL]'),
     onTap: () {},
     child: const Column(
-      spacing: Gap.md,
+      spacing: Gap.sm,
       children: [
-        BandBar(
+        BandBar.compact(
           label: 'Item one',
           valueLabel: '14',
           value: 0.56,
           low: 0.4,
           high: 0.8,
         ),
-        BandBar(
+        BandBar.compact(
           label: 'Item two',
           valueLabel: '8',
           value: 0.32,

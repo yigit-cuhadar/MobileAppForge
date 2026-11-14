@@ -48,3 +48,35 @@ Widget bandBars(BuildContext context) {
     ],
   );
 }
+
+@widgetbook.UseCase(name: 'Compact (in a SectionCard)', type: BandBar)
+Widget compactBandBars(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: const [
+    Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: EdgeInsets.all(Gap.md),
+        child: Column(
+          spacing: Gap.sm,
+          children: [
+            BandBar.compact(
+              label: 'Item one',
+              valueLabel: '14',
+              value: 0.56,
+              low: 0.4,
+              high: 0.8,
+            ),
+            BandBar.compact(
+              label: 'Item two',
+              valueLabel: '8',
+              value: 0.32,
+              low: 0.4,
+              high: 0.8,
+            ),
+          ],
+        ),
+      ),
+    ),
+  ],
+);

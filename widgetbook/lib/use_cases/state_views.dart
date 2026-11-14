@@ -60,6 +60,34 @@ Widget emptyViewNoButton(BuildContext context) => _page(
   ),
 );
 
+/// The compact forms sit inside a card, as in a chart or a plan list.
+Widget _inCard(Widget child) => _page(
+  Card(
+    margin: EdgeInsets.zero,
+    child: Padding(padding: const EdgeInsets.all(Gap.md), child: child),
+  ),
+);
+
+@widgetbook.UseCase(name: 'Error · compact', type: ErrorView)
+Widget compactErrorView(BuildContext context) => _inCard(
+  ErrorView(
+    title: "Couldn't load the chart",
+    message: 'Check your connection and try again.',
+    onRetry: () {},
+    compact: true,
+  ),
+);
+
+@widgetbook.UseCase(name: 'Empty · compact', type: EmptyView)
+Widget compactEmptyView(BuildContext context) => _inCard(
+  EmptyView(
+    title: 'No entries yet',
+    message: 'Add an entry to start the line.',
+    actions: [ElevatedButton(onPressed: () {}, child: const Text('Add entry'))],
+    compact: true,
+  ),
+);
+
 @widgetbook.UseCase(name: 'Working', type: WorkingView)
 Widget workingView(BuildContext context) => _page(
   const WorkingView(

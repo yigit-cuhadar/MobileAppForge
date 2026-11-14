@@ -15,13 +15,27 @@ class BandBar extends StatelessWidget {
     required this.value,
     required this.low,
     required this.high,
-  }) : assert(0 <= low && low <= high && high <= 1);
+  }) : assert(0 <= low && low <= high && high <= 1),
+       _compact = false;
+
+  /// The tighter form inside a SectionCard: no ticks, the bar 4px under
+  /// the label.
+  const BandBar.compact({
+    super.key,
+    required this.label,
+    required this.valueLabel,
+    required this.value,
+    required this.low,
+    required this.high,
+  }) : assert(0 <= low && low <= high && high <= 1),
+       _compact = true;
 
   final String label;
   final String valueLabel;
   final double value;
   final double low;
   final double high;
+  final bool _compact;
 
   static const _height = 6.0;
   static const _tickWidth = 1.5;
@@ -40,7 +54,7 @@ class BandBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: Gap.sm,
+      spacing: _compact ? Gap.xs : Gap.sm,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -91,8 +105,7 @@ class BandBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  tick(low),
-                  tick(high),
+                  if (!_compact) ...[tick(low), tick(high)],
                 ],
               );
             },

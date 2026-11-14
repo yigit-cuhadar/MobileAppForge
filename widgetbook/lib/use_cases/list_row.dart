@@ -137,7 +137,11 @@ Widget missingRow(BuildContext context) => _page(
 @widgetbook.UseCase(name: 'Loading', type: ListRow)
 Widget loadingRows(BuildContext context) => _page(
   const ListRowCard(
-    children: [ListRow.loading(), ListRow.loading(), ListRow.loading()],
+    children: [
+      ListRow.loading(),
+      ListRow.loading(index: 1),
+      ListRow.loading(index: 2),
+    ],
   ),
 );
 
