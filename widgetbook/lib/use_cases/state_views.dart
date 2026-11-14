@@ -12,6 +12,7 @@ Widget loadingView(BuildContext context) => _page(const LoadingView());
 @widgetbook.UseCase(name: 'Error', type: ErrorView)
 Widget errorView(BuildContext context) => _page(
   ErrorView(
+    retryLabel: 'Retry',
     title: context.knobs.string(
       label: 'Title',
       initialValue: "Couldn't load this",
@@ -81,6 +82,7 @@ Widget _inCard(Widget child) => _page(
 @widgetbook.UseCase(name: 'Error · compact', type: ErrorView)
 Widget compactErrorView(BuildContext context) => _inCard(
   ErrorView(
+    retryLabel: 'Retry',
     title: "Couldn't load the chart",
     message: 'Check your connection and try again.',
     onRetry: () {},

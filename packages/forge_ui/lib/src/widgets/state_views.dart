@@ -56,7 +56,7 @@ class ErrorView extends StatelessWidget {
     required this.title,
     required this.message,
     required this.onRetry,
-    this.retryLabel = 'Retry',
+    required this.retryLabel,
     this.compact = false,
   });
 

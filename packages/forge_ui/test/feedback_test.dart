@@ -110,6 +110,7 @@ void main() {
       await pump(
         tester,
         ErrorView(
+          retryLabel: 'Retry',
           title: "Couldn't load this",
           message: 'Check your connection and try again.',
           onRetry: () => retries++,
@@ -128,6 +129,7 @@ void main() {
 
     testWidgets('the compact form sits tighter', (tester) async {
       Widget view({required bool compact}) => ErrorView(
+        retryLabel: 'Retry',
         title: "Couldn't load the chart",
         message: 'Check your connection and try again.',
         onRetry: () {},
