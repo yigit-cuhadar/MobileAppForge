@@ -63,6 +63,15 @@ Widget photoTileEmptyWithView(BuildContext context) => _grid([
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Loading', type: PhotoTile)
+Widget photoTileLoading(BuildContext context) => _grid([
+  PhotoTile.loading(
+    label: context.knobs.boolean(label: 'View label', initialValue: true)
+        ? 'View A'
+        : null,
+  ),
+]);
+
 @widgetbook.UseCase(name: 'Uploading', type: PhotoTile)
 Widget photoTileUploading(BuildContext context) => _grid([
   PhotoTile.uploading(

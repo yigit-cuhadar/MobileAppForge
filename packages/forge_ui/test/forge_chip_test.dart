@@ -82,4 +82,36 @@ void main() {
     expect(removed, 1);
     expect(icon(ForgeIcons.check), findsNothing);
   });
+
+  testWidgets('a series chip is 28px with its sample and no check', (
+    tester,
+  ) async {
+    var taps = 0;
+    await pump(
+      tester,
+      ForgeChip.series(
+        label: 'Series A',
+        sample: const SeriesSample(SeriesLook.accent),
+        selected: true,
+        onPressed: () => taps++,
+      ),
+    );
+
+    expect(
+      tester
+          .getSize(
+            find.descendant(
+              of: find.byType(ForgeChip),
+              matching: find.byType(Container),
+            ),
+          )
+          .height,
+      ForgeChip.seriesHeight,
+    );
+    expect(tester.getRect(find.byType(ForgeChip)).height, ForgeTheme.tapMin);
+    expect(find.byType(SeriesSample), findsOneWidget);
+    expect(icon(ForgeIcons.check), findsNothing);
+    await tester.tap(find.text('Series A'));
+    expect(taps, 1);
+  });
 }

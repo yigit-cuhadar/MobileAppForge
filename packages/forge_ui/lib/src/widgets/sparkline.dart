@@ -160,8 +160,7 @@ class Sparkline extends StatelessWidget {
         ),
       ],
       _State.empty => [
-        if (figure != null)
-          Text(figure!, style: style.data.copyWith(fontSize: 26)),
+        if (figure != null) Text(figure!, style: stat),
         CustomPaint(
           painter: DashedBorderPainter(
             color: colors.lineStrong,
@@ -216,7 +215,7 @@ class Sparkline extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: _state == _State.filled ? Gap.sm : Gap.md,
+        spacing: Gap.sm,
         children: [titleRow, ...children],
       ),
     );

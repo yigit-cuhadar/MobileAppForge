@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../spacing.dart';
 import '../theme/forge_style.dart';
+import 'progress.dart';
 
 /// Where a step-by-step flow stands: a thin bar of [count] parts, the done
 /// ones and the [current] one (from 1) in accent, and an optional
@@ -17,8 +18,6 @@ class StepProgress extends StatelessWidget {
   final int count;
   final int current;
   final String? caption;
-
-  static const double height = 4;
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +35,9 @@ class StepProgress extends StatelessWidget {
             children: [
               for (var i = 1; i <= count; i++)
                 Expanded(
-                  child: Container(
-                    height: height,
-                    decoration: BoxDecoration(
-                      color: i <= current ? colors.accent : colors.line,
-                      borderRadius: BorderRadius.circular(height / 2),
-                    ),
+                  child: Progress.track(
+                    value: i <= current ? 1 : 0,
+                    thin: true,
                   ),
                 ),
             ],

@@ -43,8 +43,7 @@ Widget tileStatTile(BuildContext context) => _grid([
     onTap: () {},
     figure: '640',
     caption: 'of 1,000',
-    // Stands in for the Forge Progress bar until it has a bare form.
-    progress: const LinearProgressIndicator(value: 0.64),
+    progress: 0.64,
   ),
 ]);
 

@@ -33,7 +33,7 @@ class ForgeSlider extends StatelessWidget {
 
   int get _decimals => step == null ? 0 : decimalsOf(step!);
 
-  String _text(double v) => v.toStringAsFixed(_decimals);
+  String _text(double v) => formatNumber(v, _decimals);
 
   double get _fraction =>
       max <= min ? 0 : ((value - min) / (max - min)).clamp(0.0, 1.0);

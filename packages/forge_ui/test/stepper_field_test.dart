@@ -16,13 +16,14 @@ void main() {
     double? hint,
     String? errorText,
     bool enabled = true,
+    double width = 200,
   }) => tester.pumpWidget(
     MaterialApp(
       theme: ForgeTheme.light(),
       home: Scaffold(
         body: Center(
           child: SizedBox(
-            width: 200,
+            width: width,
             child: StepperField(
               value: value,
               unit: '[UNIT]',
@@ -113,9 +114,29 @@ void main() {
   });
 
   testWidgets('the error shows under the pill', (tester) async {
-    await pump(tester, value: 60000, step: 1, errorText: 'Enter 1,000–50,000');
+    // The test font draws every glyph 1em wide.
+    await pump(
+      tester,
+      value: 60000,
+      step: 1,
+      errorText: 'Enter 1,000–50,000',
+      width: 240,
+    );
 
+    expect(find.text('60,000'), findsOneWidget);
     expect(find.text('Enter 1,000–50,000'), findsOneWidget);
+  });
+
+  testWidgets('typing starts from the value without grouping', (tester) async {
+    await pump(tester, value: 60000, step: 1, width: 240);
+
+    await tester.tap(find.text('60,000'));
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '60000',
+    );
   });
 
   testWidgets('disabled, it fades and takes no taps', (tester) async {

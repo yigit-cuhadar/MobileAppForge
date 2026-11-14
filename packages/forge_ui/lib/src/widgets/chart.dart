@@ -27,7 +27,7 @@ class ChartBar {
 class Chart extends StatelessWidget {
   /// A 2px accent line with a dot per point, no grid, [startLabel] and
   /// [endLabel] under its ends. A tap rings the nearest point and shows its
-  /// [pointLabel] in a tag above it.
+  /// [pointLabel] in a dark tag above it.
   const Chart.line({
     super.key,
     required this.title,
@@ -152,7 +152,6 @@ class Chart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filled = _state == _State.line || _state == _State.bar;
     final children = switch (_state) {
       _State.line => [
         _LineChart(
@@ -204,13 +203,9 @@ class Chart extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: filled ? Gap.sm : Gap.md,
+          spacing: Gap.sm,
           children: [
-            ChartTitleRow(
-              title: title,
-              detail: detail,
-              detailSize: filled ? 11 : 12,
-            ),
+            ChartTitleRow(title: title, detail: detail),
             ...children,
           ],
         ),
@@ -439,7 +434,7 @@ class _Tag extends StatelessWidget {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
       decoration: BoxDecoration(
-        color: style.colors.accent,
+        color: style.colors.ink,
         borderRadius: const BorderRadius.all(Radius.circular(6)),
       ),
       child: Center(
@@ -447,10 +442,7 @@ class _Tag extends StatelessWidget {
         child: Text(
           label,
           maxLines: 1,
-          style: style.data.copyWith(
-            fontSize: 11,
-            color: style.colors.onAccent,
-          ),
+          style: style.data.copyWith(fontSize: 11, color: style.colors.surface),
         ),
       ),
     );

@@ -8,8 +8,10 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'busy_ring.dart';
 import 'forge_button.dart';
+import 'progress.dart';
+import 'skeleton.dart';
 
-enum _State { photo, empty, uploading, failed, offline }
+enum _State { photo, empty, loading, uploading, failed, offline }
 
 /// A 3:4 photo tile with radius-md corners. A view [label] sits bottom left
 /// on a dark translucent tag.
@@ -38,6 +40,16 @@ class PhotoTile extends StatelessWidget {
        progress = null,
        onRetry = null,
        retryLabel = null;
+
+  /// The photo is loading: a shimmering tile that keeps its view [label].
+  const PhotoTile.loading({super.key, this.label})
+    : _state = _State.loading,
+      image = null,
+      onTap = null,
+      message = null,
+      progress = null,
+      onRetry = null,
+      retryLabel = null;
 
   /// Sending: a spinner and a thin bar at [progress], from 0 to 1.
   const PhotoTile.uploading({super.key, required double this.progress})
@@ -82,9 +94,6 @@ class PhotoTile extends StatelessWidget {
 
   static const double aspectRatio = 3 / 4;
 
-  /// The bar's fill while uploading, for finding it in tests.
-  static const progressKey = ValueKey('PhotoTile.progress');
-
   @override
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
@@ -125,6 +134,13 @@ class PhotoTile extends StatelessWidget {
           ),
         ),
       ),
+      _State.loading => LayoutBuilder(
+        builder: (context, constraints) => SkeletonBar(
+          widthFactor: 1,
+          height: constraints.maxHeight,
+          radius: style.radii.md,
+        ),
+      ),
       _State.uploading => ColoredBox(
         color: colors.surfaceSunken,
         child: Stack(
@@ -141,12 +157,7 @@ class PhotoTile extends StatelessWidget {
               left: Gap.sm,
               right: Gap.sm,
               bottom: Gap.sm,
-              height: 4,
-              child: _Bar(
-                progress: progress!.clamp(0.0, 1.0),
-                track: colors.line,
-                fill: colors.accent,
-              ),
+              child: Progress.track(value: progress!, thin: true),
             ),
           ],
         ),
@@ -251,33 +262,6 @@ class PhotoTag extends StatelessWidget {
     ),
     child: Text(label, style: style.copyWith(color: Colors.white)),
   );
-}
-
-class _Bar extends StatelessWidget {
-  const _Bar({required this.progress, required this.track, required this.fill});
-
-  final double progress;
-  final Color track;
-  final Color fill;
-
-  @override
-  Widget build(BuildContext context) {
-    const radius = BorderRadius.all(Radius.circular(2));
-    return DecoratedBox(
-      decoration: BoxDecoration(color: track, borderRadius: radius),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: FractionallySizedBox(
-          key: PhotoTile.progressKey,
-          widthFactor: progress,
-          heightFactor: 1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: fill, borderRadius: radius),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// A 1.5px dashed outline along the tile's rounded edge.

@@ -73,3 +73,18 @@ Widget progressRingReached(BuildContext context) => _card(
     ),
   ),
 );
+
+@widgetbook.UseCase(name: 'Track', type: Progress)
+Widget progressTrack(BuildContext context) => _card(
+  Progress.track(
+    value: context.knobs.double.slider(label: 'Value', initialValue: 0.64),
+  ),
+);
+
+@widgetbook.UseCase(name: 'Track · thin', type: Progress)
+Widget progressTrackThin(BuildContext context) => _card(
+  Progress.track(
+    value: context.knobs.double.slider(label: 'Value', initialValue: 0.6),
+    thin: true,
+  ),
+);

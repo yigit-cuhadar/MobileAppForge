@@ -6,11 +6,13 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
+import 'progress.dart';
 import 'skeleton.dart';
 
 /// A figure in a tile: the SectionCard title row ([title], [detail],
 /// chevron; the tile opens its page) with the [figure], its [unit] and a
-/// [caption] under it, and an optional [progress] bar at the bottom.
+/// [caption] under it, and an optional bar at the bottom filled to
+/// [progress], from 0 to 1.
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
@@ -145,8 +147,8 @@ class StatTile extends StatelessWidget {
   final String? unit;
   final String? caption;
 
-  /// A Progress bar under the caption.
-  final Widget? progress;
+  /// How far the bar under the caption is filled, from 0 to 1.
+  final double? progress;
 
   /// Written with a true minus sign.
   final String? change;
@@ -223,7 +225,10 @@ class StatTile extends StatelessWidget {
             _figureRow(context, Text(figure!, style: _figureStyle(text))),
             Text(caption!, style: small),
             if (progress != null)
-              Padding(padding: const EdgeInsets.only(top: 6), child: progress),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Progress.track(value: progress!),
+              ),
           ],
         );
       case _Form.loading:

@@ -10,7 +10,7 @@ import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'chart_paint.dart';
-import 'pressable.dart';
+import 'forge_chip.dart';
 import 'skeleton.dart';
 import 'state_views.dart';
 
@@ -281,17 +281,17 @@ class MultiSeriesChart extends StatelessWidget {
           spacing: Gap.sm,
           children: [
             for (final (i, s) in series!.indexed)
-              _SeriesChip(
+              ForgeChip.series(
                 label: s.label,
                 sample: SeriesSample(s.look, bars: s.bars),
-                chosen: true,
-                onTap: () => onSeriesTap!(i),
+                selected: true,
+                onPressed: () => onSeriesTap!(i),
               ),
-            _SeriesChip(
+            ForgeChip.series(
               label: addLabel!,
               sample: const ForgeIcon(ForgeIcons.add, size: 14),
-              chosen: adding,
-              onTap: onAdd!,
+              selected: adding,
+              onPressed: onAdd!,
             ),
           ],
         ),
@@ -314,9 +314,21 @@ class MultiSeriesChart extends StatelessWidget {
         const Wrap(
           spacing: Gap.sm,
           children: [
-            SkeletonBar(width: 84, height: 28, radius: ForgeRadii.button),
-            SkeletonBar(width: 84, height: 28, radius: ForgeRadii.button),
-            SkeletonBar(width: 60, height: 28, radius: ForgeRadii.button),
+            SkeletonBar(
+              width: 84,
+              height: ForgeChip.seriesHeight,
+              radius: ForgeRadii.button,
+            ),
+            SkeletonBar(
+              width: 84,
+              height: ForgeChip.seriesHeight,
+              radius: ForgeRadii.button,
+            ),
+            SkeletonBar(
+              width: 60,
+              height: ForgeChip.seriesHeight,
+              radius: ForgeRadii.button,
+            ),
           ],
         ),
         SkeletonBar(
@@ -345,20 +357,15 @@ class MultiSeriesChart extends StatelessWidget {
         ),
       ],
     };
-    final empty = _state == _State.empty;
     return CardFrame(
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: empty ? Gap.md : Gap.sm,
+          spacing: Gap.sm,
           children: [
-            ChartTitleRow(
-              title: title,
-              detail: detail,
-              detailSize: empty ? 12 : 11,
-            ),
+            ChartTitleRow(title: title, detail: detail),
             ...children,
           ],
         ),
@@ -368,65 +375,6 @@ class MultiSeriesChart extends StatelessWidget {
 }
 
 enum _State { filled, loading, empty, error }
-
-class _SeriesChip extends StatelessWidget {
-  const _SeriesChip({
-    required this.label,
-    required this.sample,
-    required this.chosen,
-    required this.onTap,
-  });
-
-  final String label;
-  final Widget sample;
-  final bool chosen;
-  final VoidCallback onTap;
-
-  static const double height = 28;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = ForgeStyle.of(context).colors;
-    final ink = chosen ? p.onAccentSoft : p.inkMuted;
-    return Semantics(
-      button: true,
-      selected: chosen,
-      child: Pressable(
-        onTap: onTap,
-        height: height,
-        builder: (context, _) => Container(
-          height: height,
-          padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-          decoration: BoxDecoration(
-            color: chosen ? p.accentSoft : p.surface,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(ForgeRadii.button),
-            ),
-            border: chosen
-                ? Border.all(color: p.accent, width: 1.5)
-                : Border.all(color: p.lineStrong),
-          ),
-          child: IconTheme.merge(
-            data: IconThemeData(color: ink),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: Gap.sm,
-              children: [
-                sample,
-                Text(
-                  label,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.labelMedium!
-                      .copyWith(color: ink, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _Plot extends StatefulWidget {
   const _Plot({

@@ -80,18 +80,12 @@ class DashedBorderPainter extends CustomPainter {
 }
 
 /// The title row of a chart card: the [title] and a [detail] in data
-/// ink-muted at [detailSize].
+/// ink-muted at 11px.
 class ChartTitleRow extends StatelessWidget {
-  const ChartTitleRow({
-    super.key,
-    required this.title,
-    required this.detail,
-    required this.detailSize,
-  });
+  const ChartTitleRow({super.key, required this.title, required this.detail});
 
   final String title;
   final String? detail;
-  final double detailSize;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +102,7 @@ class ChartTitleRow extends StatelessWidget {
           Text(
             detail!,
             style: style.data.copyWith(
-              fontSize: detailSize,
+              fontSize: 11,
               color: style.colors.inkMuted,
             ),
           ),

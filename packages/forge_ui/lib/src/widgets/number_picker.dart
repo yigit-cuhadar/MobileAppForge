@@ -88,9 +88,10 @@ class _NumberPickerState extends State<NumberPicker>
 
   double _valueAt(int index) => stepValue(widget.min, widget.step, index);
 
-  String _text(int index) =>
-      _valueAt(index.clamp(0, _count - 1))
-          .toStringAsFixed(decimalsOf(widget.step));
+  String _text(int index) => formatNumber(
+    _valueAt(index.clamp(0, _count - 1)),
+    decimalsOf(widget.step),
+  );
 
   double get _pixelsPerStep => _ruler
       ? _width / NumberPicker.rulerSpan * widget.step

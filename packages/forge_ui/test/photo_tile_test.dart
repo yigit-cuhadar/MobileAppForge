@@ -51,12 +51,24 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('uploading fills the bar to the progress', (tester) async {
+  testWidgets('loading shimmers the 3:4 tile and keeps its view label', (
+    tester,
+  ) async {
+    await pump(tester, const PhotoTile.loading(label: 'View A'));
+
+    expect(tester.getSize(find.byType(SkeletonBar)), const Size(150, 200));
+    expect(find.text('View A'), findsOneWidget);
+  });
+
+  testWidgets('uploading shows a thin bar at the progress', (tester) async {
     await pump(tester, const PhotoTile.uploading(progress: 0.6));
 
-    final bar = tester.getRect(find.byKey(PhotoTile.progressKey));
-    expect(bar.width, closeTo((150 - 2 * Gap.sm) * 0.6, 0.01));
-    expect(bar.height, 4);
+    final bar = tester.widget<Progress>(find.byType(Progress));
+    expect((bar.value, bar.thin), (0.6, true));
+    expect(
+      tester.getSize(find.byType(Progress)),
+      const Size(150 - 2 * Gap.sm, 4),
+    );
   });
 
   testWidgets('failed offers Retry', (tester) async {

@@ -3,8 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
 void main() {
-  final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
-
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
     MaterialApp(
       theme: ForgeTheme.light(),
@@ -26,17 +24,12 @@ void main() {
       );
 
       final parts = tester
-          .widgetList<Container>(
-            find.descendant(
-              of: find.byType(StepProgress),
-              matching: find.byType(Container),
-            ),
-          )
-          .map((c) => (c.decoration! as BoxDecoration).color)
+          .widgetList<Progress>(find.byType(Progress))
+          .map((p) => (p.value, p.thin))
           .toList();
       expect(parts, [
-        ...List.filled(4, colors.accent),
-        ...List.filled(5, colors.line),
+        ...List.filled(4, (1.0, true)),
+        ...List.filled(5, (0.0, true)),
       ]);
       expect(find.text('Step 4 of 9 · [STEP NAME]'), findsOneWidget);
     });

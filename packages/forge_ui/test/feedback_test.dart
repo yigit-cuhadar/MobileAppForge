@@ -48,6 +48,36 @@ void main() {
       expect(textColor(tester, '19 to go'), colors(tester).inkMuted);
     });
 
+    testWidgets('the track is 6px on surface-sunken, thin 4px on line', (
+      tester,
+    ) async {
+      Future<(Size, Color?, double)> track({required bool thin}) async {
+        await pump(
+          tester,
+          SizedBox(width: 200, child: Progress.track(value: 0.64, thin: thin)),
+        );
+        final box = find.byType(Container).last;
+        final fill = find.descendant(
+          of: find.byType(FractionallySizedBox),
+          matching: find.byType(DecoratedBox),
+        );
+        return (
+          tester.getSize(box),
+          (tester.widget<Container>(box).decoration! as BoxDecoration).color,
+          tester.getSize(fill).width,
+        );
+      }
+
+      final (size, color, fill) = await track(thin: false);
+      expect(size, const Size(200, 6));
+      expect(color, colors(tester).surfaceSunken);
+      expect(fill, closeTo(200 * 0.64, 0.01));
+
+      final (thinSize, thinColor, _) = await track(thin: true);
+      expect(thinSize, const Size(200, 4));
+      expect(thinColor, colors(tester).line);
+    });
+
     testWidgets('reaching the goal turns the caption success', (tester) async {
       await pump(
         tester,
@@ -73,7 +103,9 @@ void main() {
       expect(find.byType(BusyRing), findsNothing);
     });
 
-    testWidgets('error offers Retry', (tester) async {
+    testWidgets('error shows the cloud-off icon and offers Retry', (
+      tester,
+    ) async {
       var retries = 0;
       await pump(
         tester,
@@ -84,6 +116,12 @@ void main() {
         ),
       );
 
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is ForgeIcon && w.icon == ForgeIcons.cloudOff,
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.widgetWithText(ForgeButton, 'Retry'));
       expect(retries, 1);
     });

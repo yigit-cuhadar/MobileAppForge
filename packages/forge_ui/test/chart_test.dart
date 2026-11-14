@@ -44,6 +44,18 @@ void main() {
       await tester.pump();
       expect(find.text('Point 0'), findsNothing);
       expect(find.text('Point 3'), findsOneWidget);
+
+      final tag = tester.widget<Container>(
+        find.ancestor(
+          of: find.text('Point 3'),
+          matching: find.byType(Container),
+        ),
+      );
+      expect((tag.decoration! as BoxDecoration).color, colors(tester).ink);
+      expect(
+        tester.widget<Text>(find.text('Point 3')).style!.color,
+        colors(tester).surface,
+      );
     });
 
     testWidgets('the end labels sit under the line', (tester) async {
@@ -165,6 +177,7 @@ void main() {
       var adds = 0;
       await pump(tester, chart(onSeriesTap: tapped.add, onAdd: () => adds++));
 
+      expect(find.byType(ForgeChip), findsNWidgets(3));
       await tester.tap(find.text('Series B'));
       await tester.tap(find.text('Add'));
       expect(tapped, [1]);

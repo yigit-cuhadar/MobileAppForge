@@ -94,3 +94,43 @@ class _RemovableState extends State<_Removable> {
     ),
   );
 }
+
+@widgetbook.UseCase(name: 'Series', type: ForgeChip)
+Widget series(BuildContext context) => const _Series();
+
+class _Series extends StatefulWidget {
+  const _Series();
+
+  @override
+  State<_Series> createState() => _SeriesState();
+}
+
+class _SeriesState extends State<_Series> {
+  bool _adding = false;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Wrap(
+      spacing: Gap.sm,
+      children: [
+        for (final (label, look) in const [
+          ('Series A', SeriesLook.accent),
+          ('Series B', SeriesLook.info),
+          ('Series C', SeriesLook.success),
+        ])
+          ForgeChip.series(
+            label: label,
+            sample: SeriesSample(look),
+            selected: true,
+            onPressed: () {},
+          ),
+        ForgeChip.series(
+          label: 'Add',
+          sample: const ForgeIcon(ForgeIcons.add, size: 14),
+          selected: _adding,
+          onPressed: () => setState(() => _adding = !_adding),
+        ),
+      ],
+    ),
+  );
+}

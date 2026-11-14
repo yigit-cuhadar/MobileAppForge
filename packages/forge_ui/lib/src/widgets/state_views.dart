@@ -49,7 +49,7 @@ class LoadingView extends StatelessWidget {
   );
 }
 
-/// Loading failed: a danger icon, what went wrong, and Retry.
+/// Loading failed: a danger cloud-off icon, what went wrong, and Retry.
 class ErrorView extends StatelessWidget {
   const ErrorView({
     super.key,
@@ -70,7 +70,7 @@ class ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _Message(
-    icon: ForgeIcons.error,
+    icon: ForgeIcons.cloudOff,
     iconColor: ForgeStyle.of(context).colors.danger,
     title: title,
     message: message,

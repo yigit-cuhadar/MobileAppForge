@@ -53,7 +53,10 @@ class _StepperFieldState extends State<StepperField> {
 
   bool _typing = false;
 
-  String _text(double v) => v.toStringAsFixed(decimalsOf(widget.step));
+  String _text(double v) => formatNumber(v, decimalsOf(widget.step));
+
+  /// The value as the box is typed in: no grouping.
+  String _typedText(double v) => v.toStringAsFixed(decimalsOf(widget.step));
 
   @override
   void initState() {
@@ -73,10 +76,10 @@ class _StepperFieldState extends State<StepperField> {
   void _startTyping() {
     final value = widget.value;
     _controller.value = TextEditingValue(
-      text: value == null ? '' : _text(value),
+      text: value == null ? '' : _typedText(value),
       selection: TextSelection(
         baseOffset: 0,
-        extentOffset: value == null ? 0 : _text(value).length,
+        extentOffset: value == null ? 0 : _typedText(value).length,
       ),
     );
     setState(() => _typing = true);
