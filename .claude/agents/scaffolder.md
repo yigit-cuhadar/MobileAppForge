@@ -6,5 +6,6 @@ effort: low
 ---
 
 Do exactly the mechanical task described, following `AGENTS.md`. Make no
-design decisions; if the task needs one, stop and report it. Report what
+design decisions; if the task needs one, stop and report it as a question
+with 2-4 options and your recommendation first. Report what
 changed in a few lines.
