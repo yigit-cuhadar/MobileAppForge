@@ -46,7 +46,8 @@ enum ForgeButtonSize {
 /// A button in one of the studio's forms. It takes taps across a 44px band,
 /// and while [loading] it keeps its colours, shows a spinner before the
 /// label and ignores taps. A [locked] button shows a lock before the label
-/// and stays tappable: [onPressed] then opens the paywall.
+/// and stays tappable: [onPressed] then opens the paywall. A [leadingIcon]
+/// sits before the label where neither of those does.
 class ForgeButton extends StatelessWidget {
   const ForgeButton({
     super.key,
@@ -56,6 +57,7 @@ class ForgeButton extends StatelessWidget {
     this.size = ForgeButtonSize.regular,
     this.loading = false,
     this.locked = false,
+    this.leadingIcon,
     this.trailingIcon,
   });
 
@@ -67,6 +69,7 @@ class ForgeButton extends StatelessWidget {
   final ForgeButtonSize size;
   final bool loading;
   final bool locked;
+  final ForgeIconData? leadingIcon;
   final ForgeIconData? trailingIcon;
 
   /// The drawn height of the small form.
@@ -95,7 +98,7 @@ class ForgeButton extends StatelessWidget {
         ForgeTheme.buttonHeightLg,
         Gap.md,
         style.buttonLg,
-        16.0,
+        20.0,
       ),
     };
 
@@ -127,6 +130,9 @@ class ForgeButton extends StatelessWidget {
                   const SizedBox(width: Gap.sm),
                 ] else if (locked) ...[
                   ForgeIcon(ForgeIcons.lock, size: iconSize, color: look.ink),
+                  const SizedBox(width: Gap.sm),
+                ] else if (leadingIcon case final icon?) ...[
+                  ForgeIcon(icon, size: iconSize, color: look.ink),
                   const SizedBox(width: Gap.sm),
                 ],
                 Flexible(

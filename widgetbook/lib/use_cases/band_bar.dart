@@ -80,3 +80,43 @@ Widget compactBandBars(BuildContext context) => ListView(
     ),
   ],
 );
+
+@widgetbook.UseCase(name: 'App fills', type: BandBar)
+Widget bandBarFills(BuildContext context) {
+  final colors = ForgeStyle.of(context).colors;
+  // Any three roles the app picks; here info, success and danger.
+  final fills = BandBarFills(
+    below: colors.info,
+    within: colors.success,
+    above: colors.danger,
+  );
+  return ListView(
+    padding: const EdgeInsets.all(Gap.md),
+    children: [
+      Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Column(
+            spacing: Gap.md,
+            children: [
+              for (final (label, value, share) in [
+                ('Item one', '14', 0.56),
+                ('Item two', '22', 0.88),
+                ('Item three', '8', 0.32),
+              ])
+                BandBar(
+                  label: label,
+                  valueLabel: value,
+                  value: share,
+                  low: 0.4,
+                  high: 0.8,
+                  fills: fills,
+                ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}

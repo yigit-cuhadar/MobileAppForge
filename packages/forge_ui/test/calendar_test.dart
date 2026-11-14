@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:forge_ui/src/widgets/day_circle.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -154,5 +155,32 @@ void main() {
         0.3,
       );
     });
+  });
+
+  testWidgets('today and done keeps the fill with a ring outside it', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const Center(
+        child: DayCircle(state: DayState.todayDone, number: '13'),
+      ),
+    );
+    final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
+
+    expect(tester.widget<Text>(find.text('13')).style!.color, colors.onAccent);
+    expect(
+      tester.getSize(find.byType(DayCircle)),
+      const Size.square(DayCircle.daySize),
+    );
+    final ring = tester.widget<CustomPaint>(
+      find
+          .descendant(
+            of: find.byType(DayCircle),
+            matching: find.byType(CustomPaint),
+          )
+          .first,
+    );
+    expect(ring.foregroundPainter, isNotNull);
   });
 }

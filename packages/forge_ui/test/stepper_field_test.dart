@@ -17,6 +17,9 @@ void main() {
     String? errorText,
     bool enabled = true,
     bool grouped = true,
+    bool signed = false,
+    bool invalid = false,
+    bool compact = false,
     double width = 200,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -35,6 +38,9 @@ void main() {
               errorText: errorText,
               enabled: enabled,
               grouped: grouped,
+              signed: signed,
+              invalid: invalid,
+              compact: compact,
               onChanged: changes.add,
             ),
           ),
@@ -157,7 +163,7 @@ void main() {
     await pump(tester, enabled: false);
 
     await tester.tap(icon(ForgeIcons.add), warnIfMissed: false);
-    await tester.tap(find.text('60.0'), warnIfMissed: false);
+    await tester.tap(find.text('60'), warnIfMissed: false);
     await tester.pump();
 
     expect(changes, isEmpty);
@@ -174,6 +180,102 @@ void main() {
           )
           .opacity,
       0.4,
+    );
+  });
+
+  testWidgets('shows the fewest decimals the step allows', (tester) async {
+    await pump(tester, value: 60, step: 2.5);
+    expect(find.text('60'), findsOneWidget);
+
+    await pump(tester, value: 62.5, step: 2.5);
+    expect(find.text('62.5'), findsOneWidget);
+
+    await pump(tester, value: 82.5, step: 5);
+    expect(find.text('82.5'), findsOneWidget);
+  });
+
+  testWidgets('typing starts from the shown decimals', (tester) async {
+    await pump(tester, value: 60, step: 2.5);
+
+    await tester.tap(find.text('60'));
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '60',
+    );
+  });
+
+  testWidgets('the signed form marks a value above zero with +', (
+    tester,
+  ) async {
+    await pump(tester, value: 10, step: 2.5, signed: true);
+    expect(find.text('+10'), findsOneWidget);
+
+    await pump(tester, value: 0, step: 2.5, signed: true);
+    expect(find.text('0'), findsOneWidget);
+  });
+
+  testWidgets('the compact form is 40px with 30px buttons', (tester) async {
+    await pump(tester, compact: true);
+
+    final pill = find
+        .descendant(
+          of: find.byType(StepperField),
+          matching: find.byType(Container),
+        )
+        .first;
+    expect(tester.getSize(pill).height, StepperField.compactHeight);
+    expect(
+      tester
+          .getSize(
+            find
+                .ancestor(
+                  of: icon(ForgeIcons.add),
+                  matching: find.byType(Container),
+                )
+                .first,
+          )
+          .height,
+      StepperField.compactButtonSize,
+    );
+
+    await tester.tap(icon(ForgeIcons.add));
+    expect(changes, [62.5]);
+  });
+
+  testWidgets('invalid rings the pill without a message', (tester) async {
+    await pump(tester, value: null, invalid: true);
+
+    final pill = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(StepperField),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final ring = (pill.foregroundDecoration! as BoxDecoration).border!;
+    expect(
+      ring.top.color,
+      ForgeTheme.light().extension<ForgeStyle>()!.colors.danger,
+    );
+    expect(find.byType(Text), findsNWidgets(2));
+  });
+
+  testWidgets('StepperFieldError shows the row message in danger', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: const Scaffold(body: StepperFieldError('Enter a value')),
+      ),
+    );
+
+    expect(
+      tester.widget<Text>(find.text('Enter a value')).style!.color,
+      ForgeTheme.light().extension<ForgeStyle>()!.colors.danger,
     );
   });
 }

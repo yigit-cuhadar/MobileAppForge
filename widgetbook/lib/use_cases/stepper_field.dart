@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
 Widget _panel(List<Widget> fields) => ListView(
@@ -30,6 +31,8 @@ class _Live extends StatefulWidget {
     this.max,
     this.hint,
     this.enabled = true,
+    this.signed = false,
+    this.compact = false,
   });
 
   final double? value;
@@ -39,6 +42,8 @@ class _Live extends StatefulWidget {
   final double? max;
   final double? hint;
   final bool enabled;
+  final bool signed;
+  final bool compact;
 
   @override
   State<_Live> createState() => _LiveState();
@@ -67,6 +72,8 @@ class _LiveState extends State<_Live> {
     max: widget.max,
     hint: widget.hint,
     enabled: widget.enabled,
+    signed: widget.signed,
+    compact: widget.compact,
     errorText: _error,
     onChanged: (value) => setState(() {
       _value = value;
@@ -129,3 +136,102 @@ Widget stepperFieldPair(BuildContext context) => _panel(const [
 @widgetbook.UseCase(name: 'Disabled', type: StepperField)
 Widget stepperFieldDisabled(BuildContext context) =>
     _panel(const [_Live(value: 8, unit: 'count', step: 1, enabled: false)]);
+
+@widgetbook.UseCase(name: 'Signed', type: StepperField)
+Widget stepperFieldSigned(BuildContext context) => _panel(const [
+  _Live(value: 10, unit: '[UNIT] added', step: 2.5, min: 0, signed: true),
+  _Live(value: 6, unit: 'count', step: 1, min: 0),
+]);
+
+@widgetbook.UseCase(name: 'Compact rows', type: StepperField)
+Widget stepperFieldCompact(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          spacing: 12,
+          children: [
+            for (final (label, value, count) in [
+              ('Row 1', 60.0, 8.0),
+              ('Row 2', 40.0, 10.0),
+            ])
+              Row(
+                spacing: Gap.sm,
+                children: [
+                  SizedBox(width: 46, child: Text(label)),
+                  Expanded(
+                    child: _Live(
+                      value: value,
+                      unit: '[UNIT]',
+                      step: 2.5,
+                      min: 0,
+                      compact: true,
+                    ),
+                  ),
+                  Expanded(
+                    child: _Live(
+                      value: count,
+                      unit: 'count',
+                      step: 1,
+                      min: 0,
+                      compact: true,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    ),
+  ],
+);
+
+@widgetbook.UseCase(name: 'Error under a row', type: StepperField)
+Widget stepperFieldRowError(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 12,
+          children: [
+            Row(
+              spacing: 10,
+              children: [
+                Expanded(
+                  child: StepperField(
+                    value: null,
+                    unit: '[UNIT]',
+                    step: 2.5,
+                    invalid: true,
+                    onChanged: (_) {},
+                  ),
+                ),
+                Expanded(
+                  child: StepperField(
+                    value: 8,
+                    unit: 'count',
+                    step: 1,
+                    onChanged: (_) {},
+                  ),
+                ),
+              ],
+            ),
+            StepperFieldError(
+              context.knobs.string(
+                label: 'Message',
+                initialValue: 'Enter a value',
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ],
+);

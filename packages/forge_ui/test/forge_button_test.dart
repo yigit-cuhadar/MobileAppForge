@@ -117,6 +117,43 @@ void main() {
       );
     });
 
+    testWidgets('draws a leading icon before the label', (tester) async {
+      await pump(
+        tester,
+        ForgeButton(
+          label: 'Start',
+          leadingIcon: ForgeIcons.check,
+          onPressed: () {},
+        ),
+      );
+
+      final icon = find.byWidgetPredicate(
+        (w) => w is ForgeIcon && w.icon == ForgeIcons.check,
+      );
+      expect(
+        tester.getCenter(icon).dx,
+        lessThan(tester.getCenter(find.text('Start')).dx),
+      );
+    });
+
+    testWidgets('a lock takes the place of the leading icon', (tester) async {
+      await pump(
+        tester,
+        ForgeButton(
+          label: 'Start',
+          leadingIcon: ForgeIcons.check,
+          locked: true,
+          onPressed: () {},
+        ),
+      );
+
+      expect(find.byType(ForgeIcon), findsOneWidget);
+      expect(
+        tester.widget<ForgeIcon>(find.byType(ForgeIcon)).icon,
+        ForgeIcons.lock,
+      );
+    });
+
     testWidgets('draws a trailing icon after the label', (tester) async {
       await pump(
         tester,

@@ -3,10 +3,24 @@ import 'package:flutter/material.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 
+/// The fill colours of a [BandBar] for each place of its value.
+class BandBarFills {
+  const BandBarFills({
+    required this.below,
+    required this.within,
+    required this.above,
+  });
+
+  final Color below;
+  final Color within;
+  final Color above;
+}
+
 /// A labelled progress bar with ticks at a band's [low] and [high] ends.
 /// The fill says where [value] is: accent within the band, a soft accent
-/// below it, danger above it. [value], [low] and [high] are shares of the
-/// track (0–1); [valueLabel] is the figure shown at the right.
+/// below it, danger above it, or the app's [fills]. [value], [low] and
+/// [high] are shares of the track (0–1); [valueLabel] is the figure shown
+/// at the right.
 class BandBar extends StatelessWidget {
   const BandBar({
     super.key,
@@ -15,6 +29,7 @@ class BandBar extends StatelessWidget {
     required this.value,
     required this.low,
     required this.high,
+    this.fills,
   }) : assert(0 <= low && low <= high && high <= 1),
        _compact = false;
 
@@ -27,6 +42,7 @@ class BandBar extends StatelessWidget {
     required this.value,
     required this.low,
     required this.high,
+    this.fills,
   }) : assert(0 <= low && low <= high && high <= 1),
        _compact = true;
 
@@ -35,6 +51,7 @@ class BandBar extends StatelessWidget {
   final double value;
   final double low;
   final double high;
+  final BandBarFills? fills;
   final bool _compact;
 
   static const _height = 6.0;
@@ -45,11 +62,18 @@ class BandBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final colors = style.colors;
+    final fills =
+        this.fills ??
+        BandBarFills(
+          below: Color.lerp(colors.surface, colors.accent, 0.4)!,
+          within: colors.accent,
+          above: colors.danger,
+        );
     final fill = value > high
-        ? colors.danger
+        ? fills.above
         : value < low
-        ? Color.lerp(colors.surface, colors.accent, 0.4)!
-        : colors.accent;
+        ? fills.below
+        : fills.within;
     const radius = BorderRadius.all(Radius.circular(_height / 2));
     return Column(
       mainAxisSize: MainAxisSize.min,

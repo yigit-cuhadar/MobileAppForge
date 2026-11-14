@@ -195,3 +195,28 @@ Widget trailingIcon(BuildContext context) => Center(
     ),
   ),
 );
+
+@widgetbook.UseCase(name: 'Leading icon', type: ForgeButton)
+Widget leadingIcon(BuildContext context) => Padding(
+  padding: const EdgeInsets.all(Gap.md),
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    spacing: Gap.md,
+    children: [
+      ForgeButton(
+        label: context.knobs.string(label: 'Label', initialValue: 'Done'),
+        size: ForgeButtonSize.large,
+        leadingIcon: ForgeIcons.check,
+        onPressed: () {},
+      ),
+      ForgeButton(
+        label: 'Add item',
+        variant: ForgeButtonVariant.text,
+        size: ForgeButtonSize.small,
+        leadingIcon: ForgeIcons.add,
+        onPressed: () {},
+      ),
+    ],
+  ),
+);

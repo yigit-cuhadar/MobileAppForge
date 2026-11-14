@@ -3,10 +3,16 @@ import 'package:forge_ui/forge_ui.dart';
 import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
-Widget _tag(BuildContext context, String label, ForgeTagKind kind) => Center(
+Widget _tag(
+  BuildContext context,
+  String label,
+  ForgeTagKind kind, {
+  ForgeIconData? icon,
+}) => Center(
   child: ForgeTag(
     context.knobs.string(label: 'Label', initialValue: label),
     kind: kind,
+    icon: icon,
   ),
 );
 
@@ -29,3 +35,11 @@ Widget source(BuildContext context) =>
 @widgetbook.UseCase(name: 'Premium', type: ForgeTag)
 Widget premium(BuildContext context) =>
     _tag(context, 'Premium', ForgeTagKind.premium);
+
+@widgetbook.UseCase(name: 'Record with an icon', type: ForgeTag)
+Widget recordIcon(BuildContext context) =>
+    _tag(context, 'Best', ForgeTagKind.record, icon: ForgeIcons.emojiEvents);
+
+@widgetbook.UseCase(name: 'Plain', type: ForgeTag)
+Widget plain(BuildContext context) =>
+    _tag(context, 'Row 1', ForgeTagKind.plain);
