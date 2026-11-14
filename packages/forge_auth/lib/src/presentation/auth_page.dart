@@ -225,7 +225,10 @@ class _AuthViewState extends State<_AuthView> {
                                     : () => context
                                           .read<AuthFormCubit>()
                                           .signInWith(provider),
-                                icon: ProviderMark(provider),
+                                icon: ProviderMark(
+                                  provider,
+                                  enabled: !state.isLoading,
+                                ),
                                 label: Text(switch (provider) {
                                   SocialProvider.google => s.continueWithGoogle,
                                   SocialProvider.apple => s.continueWithApple,
