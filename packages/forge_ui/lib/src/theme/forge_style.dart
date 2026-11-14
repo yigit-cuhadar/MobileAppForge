@@ -18,8 +18,8 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
   final ForgePalette colors;
   final ForgeRadii radii;
 
-  /// Card outline width in [ForgePalette.line]: 1 in light, 0 in dark,
-  /// where surface differs enough from ground.
+  /// Card outline width in [ForgePalette.line]: 1 in light; in dark 0
+  /// unless the preset is [ForgePreset.outlinedInDark].
   final double cardBorder;
 
   /// Dates, counts and small values: mono 12/16 with tabular figures.

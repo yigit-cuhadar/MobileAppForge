@@ -28,6 +28,7 @@ class ForgePreset {
     required this.sans,
     required this.mono,
     required this.radii,
+    this.outlinedInDark = false,
   });
 
   final String name;
@@ -41,6 +42,10 @@ class ForgePreset {
   /// Font family for numbers: dates, counts, weights, timers.
   final String mono;
   final ForgeRadii radii;
+
+  /// Cards keep their 1px line in dark too. Off: dark cards are a tonal
+  /// fill, for a preset whose dark surface stands apart from its ground.
+  final bool outlinedInDark;
 
   /// Forge's default: slate #222B38 on near-black #101213.
   static const slate = ForgePreset(

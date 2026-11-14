@@ -28,6 +28,22 @@ void main() {
     expect(dark.cardTheme.color, preset.dark.surface);
   });
 
+  test('a preset can keep the card line in dark', () {
+    final outlined = ForgePreset(
+      name: 'Outlined',
+      light: ForgePreset.slate.light,
+      dark: ForgePreset.slate.dark,
+      sans: 'Sans',
+      mono: 'Mono',
+      radii: const ForgeRadii(sm: 8, md: 10, lg: 12),
+      outlinedInDark: true,
+    );
+    final dark = ForgeTheme.dark(outlined);
+    expect(dark.extension<ForgeStyle>()!.cardBorder, 1);
+    final shape = dark.cardTheme.shape! as RoundedRectangleBorder;
+    expect(shape.side.color, outlined.dark.line);
+  });
+
   test('uses the preset families, with tabular mono figures', () {
     final theme = ForgeTheme.light(preset);
     expect(theme.textTheme.titleLarge!.fontFamily, preset.sans);

@@ -62,7 +62,7 @@ abstract final class ForgeTheme {
     );
     final text = _textTheme(preset, p);
     final radii = preset.radii;
-    final cardBorder = light ? 1.0 : 0.0;
+    final cardBorder = light || preset.outlinedInDark ? 1.0 : 0.0;
     const buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(ForgeRadii.button)),
     );
