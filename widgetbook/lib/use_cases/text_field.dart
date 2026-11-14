@@ -96,3 +96,33 @@ Widget inlineNumber(BuildContext context) => _padded(
     ],
   ),
 );
+
+@widgetbook.UseCase(name: 'Compact in a row', type: ForgeNumberField)
+Widget compactNumbers(BuildContext context) => _padded(
+  Column(
+    children: [
+      for (final (weight, count) in [('40', '10'), ('82.5', '8'), ('', '')])
+        SizedBox(
+          height: 48,
+          child: Row(
+            spacing: Gap.sm,
+            children: [
+              ForgeNumberField.compact(
+                label: 'Field one',
+                width: 70,
+                controller: TextEditingController(text: weight),
+                onChanged: (_) {},
+              ),
+              const Text('×'),
+              ForgeNumberField.compact(
+                label: 'Field two',
+                width: 50,
+                controller: TextEditingController(text: count),
+                onChanged: (_) {},
+              ),
+            ],
+          ),
+        ),
+    ],
+  ),
+);

@@ -23,6 +23,10 @@ enum DayState {
 
   /// A 2.5px ink ring.
   today,
+
+  /// Today and done: the done circle with the today ring 2px outside it.
+  /// Drawn on days only, not as a legend mark.
+  todayDone,
 }
 
 /// One day as a circle in its [state]: a 34px day with its [number], or a
@@ -32,7 +36,8 @@ class DayCircle extends StatelessWidget {
     : size = daySize;
 
   const DayCircle.legend({super.key, required this.state})
-    : number = null,
+    : assert(state != DayState.todayDone),
+      number = null,
       size = legendSize;
 
   final DayState state;
@@ -49,7 +54,7 @@ class DayCircle extends StatelessWidget {
     final number = this.number;
     final (fill, ink, ring, ringWidth) = switch (state) {
       DayState.none => (null, p.ink, null, 0.0),
-      DayState.done => (p.accent, p.onAccent, null, 0.0),
+      DayState.done || DayState.todayDone => (p.accent, p.onAccent, null, 0.0),
       DayState.light => (p.accentSoft, p.onAccentSoft, null, 0.0),
       DayState.planned => (null, p.inkMuted, null, 0.0),
       DayState.missed => (null, p.danger, p.danger, 1.5),
@@ -77,6 +82,12 @@ class DayCircle extends StatelessWidget {
               ),
             ),
     );
+    if (state == DayState.todayDone) {
+      circle = CustomPaint(
+        foregroundPainter: _OuterRing(color: p.ink),
+        child: circle,
+      );
+    }
     if (state == DayState.planned) {
       circle = CustomPaint(
         painter: DashedBorderPainter(
@@ -89,4 +100,27 @@ class DayCircle extends StatelessWidget {
     }
     return circle;
   }
+}
+
+/// A ring drawn outside the circle it paints over, leaving a gap.
+class _OuterRing extends CustomPainter {
+  const _OuterRing({required this.color});
+
+  final Color color;
+
+  static const _gap = 2.0;
+  static const _width = 2.5;
+
+  @override
+  void paint(Canvas canvas, Size size) => canvas.drawCircle(
+    size.center(Offset.zero),
+    size.shortestSide / 2 + _gap + _width / 2,
+    Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _width
+      ..color = color,
+  );
+
+  @override
+  bool shouldRepaint(_OuterRing old) => old.color != color;
 }

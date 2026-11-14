@@ -157,18 +157,32 @@ class ForgeNumberField extends StatefulWidget {
   const ForgeNumberField({
     super.key,
     required this.label,
-    required this.unit,
+    required String this.unit,
     required this.onChanged,
     this.controller,
-  });
+  }) : boxSize = size;
+
+  /// A 34px box [width] wide with no unit, for values edited inside a row.
+  ForgeNumberField.compact({
+    super.key,
+    required this.label,
+    required double width,
+    required this.onChanged,
+    this.controller,
+  }) : unit = null,
+       boxSize = Size(width, compactHeight);
 
   final String label;
-  final String unit;
+  final String? unit;
   final ValueChanged<String> onChanged;
   final TextEditingController? controller;
 
-  /// The drawn box.
+  /// The drawn box of this field.
+  final Size boxSize;
+
+  /// The drawn box of the form with a unit.
   static const Size size = Size(96, 36);
+  static const double compactHeight = 34;
 
   @override
   State<ForgeNumberField> createState() => _ForgeNumberFieldState();
@@ -197,11 +211,11 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
     final typing = _focus.hasFocus;
     return Pressable(
       onTap: _focus.requestFocus,
-      height: ForgeNumberField.size.height,
-      width: ForgeNumberField.size.width,
+      height: widget.boxSize.height,
+      width: widget.boxSize.width,
       builder: (context, _) => Container(
-        width: ForgeNumberField.size.width,
-        height: ForgeNumberField.size.height,
+        width: widget.boxSize.width,
+        height: widget.boxSize.height,
         padding: EdgeInsets.symmetric(horizontal: Gap.sm - (typing ? 1 : 0)),
         decoration: BoxDecoration(
           color: p.surface,
@@ -234,11 +248,12 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
                 ),
               ),
             ),
-            Text(
-              widget.unit,
-              style: Theme.of(context).textTheme.labelMedium!
-                  .copyWith(color: p.inkMuted, fontWeight: FontWeight.w400),
-            ),
+            if (widget.unit case final unit?)
+              Text(
+                unit,
+                style: Theme.of(context).textTheme.labelMedium!
+                    .copyWith(color: p.inkMuted, fontWeight: FontWeight.w400),
+              ),
           ],
         ),
       ),

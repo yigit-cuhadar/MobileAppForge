@@ -4,48 +4,80 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:forge_ui/forge_ui.dart';
+
+/// What a [GhostCamera] can do right now.
+enum GhostCameraStatus {
+  /// The camera is opening, at first and again when the app comes back.
+  starting,
+
+  /// The preview shows and pictures can be taken.
+  ready,
+
+  /// Access to the camera was refused; only the system settings can turn
+  /// it on again. The camera opens by itself when the app comes back with
+  /// access.
+  accessDenied,
+
+  /// The device has no camera, or none would start.
+  noCamera,
+}
+
+/// The app's handle on a [GhostCamera]: its [status], and taking pictures
+/// and switching cameras from the app's own controls. Listeners hear every
+/// change of [status] and [canSwitch]. Serves one [GhostCamera] at a time.
+class GhostCameraController extends ChangeNotifier {
+  _GhostCameraState? _camera;
+  GhostCameraStatus _status = GhostCameraStatus.starting;
+  bool _canSwitch = false;
+
+  GhostCameraStatus get status => _status;
+
+  /// Whether the device has another camera to switch to.
+  bool get canSwitch => _canSwitch;
+
+  /// Takes a picture and returns its path, a temporary file; nothing is
+  /// written to the gallery. Null when the camera is not ready, a picture
+  /// is already being taken, or taking it failed; the preview stays either
+  /// way.
+  Future<String?> capture() async => _camera?._capture();
+
+  /// Closes the camera showing and opens the next one; [status] is
+  /// [GhostCameraStatus.starting] meanwhile.
+  Future<void> switchCamera() async => _camera?._switch();
+
+  void _update(GhostCameraStatus status, bool canSwitch) {
+    if (status == _status && canSwitch == _canSwitch) return;
+    _status = status;
+    _canSwitch = canSwitch;
+    notifyListeners();
+  }
+}
 
 /// A live camera preview with [ghostFile], an earlier picture, laid faintly
-/// over it, so a new picture can be lined up with the old one. The shutter
-/// hands the new picture to [onCaptured] as a temporary file; nothing is
-/// written to the gallery. Starts on the back camera; a button switches
-/// cameras when the device has more than one. Always portrait: the screen
-/// is held upright while it shows, and the capture is locked to portrait,
-/// so the preview, the ghost and the picture agree however the phone is
-/// tilted. A retake is the caller showing it again.
+/// over it, so a new picture can be lined up with the old one; the app's
+/// [overlay] lies over both. Draws nothing but the preview: the app reads
+/// [controller] for the status, shows its own controls and its own texts
+/// for every status but ready, and takes pictures through [controller].
+///
+/// Starts on the back camera. Always portrait: the screen is held upright
+/// while it shows, and the capture is locked to portrait, so the preview,
+/// the ghost and the picture agree however the phone is tilted. A retake
+/// is the caller showing it again.
 class GhostCamera extends StatefulWidget {
   const GhostCamera({
     super.key,
-    required this.onCaptured,
-    required this.captureLabel,
-    required this.switchLabel,
-    required this.startingTitle,
-    required this.startingDetail,
-    required this.unavailableTitle,
-    required this.unavailableDetail,
+    required this.controller,
     this.ghostFile,
+    this.overlay,
   });
 
-  /// Receives the path of the picture just taken.
-  final ValueChanged<String> onCaptured;
+  final GhostCameraController controller;
 
   /// Path of the picture shown over the preview, if any.
   final String? ghostFile;
 
-  /// Tooltip of the shutter button.
-  final String captureLabel;
-
-  /// Tooltip of the button switching cameras.
-  final String switchLabel;
-
-  /// Shown with a small ring while the camera starts.
-  final String startingTitle;
-  final String startingDetail;
-
-  /// Shown when there is no camera or access to it was refused.
-  final String unavailableTitle;
-  final String unavailableDetail;
+  /// Laid over the preview and the ghost, sized to the preview.
+  final Widget? overlay;
 
   @override
   State<GhostCamera> createState() => _GhostCameraState();
@@ -63,7 +95,9 @@ class _GhostCameraState extends State<GhostCamera> {
   List<CameraDescription> _cameras = const [];
   CameraDescription? _camera;
   CameraController? _controller;
-  bool _unavailable = false;
+
+  /// Why the camera cannot show, until it does.
+  GhostCameraStatus? _failure;
 
   /// The cameras being closed; the next one opens after them.
   Future<void> _closing = Future.value();
@@ -72,6 +106,7 @@ class _GhostCameraState extends State<GhostCamera> {
   @override
   void initState() {
     super.initState();
+    widget.controller._camera = this;
     if (_shown++ == 0) {
       unawaited(
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]),
@@ -84,6 +119,39 @@ class _GhostCameraState extends State<GhostCamera> {
       onResume: () => unawaited(_open()),
     );
     unawaited(_start());
+  }
+
+  @override
+  void didUpdateWidget(GhostCamera oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      if (oldWidget.controller._camera == this) {
+        oldWidget.controller._camera = null;
+      }
+      widget.controller._camera = this;
+      // Listeners may rebuild; not while this build runs.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _report();
+      });
+    }
+  }
+
+  /// Rebuilds and tells the controller.
+  void _changed() {
+    if (!mounted) return;
+    setState(() {});
+    _report();
+  }
+
+  void _report() {
+    final controller = _controller;
+    widget.controller._update(
+      _failure ??
+          (controller != null && controller.value.isInitialized
+              ? GhostCameraStatus.ready
+              : GhostCameraStatus.starting),
+      _cameras.length > 1,
+    );
   }
 
   Future<void> _start() async {
@@ -103,7 +171,8 @@ class _GhostCameraState extends State<GhostCamera> {
   Future<void> _open() async {
     final camera = _camera;
     if (camera == null) {
-      setState(() => _unavailable = true);
+      _failure = GhostCameraStatus.noCamera;
+      _changed();
       return;
     }
     if (_controller != null) return;
@@ -123,14 +192,18 @@ class _GhostCameraState extends State<GhostCamera> {
       // Without the lock, the plugin turns the capture, and the preview
       // with it, with the phone, also while the screen stays portrait.
       await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
-      if (mounted) setState(() => _unavailable = false);
-    } on Object {
+      _failure = null;
+      _changed();
+    } on Object catch (error) {
       // Released again while starting: [_release] disposed it.
       if (_controller != controller) return;
-      // Refused access, or no working camera.
       _controller = null;
       await _close(controller);
-      if (mounted) setState(() => _unavailable = true);
+      _failure =
+          error is CameraException && error.code.startsWith('CameraAccess')
+          ? GhostCameraStatus.accessDenied
+          : GhostCameraStatus.noCamera;
+      _changed();
     }
   }
 
@@ -148,28 +221,29 @@ class _GhostCameraState extends State<GhostCamera> {
     final controller = _controller;
     _controller = null;
     if (controller != null) _closing = _closing.then((_) => _close(controller));
-    if (mounted) setState(() {});
+    _changed();
   }
 
   Future<void> _switch() async {
     final current = _camera;
-    if (current == null || _cameras.length < 2) return;
+    if (current == null || _cameras.length < 2 || _capturing) return;
     _camera = _cameras[(_cameras.indexOf(current) + 1) % _cameras.length];
     _release();
     await _open();
   }
 
-  Future<void> _capture() async {
+  Future<String?> _capture() async {
     final controller = _controller;
-    if (controller == null || _capturing) return;
-    setState(() => _capturing = true);
+    if (controller == null || !controller.value.isInitialized || _capturing) {
+      return null;
+    }
+    _capturing = true;
     try {
-      final picture = await controller.takePicture();
-      widget.onCaptured(picture.path);
+      return (await controller.takePicture()).path;
     } on CameraException {
-      // The preview stays; the user can try again.
+      return null;
     } finally {
-      if (mounted) setState(() => _capturing = false);
+      _capturing = false;
     }
   }
 
@@ -179,6 +253,7 @@ class _GhostCameraState extends State<GhostCamera> {
       // Back to what the app declares.
       unawaited(SystemChrome.setPreferredOrientations(const []));
     }
+    if (widget.controller._camera == this) widget.controller._camera = null;
     _lifecycle.dispose();
     final controller = _controller;
     if (controller != null) unawaited(_close(controller));
@@ -187,67 +262,34 @@ class _GhostCameraState extends State<GhostCamera> {
 
   @override
   Widget build(BuildContext context) {
-    if (_unavailable) {
-      return EmptyView(
-        icon: ForgeIcons.noPhotography,
-        title: widget.unavailableTitle,
-        message: widget.unavailableDetail,
-      );
-    }
     final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) {
-      return WorkingView(
-        title: widget.startingTitle,
-        message: widget.startingDetail,
-      );
+    if (_failure != null ||
+        controller == null ||
+        !controller.value.isInitialized) {
+      return const SizedBox.expand();
     }
     final ghost = widget.ghostFile;
-    return Column(
-      children: [
-        Expanded(
-          child: Center(
-            child: CameraPreview(
-              controller,
-              child: ghost == null
-                  ? null
-                  : IgnorePointer(
-                      child: Opacity(
-                        opacity: _ghostOpacity,
-                        child: Transform.flip(
-                          flipX: mirrorGhost(controller.description),
-                          child: Image.file(
-                            File(ghost),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          ),
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+    final overlay = widget.overlay;
+    return Center(
+      child: CameraPreview(
+        controller,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            IconButton.filled(
-              tooltip: widget.captureLabel,
-              iconSize: Gap.xl,
-              onPressed: _capturing ? null : _capture,
-              icon: const Icon(Icons.camera_alt),
-            ),
-            if (_cameras.length > 1) ...[
-              const SizedBox(width: Gap.md),
-              IconButton(
-                tooltip: widget.switchLabel,
-                onPressed: _capturing ? null : _switch,
-                icon: const Icon(Icons.cameraswitch),
+            if (ghost != null)
+              IgnorePointer(
+                child: Opacity(
+                  opacity: _ghostOpacity,
+                  child: Transform.flip(
+                    flipX: mirrorGhost(controller.description),
+                    child: Image.file(File(ghost), fit: BoxFit.cover),
+                  ),
+                ),
               ),
-            ],
+            ?overlay,
           ],
         ),
-      ],
+      ),
     );
   }
 }

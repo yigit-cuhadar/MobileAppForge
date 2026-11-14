@@ -8,7 +8,8 @@ import 'numbers.dart';
 import 'pressable.dart';
 
 /// A sunken 50px pill with round minus and plus buttons at its ends and the
-/// value in mono with its [unit] small under it.
+/// value in mono with its [unit] small under it, with the fewest decimals
+/// that show it exactly: "60" and "62.5" on a 2.5 step, "82.5" on a 5 step.
 ///
 /// The buttons move the value by [step], kept within [min] and [max]; at a
 /// bound its button fades and stops. Tapping the value types it: a 2px
@@ -16,6 +17,9 @@ import 'pressable.dart';
 /// box holds no number, out of range values as typed. The app checks them
 /// and passes [errorText], shown under a 2px danger ring. With no value the
 /// pill shows the [hint] faded, or a dash. [enabled] false fades it all.
+///
+/// When one message covers a row of fields, each wrong field is [invalid]
+/// (the ring alone) and the app places a [StepperFieldError] under the row.
 class StepperField extends StatefulWidget {
   const StepperField({
     super.key,
@@ -29,6 +33,9 @@ class StepperField extends StatefulWidget {
     this.errorText,
     this.enabled = true,
     this.grouped = true,
+    this.signed = false,
+    this.invalid = false,
+    this.compact = false,
   });
 
   final double? value;
@@ -44,8 +51,19 @@ class StepperField extends StatefulWidget {
   /// Groups the thousands ("1,000"); false for a value such as a year.
   final bool grouped;
 
+  /// Marks a value above zero with "+", as for a load added to the body.
+  final bool signed;
+
+  /// The danger ring with no message under the field.
+  final bool invalid;
+
+  /// The 40px form with 30px buttons, for a row under the main fields.
+  final bool compact;
+
   static const double height = 50;
   static const double buttonSize = 36;
+  static const double compactHeight = 40;
+  static const double compactButtonSize = 30;
 
   @override
   State<StepperField> createState() => _StepperFieldState();
@@ -57,11 +75,13 @@ class _StepperFieldState extends State<StepperField> {
 
   bool _typing = false;
 
-  String _text(double v) =>
-      formatNumber(v, decimalsOf(widget.step), grouped: widget.grouped);
+  String _text(double v) {
+    final text = formatNumber(v, decimalsOf(v), grouped: widget.grouped);
+    return widget.signed && v > 0 ? '+$text' : text;
+  }
 
-  /// The value as the box is typed in: no grouping.
-  String _typedText(double v) => v.toStringAsFixed(decimalsOf(widget.step));
+  /// The value as the box is typed in: no grouping, no sign.
+  String _typedText(double v) => v.toStringAsFixed(decimalsOf(v));
 
   @override
   void initState() {
@@ -133,7 +153,13 @@ class _StepperFieldState extends State<StepperField> {
       fontWeight: FontWeight.w500,
       color: colors.ink,
     );
-    final ring = error != null
+    final height = widget.compact
+        ? StepperField.compactHeight
+        : StepperField.height;
+    final buttonSize = widget.compact
+        ? StepperField.compactButtonSize
+        : StepperField.buttonSize;
+    final ring = error != null || widget.invalid
         ? colors.danger
         : _typing
         ? colors.accent
@@ -143,13 +169,14 @@ class _StepperFieldState extends State<StepperField> {
       final active = enabled && !atBound;
       return Pressable(
         onTap: active ? () => _move(direction) : null,
-        height: StepperField.buttonSize,
-        width: StepperField.buttonSize,
+        // In the compact pill the band can only grow to the pill.
+        height: widget.compact ? StepperField.compactHeight : buttonSize,
+        width: buttonSize,
         builder: (context, _) => Opacity(
           opacity: atBound ? 0.4 : 1,
           child: Container(
-            width: StepperField.buttonSize,
-            height: StepperField.buttonSize,
+            width: buttonSize,
+            height: buttonSize,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: colors.surface,
@@ -189,16 +216,16 @@ class _StepperFieldState extends State<StepperField> {
           );
 
     final pill = Container(
-      height: StepperField.height,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+      height: height,
+      padding: EdgeInsets.symmetric(horizontal: widget.compact ? 5 : Gap.sm),
       decoration: BoxDecoration(
         color: colors.surfaceSunken,
-        borderRadius: BorderRadius.circular(StepperField.height / 2),
+        borderRadius: BorderRadius.circular(height / 2),
       ),
       foregroundDecoration: ring == null
           ? null
           : BoxDecoration(
-              borderRadius: BorderRadius.circular(StepperField.height / 2),
+              borderRadius: BorderRadius.circular(height / 2),
               border: Border.all(color: ring, width: 2),
             ),
       child: Row(
@@ -264,4 +291,22 @@ class _StepperFieldState extends State<StepperField> {
       ),
     );
   }
+}
+
+/// The message for a row of [StepperField]s, placed by the app under the
+/// row; the wrong fields there are [StepperField.invalid].
+class StepperFieldError extends StatelessWidget {
+  const StepperFieldError(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.bodySmall!
+          .copyWith(color: ForgeStyle.of(context).colors.danger),
+    ),
+  );
 }

@@ -40,3 +40,43 @@ Widget weekStrip(BuildContext context) => _page([
     onDayTap: (_) {},
   ),
 ]);
+
+@widgetbook.UseCase(name: 'Today and done', type: WeekStrip)
+Widget weekStripTodayDone(BuildContext context) => _page([
+  WeekStrip(
+    title: 'This week',
+    days: [
+      for (var i = 0; i < 7; i++)
+        WeekStripDay(
+          weekday: _weekdays[i],
+          number: '${9 + i}',
+          state: switch (9 + i) {
+            9 || 11 => DayState.done,
+            10 || 12 => DayState.light,
+            13 => DayState.todayDone,
+            _ => DayState.none,
+          },
+        ),
+    ],
+    onDayTap: (_) {},
+  ),
+]);
+
+@widgetbook.UseCase(name: 'Plain, in a SectionCard', type: WeekStrip)
+Widget plainWeekStrip(BuildContext context) => _page([
+  SectionCard(
+    title: context.knobs.string(label: 'Title', initialValue: 'This week'),
+    onTap: () {},
+    child: WeekStrip.plain(
+      days: [
+        for (var i = 0; i < 7; i++)
+          WeekStripDay(
+            weekday: _weekdays[i],
+            number: '${9 + i}',
+            state: _week[9 + i] ?? DayState.none,
+          ),
+      ],
+      onDayTap: (_) {},
+    ),
+  ),
+]);

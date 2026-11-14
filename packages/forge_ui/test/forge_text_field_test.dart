@@ -162,5 +162,44 @@ void main() {
         isTrue,
       );
     });
+
+    testWidgets('the compact form is a unit-free 34px box of its width', (
+      tester,
+    ) async {
+      final changes = <String>[];
+      await pump(
+        tester,
+        Align(
+          alignment: Alignment.topLeft,
+          child: ForgeNumberField.compact(
+            label: 'Field one',
+            width: 70,
+            onChanged: changes.add,
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSize(
+          find
+              .descendant(
+                of: find.byType(ForgeNumberField),
+                matching: find.byType(Container),
+              )
+              .first,
+        ),
+        const Size(70, ForgeNumberField.compactHeight),
+      );
+      expect(
+        tester.getSize(find.byType(ForgeNumberField)).height,
+        ForgeTheme.tapMin,
+      );
+      // The one text is the empty box's dash: no unit.
+      expect(find.byType(Text), findsOneWidget);
+      expect(find.text('—'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '82.5');
+
+      expect(changes, ['82.5']);
+    });
   });
 }

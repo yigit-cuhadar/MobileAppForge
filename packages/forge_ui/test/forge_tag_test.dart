@@ -55,4 +55,43 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(tester.getSize(find.byType(ForgeTag)).width, 80);
   });
+
+  testWidgets('an icon sits before the label', (tester) async {
+    await pump(
+      tester,
+      const ForgeTag(
+        'record',
+        kind: ForgeTagKind.record,
+        icon: ForgeIcons.emojiEvents,
+      ),
+    );
+
+    final icon = find.byWidgetPredicate(
+      (w) => w is ForgeIcon && w.icon == ForgeIcons.emojiEvents,
+    );
+    expect(
+      tester.getCenter(icon).dx,
+      lessThan(tester.getCenter(find.text('record')).dx),
+    );
+  });
+
+  testWidgets('the plain tag has no fill and an ink-muted label', (
+    tester,
+  ) async {
+    await pump(tester, const ForgeTag('Label', kind: ForgeTagKind.plain));
+
+    final box = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(ForgeTag),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((box.decoration! as BoxDecoration).color, isNull);
+    expect(
+      tester.widget<Text>(find.text('Label')).style!.color,
+      ForgeTheme.light().extension<ForgeStyle>()!.colors.inkMuted,
+    );
+  });
 }
