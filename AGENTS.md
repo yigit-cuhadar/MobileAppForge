@@ -39,6 +39,8 @@ notes of the feature you will touch, continue.
   moment it comes up (in Claude Code: the question dialog), one question per
   decision. Never leave it as a note inside a status report or a sub-agent's
   summary. Work that does not depend on the answer goes on meanwhile.
+- Sub-agents never take these decisions: they stop and report each one with
+  2-4 options and a recommendation, and the main session asks the user.
 - Decide the rest yourself and note it in `SPEC.md`: app-wide decisions under
   Decisions, how a feature behaves under Feature notes.
 - Never ask the user to do by hand what an API or CLI can do. If a credential
