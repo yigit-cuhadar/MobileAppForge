@@ -1,6 +1,7 @@
 /// Taking pictures with the `camera` plugin: [GhostCamera], a portrait
 /// preview with an earlier picture laid faintly over it, driven by the app
-/// through a [GhostCameraController].
+/// through a [GhostCameraController]; [openSettings] for when access was
+/// refused.
 ///
 /// ## App setup (camera 0.12)
 ///
@@ -18,9 +19,11 @@
 ///     tools:replace="android:required"/>
 /// ```
 ///
-/// Only `camera` is a dependency, so an app can patch a platform
-/// implementation (such as `camera_avfoundation`) with `dependency_overrides`.
+/// Only `camera` and `app_settings` are dependencies, so an app can patch a
+/// platform implementation (such as `camera_avfoundation`) with
+/// `dependency_overrides`.
 library;
 
 export 'src/ghost_camera.dart'
     show GhostCamera, GhostCameraController, GhostCameraStatus;
+export 'src/open_settings.dart';

@@ -357,5 +357,33 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ForgeInfoCard), findsNothing);
     });
+
+    testWidgets('a long value wraps, right-aligned, inside the card', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: const Scaffold(
+            body: Center(
+              child: ForgeInfoCard(
+                title: '[VALUE] on [DETAIL]',
+                facts: [
+                  ('Short', '[VALUE]'),
+                  ('Each side', '25 + 25 + 25 + 25 + 5 + 2.5 kg'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final card = tester.getRect(find.byType(ForgeInfoCard));
+      final value = find.text('25 + 25 + 25 + 25 + 5 + 2.5 kg');
+      expect(tester.getSize(value).height, greaterThan(30));
+      expect(tester.getRect(value).right, lessThanOrEqualTo(card.right));
+      expect(tester.widget<Text>(value).textAlign, TextAlign.end);
+    });
   });
 }

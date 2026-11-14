@@ -77,3 +77,31 @@ Widget missingAppPrompt(BuildContext context) => _page(
     onNotNow: () {},
   ),
 );
+
+@widgetbook.UseCase(name: 'Unavailable · in a card', type: PermissionPrompt)
+Widget unavailableInCard(BuildContext context) => _page(
+  PermissionPrompt.unavailable(
+    icon: ForgeIcons.noPhotography,
+    title: context.knobs.string(
+      label: 'Title',
+      initialValue: 'No [DEVICE] found',
+    ),
+    message: context.knobs.string(
+      label: 'Message',
+      initialValue: 'This device has no [DEVICE] to [ACTION].',
+    ),
+    skipLabel: 'Skip',
+    onSkip: () {},
+  ),
+);
+
+@widgetbook.UseCase(name: 'Unavailable · full page', type: PermissionPrompt)
+Widget unavailableFullPage(BuildContext context) =>
+    PermissionPrompt.unavailable(
+      icon: ForgeIcons.noPhotography,
+      title: 'No [DEVICE] found',
+      message: 'This device has no [DEVICE] to [ACTION].',
+      skipLabel: 'Skip',
+      onSkip: () {},
+      page: true,
+    );

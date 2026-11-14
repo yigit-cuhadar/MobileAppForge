@@ -10,10 +10,15 @@ import 'radio_mark.dart';
 
 /// One answer of a [ChoiceGrid].
 class ChoiceOption {
-  const ChoiceOption({required this.label, required this.hint});
+  const ChoiceOption({required this.label, this.hint, this.enabled = true});
 
   final String label;
-  final String hint;
+
+  /// Without a hint the row shows its label alone, vertically centred.
+  final String? hint;
+
+  /// A disabled row fades to 40%, takes no taps and reads as disabled.
+  final bool enabled;
 }
 
 /// How the rows of a [ChoiceGrid.list] are drawn.
@@ -90,7 +95,7 @@ class ChoiceGrid extends StatelessWidget {
               option: options[i],
               form: form,
               selected: i == selected,
-              onTap: () => onSelected(i),
+              onTap: options[i].enabled ? () => onSelected(i) : null,
             ),
         ],
       ),
@@ -153,7 +158,7 @@ class _ChoiceRow extends StatefulWidget {
   final ChoiceOption option;
   final ChoiceListForm? form;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   State<_ChoiceRow> createState() => _ChoiceRowState();
@@ -177,73 +182,82 @@ class _ChoiceRowState extends State<_ChoiceRow> {
         color: selected ? colors.onAccentSoft : colors.ink,
       ),
     );
-    Widget hint(TextStyle role) => Text(
-      widget.option.hint,
+    final hintText = widget.option.hint;
+    Widget hint(String hint, TextStyle role) => Text(
+      hint,
       maxLines: widget.form == ChoiceListForm.stacked ? null : 1,
       overflow: widget.form == ChoiceListForm.stacked
           ? null
           : TextOverflow.ellipsis,
       style: role.copyWith(fontWeight: FontWeight.w400, color: colors.inkMuted),
     );
+    final onTap = widget.onTap;
     return Semantics(
       inMutuallyExclusiveGroup: true,
       checked: selected,
+      enabled: onTap != null,
       child: FocusableActionDetector(
+        enabled: onTap != null,
         onShowFocusHighlight: (focused) => setState(() => _focused = focused),
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) => widget.onTap(),
+            onInvoke: (_) => onTap?.call(),
           ),
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
-          child: Container(
-            height: switch (widget.form) {
-              null => 56,
-              ChoiceListForm.inline => 44,
-              ChoiceListForm.stacked => null,
-            },
-            constraints: widget.form == ChoiceListForm.stacked
-                ? const BoxConstraints(minHeight: 60)
-                : null,
-            padding: EdgeInsets.symmetric(
-              horizontal: switch (widget.form) {
-                null => Gap.md,
-                ChoiceListForm.inline => 10,
-                ChoiceListForm.stacked => 14,
+          onTap: onTap,
+          child: Opacity(
+            opacity: onTap == null ? 0.4 : 1,
+            child: Container(
+              height: switch (widget.form) {
+                null => 56,
+                ChoiceListForm.inline => 44,
+                ChoiceListForm.stacked => null,
               },
-            ),
-            decoration: BoxDecoration(
-              color: selected ? colors.accentSoft : colors.surface,
-              borderRadius: radius,
-              border: _focused
-                  ? Border.all(color: colors.accent, width: 2, strokeAlign: 3)
+              constraints: widget.form == ChoiceListForm.stacked
+                  ? const BoxConstraints(minHeight: 60)
                   : null,
-            ),
-            child: Row(
-              spacing: widget.form == null ? Gap.md : 12,
-              children: [
-                RadioMark(selected: selected),
-                Expanded(
-                  child: widget.form == ChoiceListForm.stacked
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          spacing: 2,
-                          children: [label, hint(text.labelMedium!)],
-                        )
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          spacing: widget.form == null ? Gap.sm : 12,
-                          children: [
-                            Flexible(child: label),
-                            Flexible(child: hint(text.bodySmall!)),
-                          ],
-                        ),
-                ),
-              ],
+              padding: EdgeInsets.symmetric(
+                horizontal: switch (widget.form) {
+                  null => Gap.md,
+                  ChoiceListForm.inline => 10,
+                  ChoiceListForm.stacked => 14,
+                },
+              ),
+              decoration: BoxDecoration(
+                color: selected ? colors.accentSoft : colors.surface,
+                borderRadius: radius,
+                border: _focused
+                    ? Border.all(color: colors.accent, width: 2, strokeAlign: 3)
+                    : null,
+              ),
+              child: Row(
+                spacing: widget.form == null ? Gap.md : 12,
+                children: [
+                  RadioMark(selected: selected),
+                  Expanded(
+                    child: switch ((hintText, widget.form)) {
+                      (null, _) => label,
+                      (final hintText?, ChoiceListForm.stacked) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 2,
+                        children: [label, hint(hintText, text.labelMedium!)],
+                      ),
+                      (final hintText?, _) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        spacing: widget.form == null ? Gap.sm : 12,
+                        children: [
+                          Flexible(child: label),
+                          Flexible(child: hint(hintText, text.bodySmall!)),
+                        ],
+                      ),
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),

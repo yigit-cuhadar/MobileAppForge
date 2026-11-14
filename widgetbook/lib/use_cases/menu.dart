@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
 List<ForgeMenuItem> _items(List<String> labels, {bool destructive = false}) => [
@@ -69,6 +70,23 @@ const _facts = [
 @widgetbook.UseCase(name: 'Info', type: ForgeInfoCard)
 Widget infoCard(BuildContext context) =>
     _centred(const ForgeInfoCard(title: '[VALUE] on [DETAIL]', facts: _facts));
+
+@widgetbook.UseCase(name: 'Info, long value', type: ForgeInfoCard)
+Widget infoCardLongValue(BuildContext context) => _centred(
+  ForgeInfoCard(
+    title: '[VALUE] on [DETAIL]',
+    facts: [
+      ('Fact one', '[VALUE]'),
+      (
+        'Fact two',
+        context.knobs.string(
+          label: 'Value',
+          initialValue: '[VALUE] + [VALUE] + [VALUE] + [VALUE]',
+        ),
+      ),
+    ],
+  ),
+);
 
 @widgetbook.UseCase(name: 'Opened from a value', type: ForgeInfoCard)
 Widget openedInfoCard(BuildContext context) => Padding(

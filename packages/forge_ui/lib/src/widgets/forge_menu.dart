@@ -127,7 +127,7 @@ class ForgeMenu extends StatelessWidget {
 }
 
 /// The info form: a title line and rows of facts, label left and value
-/// right in mono; no actions.
+/// right in mono; no actions. A long value wraps, right-aligned.
 class ForgeInfoCard extends StatelessWidget {
   const ForgeInfoCard({super.key, required this.title, required this.facts});
 
@@ -161,23 +161,22 @@ class ForgeInfoCard extends StatelessWidget {
               for (final (label, value) in facts)
                 Container(
                   constraints: const BoxConstraints(minHeight: 36),
+                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
                   decoration: BoxDecoration(
                     border: Border(top: BorderSide(color: colors.line)),
                   ),
                   child: Row(
                     spacing: Gap.md,
                     children: [
+                      Text(label, style: body.copyWith(color: colors.inkMuted)),
                       Expanded(
                         child: Text(
-                          label,
-                          style: body.copyWith(color: colors.inkMuted),
-                        ),
-                      ),
-                      Text(
-                        value,
-                        style: style.data.copyWith(
-                          fontSize: 14,
-                          color: colors.ink,
+                          value,
+                          textAlign: TextAlign.end,
+                          style: style.data.copyWith(
+                            fontSize: 14,
+                            color: colors.ink,
+                          ),
                         ),
                       ),
                     ],

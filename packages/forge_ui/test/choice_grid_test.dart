@@ -67,6 +67,8 @@ void main() {
         isFocusable: true,
         hasTapAction: true,
         hasFocusAction: true,
+        hasEnabledState: true,
+        isEnabled: true,
       ),
     );
   });
@@ -161,6 +163,76 @@ void main() {
           isFocusable: true,
           hasTapAction: true,
           hasFocusAction: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+    });
+
+    testWidgets('a row without a hint shows its label alone, centred', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: ChoiceGrid.list(
+              form: ChoiceListForm.stacked,
+              options: const [ChoiceOption(label: 'Option one')],
+              selected: null,
+              onSelected: picks.add,
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.getSize(rowOf('Option one')).height, 60);
+      expect(
+        tester.getCenter(find.text('Option one')).dy,
+        tester.getCenter(rowOf('Option one')).dy,
+      );
+    });
+
+    testWidgets('a disabled row fades, takes no tap and reads as disabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: ChoiceGrid.list(
+              form: ChoiceListForm.inline,
+              options: const [
+                ChoiceOption(label: 'Option one', hint: '[HINT]'),
+                ChoiceOption(label: 'Option two', enabled: false),
+              ],
+              selected: null,
+              onSelected: picks.add,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Option two'));
+      expect(picks, isEmpty);
+      expect(
+        tester
+            .widget<Opacity>(
+              find.ancestor(
+                of: find.text('Option two'),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .opacity,
+        0.4,
+      );
+      expect(
+        tester.getSemantics(find.text('Option two')),
+        matchesSemantics(
+          label: 'Option two',
+          hasCheckedState: true,
+          isInMutuallyExclusiveGroup: true,
+          hasEnabledState: true,
         ),
       );
     });
