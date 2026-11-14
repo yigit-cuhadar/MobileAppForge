@@ -2,6 +2,8 @@
 /// and the generic widgets every Forge app shares.
 library;
 
+export 'src/icons/forge_icon.dart';
+export 'src/icons/forge_icons.dart';
 export 'src/spacing.dart';
 export 'src/theme/forge_palette.dart';
 export 'src/theme/forge_preset.dart';
