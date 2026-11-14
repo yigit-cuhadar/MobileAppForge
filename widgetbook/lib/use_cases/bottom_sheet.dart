@@ -54,3 +54,12 @@ Widget headerActionSheet(BuildContext context) => _shown(
     child: _options(['Option one', 'Option two', 'Option three']),
   ),
 );
+
+@widgetbook.UseCase(name: 'Without action', type: ForgeBottomSheet)
+Widget choiceSheet(BuildContext context) => _shown(
+  context,
+  ForgeBottomSheet(
+    title: 'Choose one',
+    child: _options(['Option one', 'Option two', 'Option three']),
+  ),
+);

@@ -76,6 +76,28 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ForgeBottomSheet), findsNothing);
     });
+
+    testWidgets('without a main action, the content ends the sheet', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        (context) => showForgeBottomSheet<void>(
+          context: context,
+          builder: (_) => const ForgeBottomSheet(
+            title: 'Choose one',
+            child: Text('Option one'),
+          ),
+        ),
+      );
+      await open(tester);
+
+      expect(
+        tester.getBottomLeft(find.byType(ForgeBottomSheet)).dy -
+            tester.getBottomLeft(find.text('Option one')).dy,
+        Gap.lg,
+      );
+    });
   });
 
   group('ForgeDialog', () {
@@ -159,6 +181,25 @@ void main() {
   });
 
   group('ForgeSnackbar', () {
+    testWidgets('lasts 4 s, with an action too', (tester) async {
+      await pump(
+        tester,
+        (context) => showForgeSnackbar(
+          context,
+          message: 'Item removed',
+          actionLabel: 'Undo',
+          onAction: () {},
+        ),
+      );
+      await open(tester);
+
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('Item removed'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Item removed'), findsNothing);
+    });
+
     testWidgets('its action hides it, then runs', (tester) async {
       var undone = 0;
       await pump(

@@ -7,8 +7,8 @@ import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
 
-/// Shows a [ForgeSnackbar] at the bottom of the nearest Scaffold. Its
-/// action hides it before [onAction] runs.
+/// Shows a [ForgeSnackbar] at the bottom of the nearest Scaffold for 4 s,
+/// with an action too. Its action hides it before [onAction] runs.
 void showForgeSnackbar(
   BuildContext context, {
   required String message,

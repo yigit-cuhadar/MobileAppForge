@@ -17,14 +17,15 @@ Future<T?> showForgeBottomSheet<T>({
 );
 
 /// A sheet: grabber, title on the left with one optional text action right
-/// of it, the content, and the sheet's main action at the bottom.
+/// of it, the content, and the sheet's main action at the bottom. A choice
+/// sheet has no main action: a tap on a row chooses and closes it.
 class ForgeBottomSheet extends StatelessWidget {
   const ForgeBottomSheet({
     super.key,
     required this.title,
     this.headerAction,
     required this.child,
-    required this.action,
+    this.action,
   });
 
   final String title;
@@ -34,7 +35,7 @@ class ForgeBottomSheet extends StatelessWidget {
   final Widget child;
 
   /// The sheet's main action, full width.
-  final Widget action;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +86,7 @@ class ForgeBottomSheet extends StatelessWidget {
             ),
           ),
           Flexible(child: child),
-          action,
+          ?action,
         ],
       ),
     );
