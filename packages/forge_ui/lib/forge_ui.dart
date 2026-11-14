@@ -11,7 +11,7 @@ export 'src/theme/forge_style.dart';
 export 'src/theme/forge_theme.dart';
 export 'src/widgets/appearance_setting.dart';
 export 'src/widgets/band_bar.dart';
-export 'src/widgets/before_after_slider.dart' show BeforeAfterSlider;
+export 'src/widgets/before_after_slider.dart';
 export 'src/widgets/benefit_list.dart';
 export 'src/widgets/chart.dart' show Chart, ChartBar;
 export 'src/widgets/choice_grid.dart';
