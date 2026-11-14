@@ -46,12 +46,15 @@ int nearest(List<double> xs, double x) {
   return best;
 }
 
-/// A dashed rounded outline in [color], 4px dashes 3px apart.
-class DashedBorderPainter extends CustomPainter {
-  const DashedBorderPainter({
+/// A dashed rounded outline in [color], [dash] long and [gap] apart, drawn
+/// inside the edge as a CSS dashed border is.
+class DashedOutlinePainter extends CustomPainter {
+  const DashedOutlinePainter({
     required this.color,
     required this.width,
     required this.radius,
+    required this.dash,
+    required this.gap,
   });
 
   final Color color;
@@ -59,14 +62,20 @@ class DashedBorderPainter extends CustomPainter {
 
   /// Corner radius; half the side draws a circle.
   final double radius;
+  final double dash;
+  final double gap;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = (Offset.zero & size).deflate(width / 2);
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          Radius.circular(radius),
+        ).deflate(width / 2),
+      );
     canvas.drawPath(
-      dashed(path, 4, 3),
+      dashed(path, dash, gap),
       Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -75,8 +84,21 @@ class DashedBorderPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(DashedBorderPainter old) =>
-      old.color != color || old.width != width || old.radius != radius;
+  bool shouldRepaint(DashedOutlinePainter old) =>
+      old.color != color ||
+      old.width != width ||
+      old.radius != radius ||
+      old.dash != dash ||
+      old.gap != gap;
+}
+
+/// A dashed rounded outline in [color], 4px dashes 3px apart.
+class DashedBorderPainter extends DashedOutlinePainter {
+  const DashedBorderPainter({
+    required super.color,
+    required super.width,
+    required super.radius,
+  }) : super(dash: 4, gap: 3);
 }
 
 /// The title row of a chart card: the [title] and a [detail] in data

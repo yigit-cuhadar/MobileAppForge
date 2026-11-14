@@ -89,6 +89,7 @@ class _RemovableState extends State<_Removable> {
           ForgeChip.removable(
             label: label,
             onRemoved: () => setState(() => _active.remove(label)),
+            removeHint: 'Removes the filter',
           ),
       ],
     ),

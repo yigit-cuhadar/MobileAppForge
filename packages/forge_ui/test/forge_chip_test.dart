@@ -74,7 +74,11 @@ void main() {
     var removed = 0;
     await pump(
       tester,
-      ForgeChip.removable(label: 'Filter A', onRemoved: () => removed++),
+      ForgeChip.removable(
+        label: 'Filter A',
+        onRemoved: () => removed++,
+        removeHint: 'Removes the filter',
+      ),
     );
 
     await tester.tap(icon(ForgeIcons.close));
@@ -113,5 +117,70 @@ void main() {
     expect(icon(ForgeIcons.check), findsNothing);
     await tester.tap(find.text('Series A'));
     expect(taps, 1);
+  });
+
+  testWidgets('a removable chip is announced with its remove hint', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(
+      tester,
+      ForgeChip.removable(
+        label: 'Filter A',
+        onRemoved: () {},
+        removeHint: 'Removes the filter',
+      ),
+    );
+
+    expect(
+      tester.getSemantics(find.byType(ForgeChip)),
+      matchesSemantics(
+        label: 'Filter A',
+        hint: 'Removes the filter',
+        isButton: true,
+        hasSelectedState: true,
+        isSelected: true,
+        hasTapAction: true,
+      ),
+    );
+    handle.dispose();
+  });
+
+  testWidgets('a long label ends in an ellipsis in a narrow space', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 120,
+              child: Wrap(
+                children: [
+                  ForgeChip(
+                    label: 'A filter with a very long label',
+                    onPressed: () {},
+                    selected: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(ForgeChip)).width,
+      lessThanOrEqualTo(120),
+    );
+    expect(
+      tester
+          .widget<Text>(find.text('A filter with a very long label'))
+          .overflow,
+      TextOverflow.ellipsis,
+    );
   });
 }

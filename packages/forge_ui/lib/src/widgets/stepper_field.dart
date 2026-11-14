@@ -28,6 +28,7 @@ class StepperField extends StatefulWidget {
     this.hint,
     this.errorText,
     this.enabled = true,
+    this.grouped = true,
   });
 
   final double? value;
@@ -39,6 +40,9 @@ class StepperField extends StatefulWidget {
   final double? hint;
   final String? errorText;
   final bool enabled;
+
+  /// Groups the thousands ("1,000"); false for a value such as a year.
+  final bool grouped;
 
   static const double height = 50;
   static const double buttonSize = 36;
@@ -53,7 +57,8 @@ class _StepperFieldState extends State<StepperField> {
 
   bool _typing = false;
 
-  String _text(double v) => formatNumber(v, decimalsOf(widget.step));
+  String _text(double v) =>
+      formatNumber(v, decimalsOf(widget.step), grouped: widget.grouped);
 
   /// The value as the box is typed in: no grouping.
   String _typedText(double v) => v.toStringAsFixed(decimalsOf(widget.step));

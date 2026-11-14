@@ -41,5 +41,6 @@ Widget errorSparkline(BuildContext context) => _page(
     title: 'Trend',
     message: "Couldn't load the trend",
     onRetry: () {},
+    retryLabel: 'Retry',
   ),
 );

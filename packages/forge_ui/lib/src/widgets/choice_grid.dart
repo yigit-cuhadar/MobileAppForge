@@ -4,6 +4,7 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
+import 'radio_mark.dart';
 
 /// One answer of a [ChoiceGrid].
 class ChoiceOption {
@@ -16,7 +17,7 @@ class ChoiceOption {
 /// A question on a card: the [title], its [detail], and a single column of
 /// [options], each a 56px row with a radio, the label and its hint. The
 /// [selected] row sits on accent-soft; keyboard focus is a 2px accent ring.
-/// With [onSkip] the header carries a Skip text button.
+/// With [onSkip] the header carries a [skipLabel] text button.
 class ChoiceGrid extends StatelessWidget {
   const ChoiceGrid({
     super.key,
@@ -26,8 +27,11 @@ class ChoiceGrid extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     this.onSkip,
-    this.skipLabel = 'Skip',
-  });
+    this.skipLabel,
+  }) : assert(
+         (onSkip == null) == (skipLabel == null),
+         'Give Skip a label and an action together.',
+       );
 
   final String title;
   final String detail;
@@ -37,7 +41,7 @@ class ChoiceGrid extends StatelessWidget {
   final int? selected;
   final ValueChanged<int> onSelected;
   final VoidCallback? onSkip;
-  final String skipLabel;
+  final String? skipLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +74,7 @@ class ChoiceGrid extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (onSkip != null)
+                if (skipLabel case final skipLabel?)
                   ForgeButton(
                     label: skipLabel,
                     onPressed: onSkip,
@@ -109,8 +113,6 @@ class _ChoiceRow extends StatefulWidget {
   final VoidCallback onTap;
 
   static const double height = 56;
-  static const double radio = 20;
-  static const double dot = 10;
 
   @override
   State<_ChoiceRow> createState() => _ChoiceRowState();
@@ -152,28 +154,7 @@ class _ChoiceRowState extends State<_ChoiceRow> {
             child: Row(
               spacing: Gap.md,
               children: [
-                Container(
-                  width: _ChoiceRow.radio,
-                  height: _ChoiceRow.radio,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(style.radii.sm),
-                    border: Border.all(
-                      color: selected ? colors.accent : colors.lineStrong,
-                      width: 2,
-                    ),
-                  ),
-                  child: selected
-                      ? Container(
-                          width: _ChoiceRow.dot,
-                          height: _ChoiceRow.dot,
-                          decoration: BoxDecoration(
-                            color: colors.accent,
-                            shape: BoxShape.circle,
-                          ),
-                        )
-                      : null,
-                ),
+                RadioMark(selected: selected),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,

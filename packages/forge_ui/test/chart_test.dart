@@ -312,6 +312,7 @@ void main() {
           title: 'Trend',
           message: "Couldn't load the trend",
           onRetry: () => retries++,
+          retryLabel: 'Retry',
         ),
       );
       expect(find.text('—'), findsOneWidget);
@@ -427,6 +428,7 @@ void main() {
           onTap: () => taps++,
           message: "Couldn't load",
           onRetry: () => retries++,
+          retryLabel: 'Retry',
         ),
       );
       await tester.tap(find.text('Retry'));

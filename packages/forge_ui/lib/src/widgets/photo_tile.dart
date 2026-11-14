@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../icons/forge_icon.dart';
@@ -7,6 +5,7 @@ import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'busy_ring.dart';
+import 'chart_paint.dart';
 import 'forge_button.dart';
 import 'progress.dart';
 import 'skeleton.dart';
@@ -16,10 +15,12 @@ enum _State { photo, empty, loading, uploading, failed, offline }
 /// A 3:4 photo tile with radius-md corners. A view [label] sits bottom left
 /// on a dark translucent tag.
 class PhotoTile extends StatelessWidget {
-  /// The [image], cropped to fill; a tap opens it.
+  /// The [image], cropped to fill; a tap opens it. Screen readers name it
+  /// by [semanticLabel] ("Front photo, 12 May").
   const PhotoTile({
     super.key,
     required ImageProvider this.image,
+    required String this.semanticLabel,
     this.label,
     required VoidCallback this.onTap,
   }) : _state = _State.photo,
@@ -36,6 +37,7 @@ class PhotoTile extends StatelessWidget {
     this.label,
     required VoidCallback this.onTap,
   }) : _state = _State.empty,
+       semanticLabel = null,
        image = null,
        progress = null,
        onRetry = null,
@@ -44,6 +46,7 @@ class PhotoTile extends StatelessWidget {
   /// The photo is loading: a shimmering tile that keeps its view [label].
   const PhotoTile.loading({super.key, this.label})
     : _state = _State.loading,
+      semanticLabel = null,
       image = null,
       onTap = null,
       message = null,
@@ -54,6 +57,7 @@ class PhotoTile extends StatelessWidget {
   /// Sending: a spinner and a thin bar at [progress], from 0 to 1.
   const PhotoTile.uploading({super.key, required double this.progress})
     : _state = _State.uploading,
+      semanticLabel = null,
       image = null,
       label = null,
       onTap = null,
@@ -66,8 +70,9 @@ class PhotoTile extends StatelessWidget {
     super.key,
     required String this.message,
     required VoidCallback this.onRetry,
-    String this.retryLabel = 'Retry',
+    required String this.retryLabel,
   }) : _state = _State.failed,
+       semanticLabel = null,
        image = null,
        label = null,
        onTap = null,
@@ -76,6 +81,7 @@ class PhotoTile extends StatelessWidget {
   /// Offline: a muted [message] ("Waiting for connection").
   const PhotoTile.offline({super.key, required String this.message})
     : _state = _State.offline,
+      semanticLabel = null,
       image = null,
       label = null,
       onTap = null,
@@ -84,6 +90,7 @@ class PhotoTile extends StatelessWidget {
       retryLabel = null;
 
   final ImageProvider? image;
+  final String? semanticLabel;
   final String? label;
   final VoidCallback? onTap;
   final String? message;
@@ -103,11 +110,16 @@ class PhotoTile extends StatelessWidget {
     final small = text.labelMedium!.copyWith(fontWeight: FontWeight.w400);
 
     final Widget content = switch (_state) {
-      _State.photo => Image(image: image!, fit: BoxFit.cover),
+      _State.photo => ExcludeSemantics(
+        child: Image(image: image!, fit: BoxFit.cover),
+      ),
       _State.empty => CustomPaint(
-        foregroundPainter: _DashedBorder(
+        foregroundPainter: DashedOutlinePainter(
           color: colors.lineStrong,
-          radius: radius,
+          width: 1.5,
+          radius: style.radii.md,
+          dash: 4.5,
+          gap: 3,
         ),
         child: ColoredBox(
           color: colors.surface,
@@ -230,6 +242,7 @@ class PhotoTile extends StatelessWidget {
     if (onTap == null) return tile;
     return Semantics(
       button: true,
+      label: semanticLabel,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -262,35 +275,4 @@ class PhotoTag extends StatelessWidget {
     ),
     child: Text(label, style: style.copyWith(color: Colors.white)),
   );
-}
-
-/// A 1.5px dashed outline along the tile's rounded edge.
-class _DashedBorder extends CustomPainter {
-  const _DashedBorder({required this.color, required this.radius});
-
-  final Color color;
-  final BorderRadius radius;
-
-  static const _width = 1.5;
-  static const _dash = 4.5;
-  static const _gap = 3.0;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outline = Path()
-      ..addRRect(radius.toRRect(Offset.zero & size).deflate(_width / 2));
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _width;
-    for (final PathMetric metric in outline.computeMetrics()) {
-      for (var d = 0.0; d < metric.length; d += _dash + _gap) {
-        canvas.drawPath(metric.extractPath(d, d + _dash), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorder old) =>
-      old.color != color || old.radius != radius;
 }

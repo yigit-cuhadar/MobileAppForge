@@ -341,8 +341,7 @@ class _ProviderButton extends StatelessWidget {
   }
 }
 
-/// The terms sentence with its two links, in the sentence's own style as
-/// the studio draws it.
+/// The terms sentence with its two links in semibold ink.
 class _TermsLine extends StatelessWidget {
   const _TermsLine(this.terms);
 
@@ -352,10 +351,15 @@ class _TermsLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ForgeStyle.of(context).colors;
     final style = Theme.of(context).textTheme.labelSmall!.copyWith(
       height: 15 / 11,
       fontWeight: FontWeight.w400,
-      color: ForgeStyle.of(context).colors.inkMuted,
+      color: colors.inkMuted,
+    );
+    final linkStyle = style.copyWith(
+      fontWeight: FontWeight.w600,
+      color: colors.ink,
     );
     InlineSpan link(String label, VoidCallback onTap) => WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
@@ -365,7 +369,7 @@ class _TermsLine extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
-          child: Text(label, style: style),
+          child: Text(label, style: linkStyle),
         ),
       ),
     );
@@ -485,7 +489,6 @@ class _EmailFormState extends State<_EmailForm> {
               label: form.submitLabel,
               onPressed: _submit,
               loading: busy,
-              size: ForgeButtonSize.large,
             ),
             if (forgotPasswordLabel != null)
               Center(

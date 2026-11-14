@@ -50,7 +50,12 @@ Widget photoTile(BuildContext context) => _grid([
     ('View B', placeholderDark),
     ('View C', placeholderLight),
   ])
-    PhotoTile(image: image, label: view, onTap: () {}),
+    PhotoTile(
+      image: image,
+      semanticLabel: '\$view photo',
+      label: view,
+      onTap: () {},
+    ),
   PhotoTile.empty(message: 'Add photo', onTap: () {}),
 ]);
 
@@ -80,8 +85,13 @@ Widget photoTileUploading(BuildContext context) => _grid([
 ]);
 
 @widgetbook.UseCase(name: 'Failed', type: PhotoTile)
-Widget photoTileFailed(BuildContext context) =>
-    _grid([PhotoTile.failed(message: 'Upload failed', onRetry: () {})]);
+Widget photoTileFailed(BuildContext context) => _grid([
+  PhotoTile.failed(
+    message: 'Upload failed',
+    onRetry: () {},
+    retryLabel: 'Retry',
+  ),
+]);
 
 @widgetbook.UseCase(name: 'Offline', type: PhotoTile)
 Widget photoTileOffline(BuildContext context) =>

@@ -121,5 +121,6 @@ Widget errorStatTile(BuildContext context) => _grid([
     onTap: () {},
     message: "Couldn't load",
     onRetry: () {},
+    retryLabel: 'Retry',
   ),
 ]);

@@ -45,6 +45,7 @@ Widget errorSectionCard(BuildContext context) => _page(
     onTap: () {},
     message: "Couldn't load this section",
     onRetry: () {},
+    retryLabel: 'Retry',
   ),
 );
 

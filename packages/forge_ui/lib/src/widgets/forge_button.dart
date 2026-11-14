@@ -8,6 +8,7 @@ import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
 import 'busy_ring.dart';
+import 'chart_paint.dart';
 import 'pressable.dart';
 
 enum ForgeButtonVariant {
@@ -236,7 +237,13 @@ class ForgeAddButton extends StatelessWidget {
         onTap: onPressed,
         height: ForgeTheme.tapMin,
         builder: (context, pressed) => CustomPaint(
-          foregroundPainter: _DashedBorder(p.lineStrong, style.radii.lg),
+          foregroundPainter: DashedOutlinePainter(
+            color: p.lineStrong,
+            width: 1,
+            radius: style.radii.lg,
+            dash: 3,
+            gap: 3,
+          ),
           child: Container(
             height: ForgeTheme.tapMin,
             width: double.infinity,
@@ -265,37 +272,4 @@ class ForgeAddButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DashedBorder extends CustomPainter {
-  _DashedBorder(this.color, this.radius);
-
-  final Color color;
-  final double radius;
-
-  static const double _dash = 3;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final outline = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          (Offset.zero & size).deflate(0.5),
-          Radius.circular(radius),
-        ),
-      );
-    for (final metric in outline.computeMetrics()) {
-      for (var d = 0.0; d < metric.length; d += _dash * 2) {
-        canvas.drawPath(metric.extractPath(d, d + _dash), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedBorder old) =>
-      old.color != color || old.radius != radius;
 }

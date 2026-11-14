@@ -23,6 +23,7 @@ class NumberPicker extends StatefulWidget {
     required this.step,
     required this.value,
     required this.onChanged,
+    this.grouped = true,
   }) : unit = null;
 
   /// The value large above a ruler of thin ticks with whole-number labels,
@@ -36,6 +37,7 @@ class NumberPicker extends StatefulWidget {
     required this.step,
     required this.value,
     required this.onChanged,
+    this.grouped = true,
   });
 
   final String label;
@@ -45,6 +47,9 @@ class NumberPicker extends StatefulWidget {
   final double step;
   final double value;
   final ValueChanged<double> onChanged;
+
+  /// Groups the thousands ("1,000"); false for a value such as a year.
+  final bool grouped;
 
   static const double wheelHeight = 200;
   static const double rulerHeight = 52;
@@ -91,6 +96,7 @@ class _NumberPickerState extends State<NumberPicker>
   String _text(int index) => formatNumber(
     _valueAt(index.clamp(0, _count - 1)),
     decimalsOf(widget.step),
+    grouped: widget.grouped,
   );
 
   double get _pixelsPerStep => _ruler

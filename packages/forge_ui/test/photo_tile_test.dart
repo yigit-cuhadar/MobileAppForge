@@ -23,7 +23,12 @@ void main() {
     var taps = 0;
     await pump(
       tester,
-      PhotoTile(image: photo, label: 'View A', onTap: () => taps++),
+      PhotoTile(
+        image: photo,
+        semanticLabel: 'Front photo',
+        label: 'View A',
+        onTap: () => taps++,
+      ),
     );
 
     expect(tester.getSize(find.byType(PhotoTile)), const Size(150, 200));
@@ -75,7 +80,11 @@ void main() {
     var retries = 0;
     await pump(
       tester,
-      PhotoTile.failed(message: 'Upload failed', onRetry: () => retries++),
+      PhotoTile.failed(
+        message: 'Upload failed',
+        onRetry: () => retries++,
+        retryLabel: 'Retry',
+      ),
     );
 
     expect(icon(ForgeIcons.error), findsOneWidget);
@@ -91,5 +100,25 @@ void main() {
 
     expect(icon(ForgeIcons.cloudOff), findsOneWidget);
     expect(find.text('Waiting for connection'), findsOneWidget);
+  });
+
+  testWidgets('a photo is a button named by its semantic label', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(
+      tester,
+      PhotoTile(image: photo, semanticLabel: 'Front photo', onTap: () {}),
+    );
+
+    expect(
+      tester.getSemantics(find.byType(PhotoTile)),
+      matchesSemantics(
+        label: 'Front photo',
+        isButton: true,
+        hasTapAction: true,
+      ),
+    );
+    handle.dispose();
   });
 }

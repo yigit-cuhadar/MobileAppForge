@@ -44,7 +44,7 @@ class SectionCard extends StatelessWidget {
     required this.onTap,
     required String this.message,
     required VoidCallback this.onRetry,
-    String this.retryLabel = 'Retry',
+    required String this.retryLabel,
   }) : _state = _State.error,
        detail = null,
        child = null,

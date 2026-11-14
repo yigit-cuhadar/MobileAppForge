@@ -70,6 +70,7 @@ void main() {
         child: ListRow(
           title: 'Field',
           onInfo: () => info++,
+          infoLabel: 'About this field',
           onTap: () => taps++,
         ),
       ),
@@ -98,7 +99,7 @@ void main() {
             title: 'Dated',
             leading: ListRowDateBox(weekday: 'Thu', day: '12'),
           ),
-          ListRow(title: 'Field', onInfo: () {}),
+          ListRow(title: 'Field', onInfo: () {}, infoLabel: 'About'),
           const ListRow(title: 'Plain'),
         ],
       ),
@@ -227,6 +228,66 @@ void main() {
     await tester.pump();
     final lifted = tester.widgetList<Material>(find.byType(Material));
     expect(lifted.every((m) => m.elevation == 0), isTrue);
+    await drag.up();
+    await tester.pumpAndSettle();
+
+    expect(moved.first, 0);
+    expect(moved.last, greaterThan(0));
+  });
+
+  testWidgets('the info icon is a button with its label', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pump(
+      tester,
+      SizedBox(
+        width: 360,
+        child: ListRow(
+          title: 'Field',
+          onInfo: () {},
+          infoLabel: 'About this field',
+        ),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('About this field'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('About this field')),
+      matchesSemantics(
+        label: 'About this field',
+        isButton: true,
+        hasTapAction: true,
+      ),
+    );
+    handle.dispose();
+  });
+
+  testWidgets('a drag handle takes drags across a 44px square', (tester) async {
+    var moved = <int>[];
+    await pump(
+      tester,
+      SizedBox(
+        width: 360,
+        child: ListRowCard(
+          onReorder: (from, to) => moved = [from, to],
+          children: [
+            for (final (i, title) in ['A', 'B', 'C'].indexed)
+              ListRow(
+                key: ValueKey(title),
+                title: title,
+                leading: ListRowDragHandle(index: i),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    final handle = find.byType(ListRowDragHandle).first;
+    expect(tester.getSize(handle), const Size(18, 18));
+    final drag = await tester.startGesture(
+      tester.getCenter(handle) + const Offset(20, 20),
+    );
+    await drag.moveBy(const Offset(0, 120));
+    await tester.pump();
     await drag.up();
     await tester.pumpAndSettle();
 

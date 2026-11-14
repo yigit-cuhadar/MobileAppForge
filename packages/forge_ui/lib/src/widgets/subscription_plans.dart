@@ -11,6 +11,7 @@ import 'card_frame.dart';
 import 'forge_button.dart';
 import 'forge_tag.dart';
 import 'pressable.dart';
+import 'radio_mark.dart';
 import 'skeleton.dart';
 
 /// How [SubscriptionPlans] lays out its plans; one is picked per user for
@@ -312,7 +313,7 @@ class _PlanBox extends StatelessWidget {
                   : CrossAxisAlignment.start,
               spacing: Gap.md,
               children: [
-                if (radio) _Radio(chosen: chosen),
+                if (radio) RadioMark(selected: chosen),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,40 +357,6 @@ class _PlanBox extends StatelessWidget {
   }
 }
 
-class _Radio extends StatelessWidget {
-  const _Radio({required this.chosen});
-
-  final bool chosen;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = ForgeStyle.of(context);
-    final colors = style.colors;
-    return Container(
-      width: 20,
-      height: 20,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(style.radii.sm),
-        border: Border.all(
-          color: chosen ? colors.accent : colors.lineStrong,
-          width: 2,
-        ),
-      ),
-      child: chosen
-          ? Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.accent,
-              ),
-            )
-          : null,
-    );
-  }
-}
-
 class _PlanSkeleton extends StatelessWidget {
   const _PlanSkeleton({required this.radio});
 
@@ -407,7 +374,8 @@ class _PlanSkeleton extends StatelessWidget {
       child: Row(
         spacing: Gap.md,
         children: [
-          if (radio) const SkeletonBar(width: 20, height: 20),
+          if (radio)
+            const SkeletonBar(width: RadioMark.size, height: RadioMark.size),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
