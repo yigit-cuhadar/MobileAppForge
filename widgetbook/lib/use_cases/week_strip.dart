@@ -40,3 +40,22 @@ Widget weekStrip(BuildContext context) => _page([
     onDayTap: (_) {},
   ),
 ]);
+
+@widgetbook.UseCase(name: 'Plain, in a SectionCard', type: WeekStrip)
+Widget plainWeekStrip(BuildContext context) => _page([
+  SectionCard(
+    title: context.knobs.string(label: 'Title', initialValue: 'This week'),
+    onTap: () {},
+    child: WeekStrip.plain(
+      days: [
+        for (var i = 0; i < 7; i++)
+          WeekStripDay(
+            weekday: _weekdays[i],
+            number: '${9 + i}',
+            state: _week[9 + i] ?? DayState.none,
+          ),
+      ],
+      onDayTap: (_) {},
+    ),
+  ),
+]);

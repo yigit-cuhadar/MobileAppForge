@@ -10,8 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  forge_ui:
-    path: ../forge_ui
   camera: ^0.12.2
 
 dev_dependencies:

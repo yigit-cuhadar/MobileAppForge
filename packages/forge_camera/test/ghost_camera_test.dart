@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_camera/forge_camera.dart';
-import 'package:forge_ui/forge_ui.dart';
 
 const _back = CameraDescription(
   name: 'back',
@@ -92,20 +91,15 @@ class _FakeCameraPlatform extends CameraPlatform {
 
 void main() {
   late _FakeCameraPlatform platform;
-  late List<String> captured;
+  late GhostCameraController controller;
+  late List<GhostCameraStatus> statuses;
 
-  Widget camera({String? ghostFile}) => MaterialApp(
-    theme: ForgeTheme.light(),
+  Widget camera({String? ghostFile, Widget? overlay}) => MaterialApp(
     home: Scaffold(
       body: GhostCamera(
+        controller: controller,
         ghostFile: ghostFile,
-        captureLabel: 'capture',
-        switchLabel: 'switch',
-        startingTitle: 'starting',
-        startingDetail: 'starting detail',
-        unavailableTitle: 'unavailable',
-        unavailableDetail: 'unavailable detail',
-        onCaptured: captured.add,
+        overlay: overlay,
       ),
     ),
   );
@@ -123,8 +117,12 @@ void main() {
   setUp(() {
     platform = _FakeCameraPlatform([_front, _back]);
     CameraPlatform.instance = platform;
-    captured = [];
+    statuses = [];
+    controller = GhostCameraController()
+      ..addListener(() => statuses.add(controller.status));
   });
+
+  tearDown(() => controller.dispose());
 
   testWidgets('shows the back camera, held and captured in portrait', (
     tester,
@@ -139,14 +137,19 @@ void main() {
         return null;
       },
     );
-    await tester.pumpWidget(camera());
+    final gate = platform.initGate = Completer<void>();
+    await tester.pumpWidget(camera(overlay: const Text('overlay')));
+    await tester.pump();
+    expect(controller.status, GhostCameraStatus.starting);
+    expect(find.text('overlay'), findsNothing);
+    gate.complete();
     await tester.pumpAndSettle();
 
     expect(platform.opened, [_back]);
     expect(platform.locked, [DeviceOrientation.portraitUp]);
-    expect(find.byTooltip('capture'), findsOneWidget);
-    expect(find.byTooltip('switch'), findsOneWidget);
-    expect(find.text('unavailable'), findsNothing);
+    expect(controller.status, GhostCameraStatus.ready);
+    expect(controller.canSwitch, isTrue);
+    expect(find.text('overlay'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     expect(orientations, [
@@ -155,14 +158,25 @@ void main() {
     ]);
   });
 
-  testWidgets('capture hands the picture to the callback', (tester) async {
+  testWidgets('capture returns the picture', (tester) async {
     await tester.pumpWidget(camera());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('capture'));
-    await tester.pumpAndSettle();
+    final picture = await controller.capture();
 
-    expect(captured, ['/tmp/0.jpg']);
+    expect(picture, '/tmp/0.jpg');
+  });
+
+  testWidgets('capture before the camera is ready returns null', (
+    tester,
+  ) async {
+    platform.initGate = Completer<void>();
+    await tester.pumpWidget(camera());
+    await tester.pump();
+
+    expect(await controller.capture(), isNull);
+    platform.initGate!.complete();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('switching closes the camera and opens the other lens', (
@@ -170,41 +184,52 @@ void main() {
   ) async {
     await tester.pumpWidget(camera());
     await tester.pumpAndSettle();
+    statuses.clear();
 
-    await tester.tap(find.byTooltip('switch'));
+    await controller.switchCamera();
     await tester.pumpAndSettle();
 
     expect(platform.opened, [_back, _front]);
     expect(platform.disposed, [0]);
-    expect(find.byTooltip('capture'), findsOneWidget);
+    expect(statuses, [GhostCameraStatus.starting, GhostCameraStatus.ready]);
   });
 
-  testWidgets('one camera shows no switch', (tester) async {
+  testWidgets('one camera cannot switch', (tester) async {
     platform = _FakeCameraPlatform([_back]);
     CameraPlatform.instance = platform;
     await tester.pumpWidget(camera());
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('switch'), findsNothing);
+    expect(controller.status, GhostCameraStatus.ready);
+    expect(controller.canSwitch, isFalse);
   });
 
-  testWidgets('no camera shows the unavailable text', (tester) async {
+  testWidgets('no camera reports noCamera and draws nothing', (tester) async {
     platform = _FakeCameraPlatform([]);
     CameraPlatform.instance = platform;
-    await tester.pumpWidget(camera());
+    await tester.pumpWidget(camera(overlay: const Text('overlay')));
     await tester.pumpAndSettle();
 
-    expect(find.text('unavailable'), findsOneWidget);
-    expect(find.byTooltip('capture'), findsNothing);
+    expect(controller.status, GhostCameraStatus.noCamera);
+    expect(find.text('overlay'), findsNothing);
+    expect(await controller.capture(), isNull);
   });
 
-  testWidgets('refused access shows the unavailable text', (tester) async {
+  testWidgets('refused access reports accessDenied', (tester) async {
     platform.initError = CameraException('CameraAccessDenied', 'denied');
     await tester.pumpWidget(camera());
     await tester.pumpAndSettle();
 
-    expect(find.text('unavailable'), findsOneWidget);
+    expect(controller.status, GhostCameraStatus.accessDenied);
     expect(platform.disposed, [0]);
+  });
+
+  testWidgets('a camera that fails to start reports noCamera', (tester) async {
+    platform.initError = CameraException('setupFailed', 'broken');
+    await tester.pumpWidget(camera());
+    await tester.pumpAndSettle();
+
+    expect(controller.status, GhostCameraStatus.noCamera);
   });
 
   testWidgets('disposed while starting, it closes the camera quietly', (
@@ -221,6 +246,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(platform.disposed, [0]);
+    expect(await controller.capture(), isNull);
   });
 
   testWidgets('the ghost is mirrored on the front camera only', (tester) async {
@@ -236,7 +262,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(ghostMirrored(tester), isFalse);
 
-    await tester.tap(find.byTooltip('switch'));
+    await controller.switchCamera();
     await tester.pumpAndSettle();
     expect(ghostMirrored(tester), isTrue);
   });

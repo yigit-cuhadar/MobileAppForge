@@ -53,7 +53,7 @@ class MeshRenderer {
   /// ARGB per vertex, from the last [shade].
   final Int32List colors;
 
-  /// Opaque ARGB per part; the caller fills it before [shade].
+  /// ARGB per part; the caller fills it before [shade] (opaque) or [fill].
   final Int32List partColors;
 
   /// Visible triangles, back to front; the first [drawIndexCount] are valid.
@@ -210,6 +210,16 @@ class MeshRenderer {
       final g = (((argb >> 8) & 0xFF) * light).toInt();
       final b = ((argb & 0xFF) * light).toInt();
       colors[v] = 0xFF000000 | r << 16 | g << 8 | b;
+    }
+  }
+
+  /// Gives every vertex its part's colour from [partColors] unlit, alpha
+  /// included.
+  void fill() {
+    final parts = model.vertexParts;
+    final colors = this.colors, partColors = this.partColors;
+    for (var v = 0; v < colors.length; v++) {
+      colors[v] = partColors[parts[v]];
     }
   }
 

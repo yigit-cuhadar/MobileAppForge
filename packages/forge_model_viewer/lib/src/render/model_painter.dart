@@ -15,6 +15,9 @@ class ModelPainter extends CustomPainter {
     required this.partColors,
     required this.highlightedPart,
     required this.highlightColor,
+    required this.outlinedParts,
+    required this.outlineColor,
+    required this.outlineWidth,
   }) : super(repaint: controller);
 
   final MeshRenderer renderer;
@@ -23,8 +26,14 @@ class ModelPainter extends CustomPainter {
   final Map<String, Color> partColors;
   final String? highlightedPart;
   final Color highlightColor;
+  final Set<String> outlinedParts;
+  final Color outlineColor;
+  final double outlineWidth;
 
   final _paint = Paint();
+  // Each triangle replaces what is under it, so the mask keeps only what
+  // stays visible of the outlined parts.
+  final _maskPaint = Paint()..blendMode = BlendMode.src;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -47,6 +56,11 @@ class ModelPainter extends CustomPainter {
       argb[i] = color.toARGB32();
     }
     renderer.shade();
+    _draw(canvas, _paint);
+    if (outlinedParts.isNotEmpty) _outline(canvas, Offset.zero & size);
+  }
+
+  void _draw(Canvas canvas, Paint paint) {
     final vertices = Vertices.raw(
       VertexMode.triangles,
       renderer.screen,
@@ -58,8 +72,36 @@ class ModelPainter extends CustomPainter {
       ),
     );
     // BlendMode.dst keeps the vertex colours and ignores the paint's.
-    canvas.drawVertices(vertices, BlendMode.dst, _paint);
+    canvas.drawVertices(vertices, BlendMode.dst, paint);
     vertices.dispose();
+  }
+
+  /// Draws a ring [outlineWidth] wide around what is visible of the
+  /// outlined parts: the mask of those pixels grown by the width, minus the
+  /// mask itself.
+  void _outline(Canvas canvas, Rect bounds) {
+    final names = renderer.model.partNames;
+    final argb = renderer.partColors;
+    final outline = outlineColor.toARGB32();
+    for (var i = 0; i < names.length; i++) {
+      argb[i] = outlinedParts.contains(names[i]) ? outline : 0;
+    }
+    renderer.fill();
+    canvas.saveLayer(bounds, _paint);
+    canvas.saveLayer(
+      bounds,
+      Paint()
+        ..imageFilter = ImageFilter.dilate(
+          radiusX: outlineWidth,
+          radiusY: outlineWidth,
+        ),
+    );
+    _draw(canvas, _maskPaint);
+    canvas.restore();
+    canvas.saveLayer(bounds, Paint()..blendMode = BlendMode.dstOut);
+    _draw(canvas, _maskPaint);
+    canvas.restore();
+    canvas.restore();
   }
 
   @override
@@ -69,5 +111,8 @@ class ModelPainter extends CustomPainter {
       oldDelegate.baseColor != baseColor ||
       oldDelegate.highlightedPart != highlightedPart ||
       oldDelegate.highlightColor != highlightColor ||
-      !mapEquals(oldDelegate.partColors, partColors);
+      oldDelegate.outlineColor != outlineColor ||
+      oldDelegate.outlineWidth != outlineWidth ||
+      !mapEquals(oldDelegate.partColors, partColors) ||
+      !setEquals(oldDelegate.outlinedParts, outlinedParts);
 }
