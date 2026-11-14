@@ -84,7 +84,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Retry'));
+      await tester.tap(find.widgetWithText(ForgeButton, 'Retry'));
       expect(retries, 1);
     });
 

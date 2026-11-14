@@ -5,6 +5,7 @@ import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
+import 'forge_button.dart';
 import 'skeleton.dart';
 
 /// A card for one section of a page: the [title], a [detail] in data
@@ -111,7 +112,11 @@ class SectionCard extends StatelessWidget {
               style: text.bodySmall!.copyWith(color: colors.danger),
             ),
           ),
-          OutlinedButton(onPressed: onRetry, child: Text(retryLabel!)),
+          ForgeButton(
+            label: retryLabel!,
+            onPressed: onRetry,
+            variant: ForgeButtonVariant.outline,
+          ),
         ],
       ),
       _State.empty || _State.locked => Text(message!, style: text.bodySmall),

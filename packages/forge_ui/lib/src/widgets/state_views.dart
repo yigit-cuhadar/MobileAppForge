@@ -6,6 +6,7 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'busy_ring.dart';
 import 'card_frame.dart';
+import 'forge_button.dart';
 import 'skeleton.dart';
 
 /// Content loading: card-shaped skeletons under a slow shimmer, never a
@@ -73,7 +74,13 @@ class ErrorView extends StatelessWidget {
     iconColor: ForgeStyle.of(context).colors.danger,
     title: title,
     message: message,
-    actions: [OutlinedButton(onPressed: onRetry, child: Text(retryLabel))],
+    actions: [
+      ForgeButton(
+        label: retryLabel,
+        onPressed: onRetry,
+        variant: ForgeButtonVariant.outline,
+      ),
+    ],
     compact: compact,
   );
 }
