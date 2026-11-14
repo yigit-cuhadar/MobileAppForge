@@ -5,17 +5,22 @@ import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'day_circle.dart';
 
-/// One day of a [WeekStrip]: its weekday letter, date number and state.
+/// One day of a [WeekStrip]: its weekday letter, date number and state,
+/// and what a screen reader says for it.
 class WeekStripDay {
   const WeekStripDay({
     required this.weekday,
     required this.number,
     required this.state,
+    required this.semanticLabel,
   });
 
   final String weekday;
   final String number;
   final DayState state;
+
+  /// The day and its state in words, such as "Friday 13, done".
+  final String semanticLabel;
 }
 
 /// A week of day circles in a card under its [title], in the MonthGrid
@@ -48,23 +53,26 @@ class WeekStrip extends StatelessWidget {
           Expanded(
             child: Semantics(
               button: true,
+              label: day.semanticLabel,
               child: InkWell(
                 onTap: () => onDayTap(i),
                 borderRadius: BorderRadius.circular(style.radii.sm),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-                  child: Column(
-                    spacing: Gap.xs,
-                    children: [
-                      Text(
-                        day.weekday,
-                        style: text.labelMedium!.copyWith(
-                          color: style.colors.inkMuted,
-                          fontWeight: FontWeight.w400,
+                child: ExcludeSemantics(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                    child: Column(
+                      spacing: Gap.xs,
+                      children: [
+                        Text(
+                          day.weekday,
+                          style: text.labelMedium!.copyWith(
+                            color: style.colors.inkMuted,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
-                      ),
-                      DayCircle(state: day.state, number: day.number),
-                    ],
+                        DayCircle(state: day.state, number: day.number),
+                      ],
+                    ),
                   ),
                 ),
               ),

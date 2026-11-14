@@ -9,7 +9,7 @@ import 'forge_button.dart';
 
 /// Asks for a permission and says why, centred: an icon in a circle, a
 /// title, one sentence, the main button and an optional text button under
-/// it. In a card (the default) it replaces a page's content while the
+/// it; when the device lacks what is asked for, one secondary button. In a card (the default) it replaces a page's content while the
 /// permission is missing; with [page] it is an onboarding step and its main
 /// button is the 48px bottom-of-page one.
 class PermissionPrompt extends StatelessWidget {
@@ -79,6 +79,22 @@ class PermissionPrompt extends StatelessWidget {
        skipLabel = notNowLabel,
        onSkip = onNotNow;
 
+  /// The device lacks what the permission is for (no camera, say): [icon]
+  /// muted, no way to ask, and one secondary button to go on without it.
+  const PermissionPrompt.unavailable({
+    super.key,
+    required ForgeIconData this.icon,
+    required this.title,
+    required this.message,
+    required String skipLabel,
+    required VoidCallback onSkip,
+    this.page = false,
+  }) : _state = _State.unavailable,
+       actionLabel = skipLabel,
+       onAction = onSkip,
+       skipLabel = null,
+       onSkip = null;
+
   final ForgeIconData? icon;
   final String title;
   final String message;
@@ -102,6 +118,7 @@ class PermissionPrompt extends StatelessWidget {
       _State.refused => (ForgeIcons.block, colors.inkMuted),
       _State.failed => (ForgeIcons.error, colors.danger),
       _State.missing => (ForgeIcons.getApp, colors.ink),
+      _State.unavailable => (this.icon!, colors.inkMuted),
     };
     final skipLabel = this.skipLabel;
     final buttons = Column(
@@ -112,9 +129,11 @@ class PermissionPrompt extends StatelessWidget {
         ForgeButton(
           label: actionLabel,
           onPressed: onAction,
-          variant: _state == _State.failed
-              ? ForgeButtonVariant.outline
-              : ForgeButtonVariant.primary,
+          variant: switch (_state) {
+            _State.failed => ForgeButtonVariant.outline,
+            _State.unavailable => ForgeButtonVariant.secondary,
+            _ => ForgeButtonVariant.primary,
+          },
           size: page ? ForgeButtonSize.large : ForgeButtonSize.regular,
           trailingIcon: _state == _State.missing ? ForgeIcons.openInNew : null,
         ),
@@ -187,4 +206,4 @@ class PermissionPrompt extends StatelessWidget {
   }
 }
 
-enum _State { ask, refused, failed, missing }
+enum _State { ask, refused, failed, missing, unavailable }

@@ -122,4 +122,42 @@ void main() {
     await tester.tap(find.text('Not now'));
     expect(taps, ['get', 'later']);
   });
+
+  testWidgets('unavailable has one secondary button and nothing to ask', (
+    tester,
+  ) async {
+    var skipped = 0;
+    await pump(
+      tester,
+      PermissionPrompt.unavailable(
+        icon: ForgeIcons.noPhotography,
+        title: 'No [DEVICE] found',
+        message: 'This device has no [DEVICE].',
+        skipLabel: 'Skip',
+        onSkip: () => skipped++,
+      ),
+    );
+
+    expect(find.byType(ForgeButton), findsOneWidget);
+    expect(button(tester, 'Skip').variant, ForgeButtonVariant.secondary);
+    expect(button(tester, 'Skip').size, ForgeButtonSize.regular);
+    await tester.tap(find.text('Skip'));
+    expect(skipped, 1);
+  });
+
+  testWidgets('unavailable as a page has the 48px button', (tester) async {
+    await pump(
+      tester,
+      PermissionPrompt.unavailable(
+        icon: ForgeIcons.noPhotography,
+        title: 'No [DEVICE] found',
+        message: 'This device has no [DEVICE].',
+        skipLabel: 'Skip',
+        onSkip: () {},
+        page: true,
+      ),
+    );
+
+    expect(button(tester, 'Skip').size, ForgeButtonSize.large);
+  });
 }

@@ -41,10 +41,18 @@ class _LiveState extends State<_Live> {
   );
 }
 
+const _hinted = [
+  ChoiceOption(label: 'Option one', hint: '[HINT]'),
+  ChoiceOption(label: 'Option two', hint: '[HINT]'),
+  ChoiceOption(label: 'Option three', hint: '[HINT]'),
+  ChoiceOption(label: 'Option four', hint: '[HINT]'),
+];
+
 class _LiveList extends StatefulWidget {
-  const _LiveList({required this.form});
+  const _LiveList({required this.form, this.options = _hinted});
 
   final ChoiceListForm form;
+  final List<ChoiceOption> options;
 
   @override
   State<_LiveList> createState() => _LiveListState();
@@ -56,12 +64,7 @@ class _LiveListState extends State<_LiveList> {
   @override
   Widget build(BuildContext context) => ChoiceGrid.list(
     form: widget.form,
-    options: const [
-      ChoiceOption(label: 'Option one', hint: '[HINT]'),
-      ChoiceOption(label: 'Option two', hint: '[HINT]'),
-      ChoiceOption(label: 'Option three', hint: '[HINT]'),
-      ChoiceOption(label: 'Option four', hint: '[HINT]'),
-    ],
+    options: widget.options,
     selected: _selected,
     onSelected: (index) => setState(() => _selected = index),
   );
@@ -85,4 +88,40 @@ Widget choiceListInline(BuildContext context) => ListView(
 Widget choiceListStacked(BuildContext context) => ListView(
   padding: const EdgeInsets.all(Gap.md),
   children: const [_LiveList(form: ChoiceListForm.stacked)],
+);
+
+ChoiceListForm _formKnob(BuildContext context) => context.knobs.object.dropdown(
+  label: 'Form',
+  options: ChoiceListForm.values,
+  labelBuilder: (form) => form.name,
+);
+
+@widgetbook.UseCase(name: 'List, labels only', type: ChoiceGrid)
+Widget choiceListLabelsOnly(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    _LiveList(
+      form: _formKnob(context),
+      options: const [
+        ChoiceOption(label: 'Option one'),
+        ChoiceOption(label: 'Option two', hint: '[HINT]'),
+        ChoiceOption(label: 'Option three'),
+      ],
+    ),
+  ],
+);
+
+@widgetbook.UseCase(name: 'List, disabled row', type: ChoiceGrid)
+Widget choiceListDisabled(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    _LiveList(
+      form: _formKnob(context),
+      options: const [
+        ChoiceOption(label: 'Option one', hint: '[HINT]'),
+        ChoiceOption(label: 'Option two', hint: '[HINT]'),
+        ChoiceOption(label: 'Option three', hint: '[HINT]', enabled: false),
+      ],
+    ),
+  ],
 );

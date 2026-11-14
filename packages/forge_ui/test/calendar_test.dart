@@ -31,6 +31,7 @@ void main() {
               weekday: weekdays[i],
               number: '${9 + i}',
               state: i == 4 ? DayState.today : DayState.none,
+              semanticLabel: 'Day ${9 + i}',
             ),
         ],
         onDayTap: tapped.add,
@@ -40,6 +41,16 @@ void main() {
     await tester.tap(find.text('11'));
     await tester.tap(find.text('13'));
     expect(tapped, [2, 4]);
+    expect(
+      tester.getSemantics(find.text('13')),
+      matchesSemantics(
+        label: 'Day 13',
+        isButton: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+      ),
+    );
   });
 
   testWidgets('WeekStrip.plain draws no card or title', (tester) async {
@@ -53,6 +64,7 @@ void main() {
               weekday: weekdays[i],
               number: '${9 + i}',
               state: DayState.none,
+              semanticLabel: 'Day ${9 + i}',
             ),
         ],
         onDayTap: tapped.add,
@@ -63,6 +75,7 @@ void main() {
     expect(find.text('M'), findsOneWidget);
     await tester.tap(find.text('15'));
     expect(tapped, [6]);
+    expect(find.bySemanticsLabel('Day 15'), findsOneWidget);
   });
 
   group('MonthGrid', () {
