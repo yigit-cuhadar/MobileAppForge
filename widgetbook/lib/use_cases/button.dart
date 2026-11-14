@@ -180,3 +180,18 @@ Widget add(BuildContext context) => Center(
     ),
   ),
 );
+
+@widgetbook.UseCase(name: 'Trailing icon', type: ForgeButton)
+Widget trailingIcon(BuildContext context) => Center(
+  child: Padding(
+    padding: const EdgeInsets.all(Gap.md),
+    child: ForgeButton(
+      label: context.knobs.string(
+        label: 'Label',
+        initialValue: 'Get [SYSTEM APP]',
+      ),
+      trailingIcon: ForgeIcons.openInNew,
+      onPressed: () {},
+    ),
+  ),
+);

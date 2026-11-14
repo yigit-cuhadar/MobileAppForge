@@ -426,7 +426,8 @@ class _PlanSkeleton extends StatelessWidget {
 }
 
 /// Restore purchases: a quiet 40px link in ink-muted; while [busy] it is
-/// ink with a spinner.
+/// ink with a spinner, and while a purchase runs its label fades to
+/// line-strong.
 class _RestoreButton extends StatelessWidget {
   const _RestoreButton({
     required this.label,
@@ -441,7 +442,11 @@ class _RestoreButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
-    final ink = busy ? colors.ink : colors.inkMuted;
+    final ink = busy
+        ? colors.ink
+        : onTap == null
+        ? colors.lineStrong
+        : colors.inkMuted;
     return Semantics(
       button: true,
       enabled: onTap != null,
@@ -454,11 +459,7 @@ class _RestoreButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             spacing: Gap.sm,
             children: [
-              if (busy)
-                Opacity(
-                  opacity: 0.8,
-                  child: BusyRing(size: 16, stroke: 2, sweep: 0.75, color: ink),
-                ),
+              if (busy) BusyRing(size: 16, stroke: 2, sweep: 0.75, color: ink),
               Flexible(
                 child: Text(
                   label,

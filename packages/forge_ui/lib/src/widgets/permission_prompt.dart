@@ -62,7 +62,7 @@ class PermissionPrompt extends StatelessWidget {
        onSkip = null;
 
   /// The system app that holds the data is not installed: the main button
-  /// opens its store page.
+  /// opens its store page and ends with open-in-new.
   const PermissionPrompt.missing({
     super.key,
     required this.title,
@@ -116,6 +116,7 @@ class PermissionPrompt extends StatelessWidget {
               ? ForgeButtonVariant.outline
               : ForgeButtonVariant.primary,
           size: page ? ForgeButtonSize.large : ForgeButtonSize.regular,
+          trailingIcon: _state == _State.missing ? ForgeIcons.openInNew : null,
         ),
         if (skipLabel != null)
           ForgeButton(

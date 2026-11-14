@@ -117,6 +117,12 @@ void main() {
       find.widgetWithText(ForgeButton, 'Confirming with the store'),
     );
     expect(main.loading, isTrue);
+    expect(
+      tester.widget<Text>(find.text('Restore purchases')).style!.color,
+      ForgeStyle.of(tester.element(find.text('Restore purchases')))
+          .colors
+          .lineStrong,
+    );
     await tester.tap(find.text('Monthly'));
     await tester.tap(find.text('Restore purchases'));
     expect(taps, isEmpty);
