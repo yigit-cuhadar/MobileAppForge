@@ -88,3 +88,19 @@ Widget progressTrackThin(BuildContext context) => _card(
     thin: true,
   ),
 );
+
+@widgetbook.UseCase(name: 'Track · goal', type: Progress)
+Widget progressTrackGoal(BuildContext context) => _card(
+  Progress.track(
+    value: context.knobs.double.slider(
+      label: 'Value',
+      initialValue: 64,
+      max: 120,
+    ),
+    goal: 100,
+  ),
+);
+
+@widgetbook.UseCase(name: 'Track · goal reached', type: Progress)
+Widget progressTrackReached(BuildContext context) =>
+    _card(const Progress.track(value: 104, goal: 100));

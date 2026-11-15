@@ -71,4 +71,30 @@ void main() {
       ForgeTheme.tapMin,
     );
   });
+
+  testWidgets('the tap-only form calls onTap and never takes the keyboard', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: ForgeSearchField.tapOnly(hint: 'Search', onTap: () => taps++),
+        ),
+      ),
+    );
+
+    expect(find.byType(EditableText), findsNothing);
+    expect(
+      tester.getSize(find.byType(ForgeSearchField)).height,
+      ForgeTheme.tapMin,
+    );
+    await tester.tap(find.text('Search'));
+    await tester.pump();
+
+    expect(taps, 1);
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(find.bySemanticsLabel('Search'), findsOneWidget);
+  });
 }

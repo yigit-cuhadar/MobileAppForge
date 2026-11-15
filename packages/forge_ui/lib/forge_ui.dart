@@ -42,6 +42,7 @@ export 'src/widgets/permission_prompt.dart';
 export 'src/widgets/photo_tile.dart' show PhotoTile;
 export 'src/widgets/profile_header.dart';
 export 'src/widgets/progress.dart';
+export 'src/widgets/radio_mark.dart';
 export 'src/widgets/section_card.dart';
 export 'src/widgets/sign_in_page.dart';
 export 'src/widgets/skeleton.dart';

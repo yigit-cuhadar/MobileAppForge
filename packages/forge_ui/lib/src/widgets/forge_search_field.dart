@@ -15,25 +15,40 @@ class ForgeSearchField extends StatefulWidget {
   const ForgeSearchField({
     super.key,
     required this.hint,
-    required this.clearLabel,
-    required this.onChanged,
+    required String this.clearLabel,
+    required ValueChanged<String> this.onChanged,
     this.controller,
     this.onFilters,
     this.filtersLabel,
     this.activeFilters = 0,
-  }) : assert(onFilters == null || filtersLabel != null);
+  }) : assert(onFilters == null || filtersLabel != null),
+       onTap = null;
+
+  /// The pill with its [hint] only, never editable: [onTap] opens the page
+  /// where the search happens.
+  const ForgeSearchField.tapOnly({
+    super.key,
+    required this.hint,
+    required VoidCallback this.onTap,
+  }) : clearLabel = null,
+       onChanged = null,
+       controller = null,
+       onFilters = null,
+       filtersLabel = null,
+       activeFilters = 0;
 
   final String hint;
 
   /// The clear button's name for screen readers.
-  final String clearLabel;
-  final ValueChanged<String> onChanged;
+  final String? clearLabel;
+  final ValueChanged<String>? onChanged;
   final TextEditingController? controller;
   final VoidCallback? onFilters;
 
   /// The filter button's name for screen readers.
   final String? filtersLabel;
   final int activeFilters;
+  final VoidCallback? onTap;
 
   @override
   State<ForgeSearchField> createState() => _ForgeSearchFieldState();
@@ -74,14 +89,49 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
 
   void _clear() {
     _controller.clear();
-    widget.onChanged('');
+    widget.onChanged!('');
   }
+
+  Widget _tapOnly(ForgeStyle style, TextStyle body) => Semantics(
+    button: true,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      child: Container(
+        height: ForgeTheme.tapMin,
+        padding: const EdgeInsetsDirectional.only(start: Gap.md, end: Gap.sm),
+        decoration: BoxDecoration(
+          color: style.colors.surfaceSunken,
+          borderRadius: BorderRadius.circular(ForgeTheme.tapMin / 2),
+        ),
+        child: Row(
+          spacing: Gap.sm,
+          children: [
+            ForgeIcon(
+              ForgeIcons.search,
+              size: 18,
+              color: style.colors.inkMuted,
+            ),
+            Expanded(
+              child: Text(
+                widget.hint,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: body.copyWith(color: style.colors.inkSubtle),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final p = style.colors;
     final body = Theme.of(context).textTheme.bodyMedium!;
+    if (widget.onTap != null) return _tapOnly(style, body);
     final pill = Container(
       height: ForgeTheme.tapMin,
       padding: const EdgeInsetsDirectional.only(start: Gap.md, end: Gap.sm),

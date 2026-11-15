@@ -37,3 +37,7 @@ Widget withFilters(BuildContext context) => _padded(
     ),
   ),
 );
+
+@widgetbook.UseCase(name: 'Tap-only', type: ForgeSearchField)
+Widget tapOnly(BuildContext context) =>
+    _padded(ForgeSearchField.tapOnly(hint: 'Search', onTap: () {}));

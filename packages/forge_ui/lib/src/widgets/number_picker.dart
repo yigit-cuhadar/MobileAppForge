@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../spacing.dart';
 import '../theme/forge_style.dart';
+import '../theme/forge_theme.dart';
+import 'forge_dialog.dart';
 import 'numbers.dart';
 
 /// Picks a number from [min] to [max] in steps of [step] under its [label],
@@ -24,7 +26,9 @@ class NumberPicker extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.grouped = true,
-  }) : unit = null;
+  }) : unit = null,
+       _format = null,
+       _loop = false;
 
   /// The value large above a ruler of thin ticks with whole-number labels,
   /// under a fixed accent pointer; dragging left picks larger values.
@@ -38,7 +42,26 @@ class NumberPicker extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.grouped = true,
-  });
+  }) : _format = null,
+       _loop = false;
+
+  /// A bare wheel of [count] rows written by [format], for [ForgeTimeWheel]:
+  /// [label] goes to screen readers only; with [loop], the last row is
+  /// followed by the first.
+  NumberPicker._column({
+    required this.label,
+    required int count,
+    required int index,
+    required String Function(int index) this._format,
+    required ValueChanged<int> onIndex,
+    this._loop = false,
+  }) : min = 0,
+       max = count - 1.0,
+       step = 1,
+       value = index.toDouble(),
+       onChanged = ((value) => onIndex(value.round())),
+       unit = null,
+       grouped = false;
 
   final String label;
   final String? unit;
@@ -50,6 +73,8 @@ class NumberPicker extends StatefulWidget {
 
   /// Groups the thousands ("1,000"); false for a value such as a year.
   final bool grouped;
+  final String Function(int index)? _format;
+  final bool _loop;
 
   static const double wheelHeight = 200;
   static const double rulerHeight = 52;
@@ -93,11 +118,20 @@ class _NumberPickerState extends State<NumberPicker>
 
   double _valueAt(int index) => stepValue(widget.min, widget.step, index);
 
-  String _text(int index) => formatNumber(
-    _valueAt(index.clamp(0, _count - 1)),
-    decimalsOf(widget.step),
-    grouped: widget.grouped,
-  );
+  /// [index] brought into the picker's range: round it on a looping wheel,
+  /// at the nearest end otherwise.
+  int _wrap(int index) =>
+      widget._loop ? index % _count : index.clamp(0, _count - 1);
+
+  String _text(int index) {
+    final at = _wrap(index);
+    return widget._format?.call(at) ??
+        formatNumber(
+          _valueAt(at),
+          decimalsOf(widget.step),
+          grouped: widget.grouped,
+        );
+  }
 
   double get _pixelsPerStep => _ruler
       ? _width / NumberPicker.rulerSpan * widget.step
@@ -123,7 +157,7 @@ class _NumberPickerState extends State<NumberPicker>
 
   void _onMove() {
     if (_following) return;
-    final index = _position.value.round().clamp(0, _count - 1);
+    final index = _wrap(_position.value.round());
     if (index == _index) return;
     _index = index;
     HapticFeedback.selectionClick();
@@ -144,10 +178,8 @@ class _NumberPickerState extends State<NumberPicker>
   void _drag(double pixels) {
     if (_pixelsPerStep <= 0) return;
     _position.stop();
-    _position.value = (_position.value + pixels / _pixelsPerStep).clamp(
-      0,
-      _count - 1,
-    );
+    final next = _position.value + pixels / _pixelsPerStep;
+    _position.value = widget._loop ? next : next.clamp(0, _count - 1);
   }
 
   /// Comes to rest on a step, a little further along a fling.
@@ -155,8 +187,9 @@ class _NumberPickerState extends State<NumberPicker>
     final projected = _pixelsPerStep <= 0
         ? _position.value
         : _position.value + velocity / _pixelsPerStep * 0.2;
+    final rest = projected.round();
     _position.animateTo(
-      projected.round().clamp(0, _count - 1).toDouble(),
+      (widget._loop ? rest : rest.clamp(0, _count - 1)).toDouble(),
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutCubic,
     );
@@ -175,25 +208,27 @@ class _NumberPickerState extends State<NumberPicker>
         value: _text(_index),
         increasedValue: _text(_index + 1),
         decreasedValue: _text(_index - 1),
-        onIncrease: () =>
-            _jump((_index + 1).clamp(0, _count - 1), report: true),
-        onDecrease: () =>
-            _jump((_index - 1).clamp(0, _count - 1), report: true),
+        onIncrease: () => _jump(_wrap(_index + 1), report: true),
+        onDecrease: () => _jump(_wrap(_index - 1), report: true),
         child: child,
       ),
       child: ExcludeSemantics(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: Gap.sm,
-          children: [
-            Text(
-              widget.label,
-              style: text.labelMedium!.copyWith(color: style.colors.inkMuted),
-            ),
-            picker,
-          ],
-        ),
+        child: widget._format != null
+            ? picker
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: Gap.sm,
+                children: [
+                  Text(
+                    widget.label,
+                    style: text.labelMedium!.copyWith(
+                      color: style.colors.inkMuted,
+                    ),
+                  ),
+                  picker,
+                ],
+              ),
       ),
     );
   }
@@ -210,12 +245,13 @@ class _NumberPickerState extends State<NumberPicker>
           animation: _position,
           builder: (context, _) {
             final at = _position.value;
+            int row(int i) => widget._loop ? i : i.clamp(0, _count - 1);
             return Stack(
               alignment: Alignment.center,
               children: [
                 for (
-                  var i = (at - 4).ceil().clamp(0, _count - 1);
-                  i <= (at + 4).floor().clamp(0, _count - 1);
+                  var i = row((at - 4).ceil());
+                  i <= row((at + 4).floor());
                   i++
                 )
                   _wheelRow(style, i, i - at),
@@ -424,4 +460,130 @@ class _RulerPainter extends CustomPainter {
       old.minor != minor ||
       old.pointer != pointer ||
       old.labelStyle != labelStyle;
+}
+
+/// Shows a [ForgeTimeWheel] over a scrim; a tap outside closes it.
+Future<void> showForgeTimeWheel({
+  required BuildContext context,
+  required TimeOfDay initial,
+  required ValueChanged<TimeOfDay> onChanged,
+}) => showDialog<void>(
+  context: context,
+  builder: (context) => ForgeTimeWheel(initial: initial, onChanged: onChanged),
+);
+
+/// A centred dialog with no title and no buttons: wheels for the hours, the
+/// minutes and AM/PM, as [NumberPicker.wheel] draws them, the centre row on
+/// a band. Hours and minutes go round. Where the device uses 24-hour time
+/// ([MediaQuery.alwaysUse24HourFormatOf]), the hours run 0 to 23 and AM/PM
+/// goes. [onChanged] reports each step a wheel moves to.
+class ForgeTimeWheel extends StatefulWidget {
+  const ForgeTimeWheel({
+    super.key,
+    required this.initial,
+    required this.onChanged,
+  });
+
+  final TimeOfDay initial;
+  final ValueChanged<TimeOfDay> onChanged;
+
+  @override
+  State<ForgeTimeWheel> createState() => _ForgeTimeWheelState();
+}
+
+class _ForgeTimeWheelState extends State<ForgeTimeWheel> {
+  late TimeOfDay _time = widget.initial;
+
+  static const _columnWidth = 64.0;
+
+  void _set({int? hour, int? minute}) {
+    setState(
+      () => _time = TimeOfDay(
+        hour: hour ?? _time.hour,
+        minute: minute ?? _time.minute,
+      ),
+    );
+    widget.onChanged(_time);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final words = MaterialLocalizations.of(context);
+    final style = ForgeStyle.of(context);
+    final h24 = MediaQuery.alwaysUse24HourFormatOf(context);
+    final pm = _time.period == DayPeriod.pm;
+    final hours = h24
+        ? NumberPicker._column(
+            label: words.timePickerHourLabel,
+            count: 24,
+            index: _time.hour,
+            format: (i) => words.formatHour(
+              TimeOfDay(hour: i, minute: 0),
+              alwaysUse24HourFormat: true,
+            ),
+            onIndex: (i) => _set(hour: i),
+            loop: true,
+          )
+        // Rows 1 to 12, at indexes 0 to 11.
+        : NumberPicker._column(
+            label: words.timePickerHourLabel,
+            count: 12,
+            index: _time.hourOfPeriod == 0 ? 11 : _time.hourOfPeriod - 1,
+            format: (i) => words.formatHour(TimeOfDay(hour: i + 1, minute: 0)),
+            onIndex: (i) => _set(hour: (i + 1) % 12 + (pm ? 12 : 0)),
+            loop: true,
+          );
+    final minutes = NumberPicker._column(
+      label: words.timePickerMinuteLabel,
+      count: 60,
+      index: _time.minute,
+      format: (i) => words.formatMinute(TimeOfDay(hour: 0, minute: i)),
+      onIndex: (i) => _set(minute: i),
+      loop: true,
+    );
+    final period = NumberPicker._column(
+      label: '',
+      count: 2,
+      index: pm ? 1 : 0,
+      format: (i) => i == 0
+          ? words.anteMeridiemAbbreviation
+          : words.postMeridiemAbbreviation,
+      onIndex: (i) => _set(hour: _time.hour % 12 + (i == 1 ? 12 : 0)),
+    );
+    return Dialog(
+      insetPadding: const EdgeInsets.all(Gap.md),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: ForgeDialog.maxWidth),
+        child: Semantics(
+          namesRoute: true,
+          scopesRoute: true,
+          explicitChildNodes: true,
+          label: words.timePickerDialHelpText,
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.md),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  height: ForgeTheme.tapMin,
+                  decoration: BoxDecoration(
+                    color: style.colors.surfaceSunken,
+                    borderRadius: BorderRadius.circular(style.radii.md),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: Gap.sm,
+                  children: [
+                    for (final wheel in [hours, minutes, if (!h24) period])
+                      SizedBox(width: _columnWidth, child: wheel),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
