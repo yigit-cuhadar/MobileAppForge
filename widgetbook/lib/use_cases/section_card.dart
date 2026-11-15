@@ -67,3 +67,34 @@ Widget lockedSectionCard(BuildContext context) => _page(
     message: '[PREMIUM FEATURE ONE] with Premium.',
   ),
 );
+
+@widgetbook.UseCase(name: 'Plain', type: SectionCard)
+Widget plainSectionCard(BuildContext context) => _page(
+  Column(
+    spacing: Gap.sm,
+    children: [
+      const SectionCard.plain(
+        title: 'Section title',
+        child: Text('One line of content about this section.'),
+      ),
+      SectionCard.plain(
+        title: 'Section title',
+        actionLabel: context.knobs.string(
+          label: 'Action',
+          initialValue: 'Edit',
+        ),
+        onAction: () {},
+        child: const Text('[VALUE]'),
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Plain, no content', type: SectionCard)
+Widget plainEmptySectionCard(BuildContext context) => _page(
+  SectionCard.plain(
+    title: 'Section title',
+    actionLabel: context.knobs.string(label: 'Action', initialValue: 'Add'),
+    onAction: () {},
+  ),
+);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -126,6 +127,119 @@ void main() {
       expect(controller.text, 'Item ');
       expect(find.textContaining('/5'), findsNothing);
       expect(tester.getSize(find.byType(TextField)).height, 44);
+    });
+
+    testWidgets('a caller-set error shows and goes as the caller changes it', (
+      tester,
+    ) async {
+      final changes = <String>[];
+      Widget field(String? error) => ForgeTextField(
+        label: 'Count',
+        errorText: error,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        onChanged: changes.add,
+      );
+      await pump(tester, field('Enter a number'));
+      final colors = ForgeStyle.of(tester.element(find.byType(TextField)))
+          .colors;
+
+      expect(find.text('Enter a number'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Count')).style!.color,
+        colors.danger,
+      );
+
+      await tester.enterText(find.byType(TextField), '1a2');
+      expect(changes, ['12']);
+      expect(find.text('12'), findsOneWidget);
+
+      await pump(tester, field(null));
+      expect(find.text('Enter a number'), findsNothing);
+    });
+
+    testWidgets('the tap-only form looks like the field and calls onTap', (
+      tester,
+    ) async {
+      var taps = 0;
+      await pump(
+        tester,
+        Column(
+          children: [
+            const ForgeTextField(label: 'Typed', hint: 'Hint'),
+            ForgeTextField.tapOnly(
+              label: 'Picked',
+              value: '[VALUE]',
+              onTap: () => taps++,
+            ),
+          ],
+        ),
+      );
+      final box = find.byType(InputDecorator).last;
+
+      expect(find.byType(EditableText), findsOneWidget);
+      expect(
+        tester.getSize(box).height,
+        tester.getSize(find.byType(TextField)).height,
+      );
+      expect(find.text('[VALUE]'), findsOneWidget);
+
+      await tester.tap(find.text('[VALUE]'));
+      await tester.pump();
+      expect(taps, 1);
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(
+        tester.getSemantics(find.text('Picked')),
+        matchesSemantics(
+          isButton: true,
+          hasTapAction: true,
+          label: 'Picked\n[VALUE]',
+        ),
+      );
+    });
+
+    testWidgets('the tap-only form shows the hint until there is a value', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        ForgeTextField.tapOnly(
+          label: 'Picked',
+          value: null,
+          hint: 'Pick one',
+          onTap: () {},
+        ),
+      );
+
+      expect(find.text('Pick one'), findsOneWidget);
+    });
+
+    testWidgets('autofocus raises the keyboard as a dialog opens', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showForgeDialog<void>(
+              context: context,
+              builder: (_) => const ForgeDialog(
+                title: 'Item title',
+                message: 'One line.',
+                field: ForgeTextField(label: 'Name', autofocus: true),
+                action: SizedBox(),
+                cancel: SizedBox(),
+              ),
+            ),
+            child: const Text('Open'),
+          ),
+        ),
+      );
+      expect(tester.testTextInput.isVisible, isFalse);
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(tester.testTextInput.isVisible, isTrue);
     });
 
     testWidgets('reads the label out with the field', (tester) async {

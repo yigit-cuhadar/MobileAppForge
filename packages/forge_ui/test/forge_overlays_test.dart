@@ -321,6 +321,60 @@ void main() {
       expect(find.byType(ForgeIcon), findsOneWidget);
     });
 
+    testWidgets('an icon sits before each label, danger in a destructive row', (
+      tester,
+    ) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: ForgeMenu(
+              items: [
+                ForgeMenuItem(
+                  label: 'Edit',
+                  icon: ForgeIcons.edit,
+                  onTap: () => taps++,
+                ),
+                ForgeMenuItem(
+                  label: 'Delete',
+                  icon: ForgeIcons.delete,
+                  destructive: true,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final colors = ForgeStyle.of(tester.element(find.byType(ForgeMenu)))
+          .colors;
+      ForgeIcon icon(ForgeIconData data) => tester.widget<ForgeIcon>(
+        find.byWidgetPredicate((w) => w is ForgeIcon && w.icon == data),
+      );
+
+      expect(icon(ForgeIcons.edit).color, colors.ink);
+      expect(icon(ForgeIcons.delete).color, colors.danger);
+      expect(
+        tester.getTopRight(find.byType(ForgeIcon).first).dx,
+        lessThan(tester.getTopLeft(find.text('Edit')).dx),
+      );
+      await tester.tap(find.byType(ForgeIcon).first);
+      expect(taps, 1);
+    });
+
+    test('every row has an icon, or none', () {
+      expect(
+        () => ForgeMenu(
+          items: [
+            ForgeMenuItem(label: 'Edit', icon: ForgeIcons.edit, onTap: () {}),
+            ForgeMenuItem(label: 'Other', onTap: () {}),
+          ],
+        ),
+        throwsAssertionError,
+      );
+    });
+
     test('only the last row may be destructive', () {
       expect(
         () => ForgeMenu(
@@ -356,6 +410,34 @@ void main() {
       await tester.tapAt(const Offset(20, 500));
       await tester.pumpAndSettle();
       expect(find.byType(ForgeInfoCard), findsNothing);
+    });
+
+    testWidgets('a note sits in its own muted row under the facts', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        (context) => showForgeInfo(
+          context: context,
+          title: '[VALUE]',
+          facts: const [('Fact one', '[VALUE]')],
+          note: 'One line about the value.',
+        ),
+      );
+      await open(tester);
+      final colors = ForgeStyle.of(tester.element(find.byType(ForgeInfoCard)))
+          .colors;
+      final note = find.text('One line about the value.');
+
+      expect(tester.widget<Text>(note).style!.color, colors.inkMuted);
+      expect(
+        tester.getTopLeft(note).dy,
+        greaterThan(tester.getBottomLeft(find.text('Fact one')).dy),
+      );
+      expect(
+        tester.getRect(note).right,
+        lessThanOrEqualTo(tester.getRect(find.byType(ForgeInfoCard)).right),
+      );
     });
 
     testWidgets('a long value wraps, right-aligned, inside the card', (

@@ -41,3 +41,40 @@ Widget withFilters(BuildContext context) => _padded(
 @widgetbook.UseCase(name: 'Tap-only', type: ForgeSearchField)
 Widget tapOnly(BuildContext context) =>
     _padded(ForgeSearchField.tapOnly(hint: 'Search', onTap: () {}));
+
+@widgetbook.UseCase(name: 'Focused by the page', type: ForgeSearchField)
+Widget focusedByPage(BuildContext context) => const _FocusedByPage();
+
+class _FocusedByPage extends StatefulWidget {
+  const _FocusedByPage();
+
+  @override
+  State<_FocusedByPage> createState() => _FocusedByPageState();
+}
+
+class _FocusedByPageState extends State<_FocusedByPage> {
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // A page waits for its route's slide-in; here, for the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _padded(
+    ForgeSearchField(
+      hint: 'Search',
+      clearLabel: 'Clear',
+      focusNode: _focus,
+      onChanged: (_) {},
+    ),
+  );
+}

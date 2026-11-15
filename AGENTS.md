@@ -42,6 +42,26 @@ notes of the feature you will touch, continue.
   summary. Work that does not depend on the answer goes on meanwhile.
 - Sub-agents never take these decisions: they stop and report each one with
   2-4 options and a recommendation, and the main session asks the user.
+- The owner decides from drawings. Every design-phase question (looks,
+  texts, flows, and any choice a board or an earlier answer leaves open) is
+  drawn before it is asked:
+  - One Design canvas artifact per batch (Artifact type "Design"), one
+    artboard row per decision, rows in one column in the order they will be
+    asked. A row is named "<code> · <short question>" with a one or two line
+    intro (in the owner's language) on what differs and why it is a decision.
+  - Columns, each a 390px phone drawn as a real screen in the studio's look
+    with every element present: first "Bugün" (what the code does now, or
+    "Pano" when only the board has it), then "A · …", "B · …" with a one-line
+    note. Exactly one option is "Öneri", with a green tag and border. Only the
+    option's difference changes between columns; nothing is clipped.
+  - Different states or aspects get separate rows, never rival bundles.
+  - Then ask in canvas order, one decision per question (up to four per
+    question dialog), recommendation first and labelled "(Önerilen)",
+    naming the row. Record each answer at once; an answer that adds
+    something new becomes a new drawn row before it is built.
+  - The app's SPEC links each batch's canvas under Design.
+- Colours stay muted: neutral grounds, one desaturated accent, colour only for
+  status.
 - Decide the rest yourself and note it in `SPEC.md`: app-wide decisions under
   Decisions, how a feature behaves under Feature notes.
 - Never ask the user to do by hand what an API or CLI can do. If a credential
@@ -163,6 +183,10 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
   result.
 - Never two Flutter builds or simulator runs at once: sub-agents only format,
   analyze and unit-test; the Architect does every device check, one at a time.
+- Memory turns into swap on the same disk: run tests with `--timeout 60s`,
+  never build while an agent runs the full suite, and kill a runaway
+  `flutter_tester` first when free disk drops. After a device check delete the
+  worktree's `build/` and its `DerivedData/Runner-*` entry.
 - Analyze and test only what you changed; CI covers the rest.
 
 ## Roles

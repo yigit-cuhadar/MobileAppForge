@@ -206,5 +206,34 @@ void main() {
       expect(taps, 1);
       expect(tester.getSize(find.byType(ForgeAddButton)).width, 800);
     });
+
+    testWidgets('without onPressed it is line-strong and reads disabled', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const ForgeAddButton(label: 'Add item', onPressed: null),
+      );
+      final colors = ForgeStyle.of(tester.element(find.byType(ForgeAddButton)))
+          .colors;
+
+      expect(
+        tester.widget<Text>(find.text('Add item')).style!.color,
+        colors.lineStrong,
+      );
+      expect(
+        tester.widget<ForgeIcon>(find.byType(ForgeIcon)).color,
+        colors.lineStrong,
+      );
+      expect(
+        tester.getSemantics(find.byType(ForgeAddButton)),
+        matchesSemantics(
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: false,
+          label: 'Add item',
+        ),
+      );
+    });
   });
 }

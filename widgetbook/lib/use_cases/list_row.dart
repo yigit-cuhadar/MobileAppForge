@@ -31,6 +31,23 @@ Widget plainRows(BuildContext context) => _page(
   ),
 );
 
+@widgetbook.UseCase(name: 'Long list, built on demand', type: ListRow)
+Widget lazyRows(BuildContext context) => CustomScrollView(
+  slivers: [
+    SliverPadding(
+      padding: const EdgeInsets.all(Gap.md),
+      sliver: ListRowCard.sliver(
+        itemCount: 400,
+        itemBuilder: (context, i) => ListRow(
+          title: 'Item ${i + 1}',
+          end: ListRowEnd.chevron,
+          onTap: () {},
+        ),
+      ),
+    ),
+  ],
+);
+
 @widgetbook.UseCase(name: 'Leading date box', type: ListRow)
 Widget dateBoxRows(BuildContext context) => _page(
   ListRowCard(
@@ -209,6 +226,22 @@ Widget lockedRows(BuildContext context) => _page(
         end: ListRowEnd.chevron,
         onTap: () {},
       ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Disabled', type: ListRow)
+Widget disabledRows(BuildContext context) => _page(
+  ListRowCard(
+    children: [
+      ListRow(title: 'Item one', end: ListRowEnd.chevron, onTap: () {}),
+      ListRow(
+        title: 'Item two · [VALUE]',
+        disabled: context.knobs.boolean(label: 'Disabled', initialValue: true),
+        end: ListRowEnd.chevron,
+        onTap: () {},
+      ),
+      ListRow(title: 'Item three', end: ListRowEnd.chevron, onTap: () {}),
     ],
   ),
 );

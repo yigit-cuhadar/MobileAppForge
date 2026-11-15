@@ -38,6 +38,36 @@ Widget selectedMenu(BuildContext context) => _centred(
   ),
 );
 
+@widgetbook.UseCase(name: 'With icons', type: ForgeMenu)
+Widget iconMenu(BuildContext context) => _centred(
+  ForgeMenu(
+    items: [
+      ForgeMenuItem(label: 'Rename', icon: ForgeIcons.edit, onTap: () {}),
+      ForgeMenuItem(
+        label: 'Duplicate',
+        icon: ForgeIcons.contentCopy,
+        onTap: () {},
+      ),
+      ForgeMenuItem(
+        label: 'Move up',
+        icon: ForgeIcons.arrowUpward,
+        onTap: () {},
+      ),
+      ForgeMenuItem(
+        label: 'Move down',
+        icon: ForgeIcons.arrowDownward,
+        onTap: () {},
+      ),
+      ForgeMenuItem(
+        label: 'Delete',
+        icon: ForgeIcons.delete,
+        destructive: true,
+        onTap: () {},
+      ),
+    ],
+  ),
+);
+
 @widgetbook.UseCase(name: 'Opened from more button', type: ForgeMenu)
 Widget openedMenu(BuildContext context) => Padding(
   padding: const EdgeInsets.all(Gap.md),
@@ -70,6 +100,18 @@ const _facts = [
 @widgetbook.UseCase(name: 'Info', type: ForgeInfoCard)
 Widget infoCard(BuildContext context) =>
     _centred(const ForgeInfoCard(title: '[VALUE] on [DETAIL]', facts: _facts));
+
+@widgetbook.UseCase(name: 'Info, with a note', type: ForgeInfoCard)
+Widget infoCardNote(BuildContext context) => _centred(
+  ForgeInfoCard(
+    title: '[VALUE]',
+    facts: const [('Fact one', '[VALUE]')],
+    note: context.knobs.string(
+      label: 'Note',
+      initialValue: 'One line about the value.',
+    ),
+  ),
+);
 
 @widgetbook.UseCase(name: 'Info, long value', type: ForgeInfoCard)
 Widget infoCardLongValue(BuildContext context) => _centred(

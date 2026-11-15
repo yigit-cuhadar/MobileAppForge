@@ -18,6 +18,7 @@ class ForgeSearchField extends StatefulWidget {
     required String this.clearLabel,
     required ValueChanged<String> this.onChanged,
     this.controller,
+    this.focusNode,
     this.onFilters,
     this.filtersLabel,
     this.activeFilters = 0,
@@ -33,6 +34,7 @@ class ForgeSearchField extends StatefulWidget {
   }) : clearLabel = null,
        onChanged = null,
        controller = null,
+       focusNode = null,
        onFilters = null,
        filtersLabel = null,
        activeFilters = 0;
@@ -43,6 +45,9 @@ class ForgeSearchField extends StatefulWidget {
   final String? clearLabel;
   final ValueChanged<String>? onChanged;
   final TextEditingController? controller;
+
+  /// Lets the page focus the field, such as once its route has slid in.
+  final FocusNode? focusNode;
   final VoidCallback? onFilters;
 
   /// The filter button's name for screen readers.
@@ -55,8 +60,10 @@ class ForgeSearchField extends StatefulWidget {
 }
 
 class _ForgeSearchFieldState extends State<ForgeSearchField> {
-  final _focus = FocusNode();
+  FocusNode? _ownFocus;
   TextEditingController? _own;
+
+  FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
   TextEditingController get _controller =>
       widget.controller ?? (_own ??= TextEditingController());
@@ -75,6 +82,10 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
       (old.controller ?? _own)?.removeListener(_refresh);
       _controller.addListener(_refresh);
     }
+    if (old.focusNode != widget.focusNode) {
+      (old.focusNode ?? _ownFocus)?.removeListener(_refresh);
+      _focus.addListener(_refresh);
+    }
   }
 
   void _refresh() => setState(() {});
@@ -82,7 +93,8 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
   @override
   void dispose() {
     _controller.removeListener(_refresh);
-    _focus.dispose();
+    _focus.removeListener(_refresh);
+    _ownFocus?.dispose();
     _own?.dispose();
     super.dispose();
   }

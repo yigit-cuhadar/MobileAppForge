@@ -181,6 +181,14 @@ Widget add(BuildContext context) => Center(
   ),
 );
 
+@widgetbook.UseCase(name: 'Add · disabled', type: ForgeAddButton)
+Widget addDisabled(BuildContext context) => const Center(
+  child: Padding(
+    padding: EdgeInsets.all(Gap.md),
+    child: ForgeAddButton(label: 'Add item', onPressed: null),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Trailing icon', type: ForgeButton)
 Widget trailingIcon(BuildContext context) => Center(
   child: Padding(

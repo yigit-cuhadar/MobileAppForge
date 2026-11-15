@@ -119,3 +119,37 @@ Widget valueAppBar(BuildContext context) => _valueBar(context, loading: false);
 @widgetbook.UseCase(name: 'Value · action loading', type: ForgeAppBar)
 Widget valueLoadingAppBar(BuildContext context) =>
     _valueBar(context, loading: true);
+
+@widgetbook.UseCase(name: 'Toggled icon', type: ForgeAppBar)
+Widget toggledAppBar(BuildContext context) => const _Toggled();
+
+class _Toggled extends StatefulWidget {
+  const _Toggled();
+
+  @override
+  State<_Toggled> createState() => _ToggledState();
+}
+
+class _ToggledState extends State<_Toggled> {
+  bool _on = true;
+
+  @override
+  Widget build(BuildContext context) => _pushed(
+    ForgeAppBar(
+      title: 'Item title',
+      actions: [
+        ForgeAppBarAction.icon(
+          icon: ForgeIcons.star,
+          label: 'Favourite',
+          toggled: _on,
+          onPressed: () => setState(() => _on = !_on),
+        ),
+        ForgeAppBarAction.icon(
+          icon: ForgeIcons.moreHoriz,
+          label: 'More',
+          onPressed: () {},
+        ),
+      ],
+    ),
+  );
+}

@@ -104,3 +104,25 @@ Widget progressTrackGoal(BuildContext context) => _card(
 @widgetbook.UseCase(name: 'Track · goal reached', type: Progress)
 Widget progressTrackReached(BuildContext context) =>
     _card(const Progress.track(value: 104, goal: 100));
+
+@widgetbook.UseCase(name: 'Indeterminate · under the app bar', type: Progress)
+Widget progressIndeterminate(BuildContext context) => Scaffold(
+  appBar: const ForgeAppBar(title: 'Item title'),
+  body: Column(
+    children: [
+      const Progress.indeterminate(label: 'Saving'),
+      Expanded(
+        child: ListView(
+          padding: const EdgeInsets.all(Gap.md),
+          children: [
+            ListRowCard(
+              children: [
+                for (final i in [1, 2, 3]) ListRow(title: 'Item $i'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+);

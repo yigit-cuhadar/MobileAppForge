@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:forge_ui/forge_ui.dart';
 import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
@@ -50,6 +51,30 @@ class _ErrorState extends State<_Error> {
       label: 'Name',
       validator: (v) => v!.isEmpty ? 'Enter a name.' : null,
     ),
+  );
+}
+
+@widgetbook.UseCase(name: 'Live error', type: ForgeTextField)
+Widget liveError(BuildContext context) => _padded(const _LiveError());
+
+class _LiveError extends StatefulWidget {
+  const _LiveError();
+
+  @override
+  State<_LiveError> createState() => _LiveErrorState();
+}
+
+class _LiveErrorState extends State<_LiveError> {
+  String _text = '';
+
+  @override
+  Widget build(BuildContext context) => ForgeTextField(
+    label: 'Amount',
+    hint: '[VALUE]',
+    keyboardType: TextInputType.number,
+    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+    errorText: _text.isEmpty ? 'Enter an amount.' : null,
+    onChanged: (text) => setState(() => _text = text),
   );
 }
 
@@ -144,5 +169,46 @@ Widget compactNumbers(BuildContext context) => _padded(
           ),
         ),
     ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Tap-only', type: ForgeTextField)
+Widget tapOnly(BuildContext context) => _padded(
+  Column(
+    mainAxisSize: MainAxisSize.min,
+    spacing: Gap.md,
+    children: [
+      ForgeTextField.tapOnly(label: 'Value', value: '1:30', onTap: () {}),
+      ForgeTextField.tapOnly(
+        label: 'Value',
+        value: null,
+        hint: '[VALUE]',
+        onTap: () {},
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'In a dialog, focused', type: ForgeTextField)
+Widget inDialog(BuildContext context) => Center(
+  child: ForgeButton(
+    label: 'Open',
+    onPressed: () => showForgeDialog<void>(
+      context: context,
+      builder: (context) => ForgeDialog(
+        title: 'Item title',
+        message: 'One line about the field.',
+        field: const ForgeTextField(label: 'Name', autofocus: true),
+        action: ForgeButton(
+          label: 'Save',
+          onPressed: () => Navigator.pop(context),
+        ),
+        cancel: ForgeButton(
+          label: 'Cancel',
+          variant: ForgeButtonVariant.secondary,
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+    ),
   ),
 );

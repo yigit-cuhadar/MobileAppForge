@@ -122,6 +122,43 @@ void main() {
       expect(textColor(tester, 'Goal reached'), colors(tester).success);
       expect(tester.getSize(find.byType(Progress)), const Size(136, 136));
     });
+
+    testWidgets('the indeterminate line runs full width, still with less '
+        'motion, and is read out', (tester) async {
+      await pump(tester, const Progress.indeterminate(label: 'Saving'));
+      Rect runner() => tester.getRect(
+        find
+            .descendant(
+              of: find.byType(Progress),
+              matching: find.byType(DecoratedBox),
+            )
+            .last,
+      );
+
+      final line = tester.getRect(find.byType(Progress));
+      expect(line.height, 3);
+      expect(line.width, 800 - 2 * Gap.md);
+      expect(find.bySemanticsLabel('Saving'), findsOneWidget);
+
+      await tester.pump(const Duration(milliseconds: 700));
+      final moving = runner();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(runner(), isNot(moving));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(body: Progress.indeterminate(label: 'Saving')),
+          ),
+        ),
+      );
+      final still = runner();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(runner(), still);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
   });
 
   group('state views', () {

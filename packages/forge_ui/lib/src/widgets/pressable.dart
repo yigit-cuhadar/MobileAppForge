@@ -8,12 +8,14 @@ class Pressable extends StatefulWidget {
   const Pressable({
     super.key,
     required this.onTap,
+    this.onLongPress,
     required this.height,
     this.width,
     required this.builder,
   });
 
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   /// The drawn height; the band grows it to [ForgeTheme.tapMin].
   final double height;
@@ -41,6 +43,7 @@ class _PressableState extends State<Pressable> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
       onTapDown: enabled ? (_) => _press(true) : null,
       onTapUp: enabled ? (_) => _press(false) : null,
       onTapCancel: enabled ? () => _press(false) : null,

@@ -509,7 +509,6 @@ class _ForgeTimeWheelState extends State<ForgeTimeWheel> {
   @override
   Widget build(BuildContext context) {
     final words = MaterialLocalizations.of(context);
-    final style = ForgeStyle.of(context);
     final h24 = MediaQuery.alwaysUse24HourFormatOf(context);
     final pm = _time.period == DayPeriod.pm;
     final hours = h24
@@ -550,6 +549,159 @@ class _ForgeTimeWheelState extends State<ForgeTimeWheel> {
           : words.postMeridiemAbbreviation,
       onIndex: (i) => _set(hour: _time.hour % 12 + (i == 1 ? 12 : 0)),
     );
+    return _WheelDialog(
+      label: words.timePickerDialHelpText,
+      wheels: [
+        for (final wheel in [hours, minutes, if (!h24) period])
+          SizedBox(width: _columnWidth, child: wheel),
+      ],
+    );
+  }
+}
+
+/// Shows a [ForgeDurationWheel] over a scrim; a tap outside closes it.
+Future<void> showForgeDurationWheel({
+  required BuildContext context,
+  required ForgeDurationWheel wheel,
+}) => showDialog<void>(context: context, builder: (_) => wheel);
+
+/// The time wheel's dialog for a length of time, from zero to [max].
+/// [onChanged] reports each step a wheel moves to.
+class ForgeDurationWheel extends StatefulWidget {
+  /// An hours wheel and a minutes wheel in 1-minute steps, each followed
+  /// by its unit ([hourUnit], [minuteUnit]). Minutes go round; at [max]'s
+  /// whole hours they stay at 0.
+  const ForgeDurationWheel.hoursMinutes({
+    super.key,
+    required this.label,
+    required this.initial,
+    required this.max,
+    required String this.hourUnit,
+    required String this.minuteUnit,
+    required this.onChanged,
+  }) : step = const Duration(minutes: 1);
+
+  /// One wheel of minutes:seconds ("1:30") in steps of [step].
+  const ForgeDurationWheel.minutesSeconds({
+    super.key,
+    required this.label,
+    required this.initial,
+    required this.max,
+    required this.step,
+    required this.onChanged,
+  }) : hourUnit = null,
+       minuteUnit = null;
+
+  /// What screen readers call the dialog ("Duration").
+  final String label;
+  final Duration initial;
+  final Duration max;
+  final Duration step;
+  final String? hourUnit;
+  final String? minuteUnit;
+  final ValueChanged<Duration> onChanged;
+
+  @override
+  State<ForgeDurationWheel> createState() => _ForgeDurationWheelState();
+}
+
+class _ForgeDurationWheelState extends State<ForgeDurationWheel> {
+  late Duration _value = widget.initial;
+
+  static const _columnWidth = 64.0;
+
+  void _set(Duration value) {
+    setState(() => _value = value > widget.max ? widget.max : value);
+    widget.onChanged(_value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final words = MaterialLocalizations.of(context);
+    final minuteUnit = widget.minuteUnit;
+    if (minuteUnit == null) {
+      final step = widget.step.inMilliseconds;
+      String format(Duration at) =>
+          '${at.inMinutes}:${'${at.inSeconds % 60}'.padLeft(2, '0')}';
+      // Wide enough for the longest row, max, at the centre row's size.
+      final widest = TextPainter(
+        text: TextSpan(
+          text: format(widget.max),
+          style: ForgeStyle.of(context).data.copyWith(
+            fontSize: _NumberPickerState._wheelSizes.first,
+            height: 1,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      final width = widest.width.ceilToDouble();
+      widest.dispose();
+      return _WheelDialog(
+        label: widget.label,
+        wheels: [
+          SizedBox(
+            width: width > _columnWidth ? width : _columnWidth,
+            child: NumberPicker._column(
+              label: widget.label,
+              count: widget.max.inMilliseconds ~/ step + 1,
+              index: _value.inMilliseconds ~/ step,
+              format: (i) => format(widget.step * i),
+              onIndex: (i) => _set(widget.step * i),
+            ),
+          ),
+        ],
+      );
+    }
+    final hours = _value.inHours;
+    final minutes = _value.inMinutes % 60;
+    final style = Theme.of(context).textTheme.bodyMedium!
+        .copyWith(color: ForgeStyle.of(context).colors.inkMuted);
+    Widget unit(String text) =>
+        ExcludeSemantics(child: Text(text, style: style));
+    return _WheelDialog(
+      label: widget.label,
+      wheels: [
+        SizedBox(
+          width: _columnWidth,
+          child: NumberPicker._column(
+            label: words.timePickerHourLabel,
+            count: widget.max.inHours + 1,
+            index: hours,
+            format: (i) => '$i',
+            onIndex: (i) => _set(Duration(hours: i, minutes: minutes)),
+          ),
+        ),
+        unit(widget.hourUnit!),
+        SizedBox(
+          width: _columnWidth,
+          child: NumberPicker._column(
+            label: words.timePickerMinuteLabel,
+            count: 60,
+            index: minutes,
+            format: (i) => '$i'.padLeft(2, '0'),
+            onIndex: (i) => _set(Duration(hours: hours, minutes: i)),
+            loop: true,
+          ),
+        ),
+        unit(minuteUnit),
+      ],
+    );
+  }
+}
+
+/// A centred dialog with no title and no buttons: [wheels] side by side,
+/// their centre rows on one band.
+class _WheelDialog extends StatelessWidget {
+  const _WheelDialog({required this.label, required this.wheels});
+
+  final String label;
+  final List<Widget> wheels;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ForgeStyle.of(context);
     return Dialog(
       insetPadding: const EdgeInsets.all(Gap.md),
       child: ConstrainedBox(
@@ -558,7 +710,7 @@ class _ForgeTimeWheelState extends State<ForgeTimeWheel> {
           namesRoute: true,
           scopesRoute: true,
           explicitChildNodes: true,
-          label: words.timePickerDialHelpText,
+          label: label,
           child: Padding(
             padding: const EdgeInsets.all(Gap.md),
             child: Stack(
@@ -574,10 +726,7 @@ class _ForgeTimeWheelState extends State<ForgeTimeWheel> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   spacing: Gap.sm,
-                  children: [
-                    for (final wheel in [hours, minutes, if (!h24) period])
-                      SizedBox(width: _columnWidth, child: wheel),
-                  ],
+                  children: wheels,
                 ),
               ],
             ),

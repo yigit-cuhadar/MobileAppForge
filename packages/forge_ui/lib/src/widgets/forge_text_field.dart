@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../spacing.dart';
 import '../theme/forge_preset.dart';
@@ -7,10 +8,12 @@ import 'pressable.dart';
 
 /// An outlined text field: the [label] above a 44px box. It takes a 2px
 /// accent outline while typing, a 2px danger outline with the message under
-/// it when [validator] fails, and a sunken fill when disabled. [multiline]
+/// it when [validator] fails or the caller sets [errorText], and a sunken
+/// fill when disabled. [multiline]
 /// is the note form: the same box, wrapping and growing up to three lines,
 /// then scrolling inside. [maxLength] stops input at that many characters,
-/// with no counter.
+/// with no counter. [autofocus] raises the keyboard as the field appears
+/// (a dialog's field).
 class ForgeTextField extends StatefulWidget {
   const ForgeTextField({
     super.key,
@@ -18,28 +21,65 @@ class ForgeTextField extends StatefulWidget {
     this.hint,
     this.controller,
     this.validator,
+    this.errorText,
     this.keyboardType,
+    this.inputFormatters,
     this.obscure = false,
     this.multiline = false,
     this.maxLength,
     this.enabled = true,
     this.textInputAction,
     this.autofillHints,
+    this.onChanged,
     this.onSubmitted,
-  });
+    this.autofocus = false,
+  }) : value = null,
+       onTap = null;
+
+  /// The field's look with its [value] (or the [hint]), never editable:
+  /// [onTap] opens what picks the value (a wheel).
+  const ForgeTextField.tapOnly({
+    super.key,
+    required this.label,
+    required this.value,
+    this.hint,
+    required VoidCallback this.onTap,
+  }) : controller = null,
+       validator = null,
+       errorText = null,
+       keyboardType = null,
+       inputFormatters = null,
+       obscure = false,
+       multiline = false,
+       maxLength = null,
+       enabled = true,
+       textInputAction = null,
+       autofillHints = null,
+       onChanged = null,
+       onSubmitted = null,
+       autofocus = false;
 
   final String label;
   final String? hint;
   final TextEditingController? controller;
   final FormFieldValidator<String>? validator;
+
+  /// An error the caller keeps up to date as the user types; it wins over
+  /// [validator]'s.
+  final String? errorText;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final bool obscure;
   final bool multiline;
   final int? maxLength;
   final bool enabled;
   final TextInputAction? textInputAction;
   final Iterable<String>? autofillHints;
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final bool autofocus;
+  final String? value;
+  final VoidCallback? onTap;
 
   @override
   State<ForgeTextField> createState() => _ForgeTextFieldState();
@@ -73,7 +113,15 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
           ? null
           : (_) => widget.validator!(_controller.text),
       builder: (field) {
-        final error = field.errorText;
+        final error = widget.errorText ?? field.errorText;
+        final input = text.bodyMedium!.copyWith(color: p.ink);
+        final decoration = InputDecoration(
+          hintText: widget.hint,
+          fillColor: widget.enabled ? p.surface : p.surfaceSunken,
+          counterText: '',
+          enabledBorder: error == null ? null : outline(p.danger, 2),
+          focusedBorder: error == null ? null : outline(p.danger, 2),
+        );
         return MergeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -86,26 +134,42 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
                 ),
               ),
               const SizedBox(height: Gap.sm),
-              TextField(
-                controller: _controller,
-                enabled: widget.enabled,
-                keyboardType: widget.keyboardType,
-                obscureText: widget.obscure,
-                maxLines: widget.multiline ? 3 : 1,
-                minLines: 1,
-                maxLength: widget.maxLength,
-                textInputAction: widget.textInputAction,
-                autofillHints: widget.autofillHints,
-                onSubmitted: widget.onSubmitted,
-                style: text.bodyMedium!.copyWith(color: p.ink),
-                decoration: InputDecoration(
-                  hintText: widget.hint,
-                  fillColor: widget.enabled ? p.surface : p.surfaceSunken,
-                  counterText: '',
-                  enabledBorder: error == null ? null : outline(p.danger, 2),
-                  focusedBorder: error == null ? null : outline(p.danger, 2),
+              if (widget.onTap case final onTap?)
+                Semantics(
+                  button: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onTap,
+                    child: InputDecorator(
+                      decoration: decoration,
+                      isEmpty: widget.value == null,
+                      child: Text(
+                        widget.value ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: input,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                TextField(
+                  controller: _controller,
+                  enabled: widget.enabled,
+                  autofocus: widget.autofocus,
+                  keyboardType: widget.keyboardType,
+                  inputFormatters: widget.inputFormatters,
+                  obscureText: widget.obscure,
+                  maxLines: widget.multiline ? 3 : 1,
+                  minLines: 1,
+                  maxLength: widget.maxLength,
+                  textInputAction: widget.textInputAction,
+                  autofillHints: widget.autofillHints,
+                  onChanged: widget.onChanged,
+                  onSubmitted: widget.onSubmitted,
+                  style: input,
+                  decoration: decoration,
                 ),
-              ),
               if (error != null) ...[
                 const SizedBox(height: Gap.sm),
                 Text(

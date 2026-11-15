@@ -97,4 +97,39 @@ void main() {
     expect(tester.testTextInput.isVisible, isFalse);
     expect(find.bySemanticsLabel('Search'), findsOneWidget);
   });
+
+  testWidgets('a page focuses the field through its focus node', (
+    tester,
+  ) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: ForgeSearchField(
+            hint: 'Search',
+            clearLabel: 'Clear',
+            onChanged: changes.add,
+            focusNode: focus,
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.testTextInput.isVisible, isFalse);
+    focus.requestFocus();
+    await tester.pump();
+
+    expect(tester.testTextInput.isVisible, isTrue);
+    final outline = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(ForgeSearchField),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((outline.foregroundDecoration! as BoxDecoration).border, isNotNull);
+  });
 }

@@ -159,7 +159,9 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 /// An action in a [ForgeAppBar]: a text action in accent, or a 44px icon
-/// with an optional accent count while it is in effect (filters on).
+/// with an optional accent count while it is in effect (filters on). A
+/// [toggled] icon is an ink outline while off and filled accent while on
+/// (a favourite).
 class ForgeAppBarAction extends StatelessWidget {
   /// Fades to 40% while [onPressed] is null (a form missing a field).
   const ForgeAppBarAction.text({
@@ -167,7 +169,8 @@ class ForgeAppBarAction extends StatelessWidget {
     required String this.label,
     required this.onPressed,
   }) : icon = null,
-       count = null;
+       count = null,
+       toggled = null;
 
   const ForgeAppBarAction.icon({
     super.key,
@@ -175,6 +178,7 @@ class ForgeAppBarAction extends StatelessWidget {
     required String this.label,
     required this.onPressed,
     this.count,
+    this.toggled,
   });
 
   final ForgeIconData? icon;
@@ -185,6 +189,9 @@ class ForgeAppBarAction extends StatelessWidget {
 
   /// Shown on the icon while it is non-null.
   final int? count;
+
+  /// On or off for an icon that switches something; null for a plain one.
+  final bool? toggled;
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +214,7 @@ class ForgeAppBarAction extends StatelessWidget {
       label: label,
       value: count?.toString(),
       enabled: onPressed != null,
+      toggled: toggled,
       onTap: onPressed,
       excludeSemantics: true,
       child: InkResponse(
@@ -217,7 +225,12 @@ class ForgeAppBarAction extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              ForgeIcon(icon, size: 22, color: colors.ink),
+              ForgeIcon(
+                icon,
+                size: 22,
+                color: toggled ?? false ? colors.accent : colors.ink,
+                filled: toggled ?? false,
+              ),
               if (count != null)
                 PositionedDirectional(
                   top: 6,

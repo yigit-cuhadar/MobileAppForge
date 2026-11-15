@@ -32,6 +32,41 @@ void main() {
     expect(find.byType(Divider), findsNWidgets(2));
   });
 
+  testWidgets('the sliver form builds only the rows in view', (tester) async {
+    final built = <int>{};
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              ListRowCard.sliver(
+                itemCount: 400,
+                itemBuilder: (context, i) {
+                  built.add(i);
+                  return ListRow(title: 'Row $i', onTap: () => taps++);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(built, hasLength(lessThan(30)));
+    expect(
+      find.byType(Divider),
+      findsNWidgets(find.byType(ListRow).evaluate().length - 1),
+    );
+    await tester.tap(find.text('Row 0'));
+    expect(taps, 1);
+
+    await tester.scrollUntilVisible(find.text('Row 399'), 2000);
+    expect(find.text('Row 399'), findsOneWidget);
+    expect(find.text('Row 0'), findsNothing);
+  });
+
   testWidgets('tapping a row calls onTap; the chevron and value show', (
     tester,
   ) async {
@@ -190,6 +225,41 @@ void main() {
 
     expect(textColor(tester, 'Item title'), colors(tester).inkMuted);
     expect(textColor(tester, '[DETAIL]'), colors(tester).inkSubtle);
+  });
+
+  testWidgets('a disabled row is line-strong, takes no tap, reads disabled', (
+    tester,
+  ) async {
+    var taps = 0;
+    await pump(
+      tester,
+      ListRow(
+        title: 'Item title',
+        detail: '[DETAIL]',
+        value: '[VALUE]',
+        end: ListRowEnd.chevron,
+        disabled: true,
+        onTap: () => taps++,
+      ),
+    );
+
+    for (final text in ['Item title', '[DETAIL]', '[VALUE]']) {
+      expect(textColor(tester, text), colors(tester).lineStrong);
+    }
+    expect(
+      tester.widget<ForgeIcon>(find.byType(ForgeIcon)).color,
+      colors(tester).lineStrong,
+    );
+    await tester.tap(find.text('Item title'));
+    expect(taps, 0);
+    expect(
+      tester.getSemantics(find.byType(ListRow)),
+      matchesSemantics(
+        label: 'Item title\n[DETAIL]\n[VALUE]',
+        hasEnabledState: true,
+        isEnabled: false,
+      ),
+    );
   });
 
   testWidgets('a busy row turns a ring', (tester) async {

@@ -135,3 +135,101 @@ class _SeriesState extends State<_Series> {
     ),
   );
 }
+
+@widgetbook.UseCase(name: 'Menu (unset filter)', type: ForgeChip)
+Widget menu(BuildContext context) => Center(
+  child: Wrap(
+    spacing: Gap.sm,
+    children: [
+      ForgeChip.menu(label: 'Filter A', onPressed: () {}),
+      ForgeChip.menu(label: 'Filter B', onPressed: () {}),
+      ForgeChip.removable(
+        label: '[VALUE]',
+        onRemoved: () {},
+        removeHint: 'Removes the filter',
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Leading icon', type: ForgeChip)
+Widget leadingIcon(BuildContext context) => Center(
+  child: Wrap(
+    spacing: Gap.sm,
+    children: [
+      ForgeChip(
+        label: 'Item',
+        selected: true,
+        showCheck: false,
+        leading: ForgeIcon(
+          ForgeIcons.error,
+          color: ForgeStyle.of(context).colors.danger,
+        ),
+        onPressed: () {},
+      ),
+      ForgeChip(
+        label: 'Add',
+        leading: const ForgeIcon(ForgeIcons.add),
+        onPressed: () {},
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(
+  name: 'Selected without check, with options',
+  type: ForgeChip,
+)
+Widget selectedNoCheck(BuildContext context) => const _SelectedNoCheck();
+
+class _SelectedNoCheck extends StatefulWidget {
+  const _SelectedNoCheck();
+
+  @override
+  State<_SelectedNoCheck> createState() => _SelectedNoCheckState();
+}
+
+class _SelectedNoCheckState extends State<_SelectedNoCheck> {
+  var _chosen = 'Item A';
+  var _held = '';
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      spacing: Gap.md,
+      children: [
+        Wrap(
+          spacing: Gap.sm,
+          children: [
+            for (final label in ['Item A', 'Item B', 'Item C'])
+              ForgeChip(
+                label: label,
+                selected: _chosen == label,
+                showCheck: false,
+                onPressed: () => setState(() => _chosen = label),
+                onOptions: () => setState(() => _held = label),
+                optionsLabel: 'Item options',
+              ),
+          ],
+        ),
+        Text(_held.isEmpty ? 'No options opened' : 'Options of $_held'),
+      ],
+    ),
+  );
+}
+
+@widgetbook.UseCase(name: 'Add', type: ForgeChip)
+Widget add(BuildContext context) => Center(
+  child: Wrap(
+    spacing: Gap.sm,
+    children: [
+      ForgeChip(label: 'Item A', onPressed: () {}),
+      ForgeChip(label: 'Item B', onPressed: () {}),
+      ForgeChip.add(
+        label: context.knobs.string(label: 'Label', initialValue: 'Item'),
+        onPressed: () {},
+      ),
+    ],
+  ),
+);

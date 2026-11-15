@@ -6,6 +6,7 @@ import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import 'forge_button.dart';
+import 'runner_line.dart';
 
 /// The app's start screen: its [mark] on a rounded tile with its [name]
 /// under it, centred on the app's [background]; [foreground] is the colour
@@ -158,7 +159,7 @@ class _SplashScreenState extends State<SplashScreen> {
             color: on,
           ),
         ),
-        if (_slow) _SlowLine(color: on),
+        if (_slow) RunnerLine(color: on, width: 96),
       ];
     }
     return ColoredBox(
@@ -172,79 +173,6 @@ class _SplashScreenState extends State<SplashScreen> {
               spacing: Gap.md,
               children: children,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A thin track with a runner crossing it, for a start that takes long.
-class _SlowLine extends StatefulWidget {
-  const _SlowLine({required this.color});
-
-  final Color color;
-
-  @override
-  State<_SlowLine> createState() => _SlowLineState();
-}
-
-class _SlowLineState extends State<_SlowLine>
-    with SingleTickerProviderStateMixin {
-  late final _run = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  );
-
-  late final _runner = CurvedAnimation(parent: _run, curve: Curves.easeInOut);
-
-  static const double _width = 96;
-  static const double _height = 3;
-  static const _radius = BorderRadius.all(Radius.circular(2));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _run.stop();
-    } else if (!_run.isAnimating) {
-      _run.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _runner.dispose();
-    _run.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.color;
-    return ClipRRect(
-      borderRadius: _radius,
-      child: Container(
-        width: _width,
-        height: _height,
-        color: color.withValues(alpha: color.a * 0.24),
-        child: AnimatedBuilder(
-          animation: _runner,
-          builder: (context, child) => Stack(
-            children: [
-              Positioned(
-                // The runner, 40% of the track, enters from the left and
-                // leaves on the right.
-                left: _width * (-0.4 + 1.4 * _runner.value),
-                top: 0,
-                bottom: 0,
-                width: _width * 0.4,
-                child: child!,
-              ),
-            ],
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: color, borderRadius: _radius),
           ),
         ),
       ),

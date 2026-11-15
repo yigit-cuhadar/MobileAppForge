@@ -1,23 +1,31 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_palette.dart';
 import '../theme/forge_style.dart';
-import '../theme/forge_theme.dart';
 import 'busy_ring.dart';
 import 'card_frame.dart';
 import 'chart_paint.dart';
 import 'day_circle.dart';
 import 'skeleton.dart';
+import 'tap_band.dart';
 
 /// [ListRow]s in one card, a 1px line between each two.
 class ListRowCard extends StatelessWidget {
-  const ListRowCard({super.key, required this.children, this.onReorder});
+  const ListRowCard({super.key, required this.children, this.onReorder})
+    : itemCount = 0,
+      itemBuilder = null;
+
+  /// The lazy form for a long list: a sliver for a [CustomScrollView] that
+  /// builds each of its [itemCount] rows only as it scrolls into view.
+  const ListRowCard.sliver({
+    super.key,
+    required this.itemCount,
+    required IndexedWidgetBuilder this.itemBuilder,
+  }) : children = const [],
+       onReorder = null;
 
   final List<Widget> children;
 
@@ -25,9 +33,13 @@ class ListRowCard extends StatelessWidget {
   /// needs a key. Reports the row moved from one index to another, with
   /// `to` counted after the row was taken out.
   final void Function(int from, int to)? onReorder;
+  final int itemCount;
+  final IndexedWidgetBuilder? itemBuilder;
 
   @override
   Widget build(BuildContext context) {
+    final itemBuilder = this.itemBuilder;
+    if (itemBuilder != null) return _sliver(context, itemBuilder);
     final onReorder = this.onReorder;
     if (onReorder == null) {
       return CardFrame(
@@ -66,6 +78,45 @@ class ListRowCard extends StatelessWidget {
       ),
     );
   }
+
+  /// The card drawn as [CardFrame] draws it, around rows built on demand.
+  Widget _sliver(BuildContext context, IndexedWidgetBuilder itemBuilder) {
+    final style = ForgeStyle.of(context);
+    final radius = Radius.circular(style.radii.lg);
+    Widget row(BuildContext context, int i) {
+      final row = itemBuilder(context, i);
+      if (i > 0 && i < itemCount - 1) return row;
+      // Tinted first and last rows keep inside the rounded corners.
+      return ClipRRect(
+        borderRadius: BorderRadius.vertical(
+          top: i == 0 ? radius : Radius.zero,
+          bottom: i == itemCount - 1 ? radius : Radius.zero,
+        ),
+        child: row,
+      );
+    }
+
+    return DecoratedSliver(
+      decoration: BoxDecoration(
+        color: style.colors.surface,
+        borderRadius: BorderRadius.all(radius),
+      ),
+      sliver: DecoratedSliver(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.all(radius),
+          border: style.cardBorder == 0
+              ? null
+              : Border.all(color: style.colors.line, width: style.cardBorder),
+        ),
+        sliver: SliverList.separated(
+          itemCount: itemCount,
+          itemBuilder: row,
+          separatorBuilder: (_, _) => const Divider(),
+        ),
+      ),
+    );
+  }
 }
 
 /// What closes a row: a chevron for a row that opens a page, open-in-new
@@ -95,6 +146,7 @@ class ListRow extends StatelessWidget {
     this.missing = false,
     this.locked = false,
     this.busy = false,
+    this.disabled = false,
   }) : assert(checked == null || leading == null),
        assert(
          (onInfo == null) == (infoLabel == null),
@@ -122,6 +174,7 @@ class ListRow extends StatelessWidget {
       missing = false,
       locked = false,
       busy = false,
+      disabled = false,
       loading = true;
 
   final String? title;
@@ -162,6 +215,10 @@ class ListRow extends StatelessWidget {
   /// Work the user started on this row (unlocking): a small turning ring
   /// at the end.
   final bool busy;
+
+  /// Cannot be picked now (a full item): its text and end mark in
+  /// line-strong, no tap.
+  final bool disabled;
   final bool loading;
   final int _skeleton;
 
@@ -198,14 +255,18 @@ class ListRow extends StatelessWidget {
     }
 
     final on = checked ?? false;
-    final titleColor = destructive
+    final titleColor = disabled
+        ? colors.lineStrong
+        : destructive
         ? colors.danger
         : locked
         ? colors.inkMuted
         : on
         ? colors.onAccentSoft
         : colors.ink;
-    final detailColor = error != null
+    final detailColor = disabled
+        ? colors.lineStrong
+        : error != null
         ? colors.danger
         : locked
         ? colors.inkSubtle
@@ -213,12 +274,12 @@ class ListRow extends StatelessWidget {
         ? colors.onAccentSoft
         : colors.inkMuted;
     final line = error ?? detail;
-    final info = onInfo == null ? null : _BandLink();
-    final handle = this.leading is ListRowDragHandle ? _BandLink() : null;
+    final info = onInfo == null ? null : TapBandLink();
+    final handle = this.leading is ListRowDragHandle ? TapBandLink() : null;
     final leading = checked != null
         ? _Checkbox(checked: on)
         : handle != null
-        ? _BandTarget(link: handle, child: this.leading!)
+        ? TapBandTarget(link: handle, child: this.leading!)
         : this.leading;
 
     final prominent = this.leading is ListRowDateBox || onInfo != null;
@@ -233,7 +294,7 @@ class ListRow extends StatelessWidget {
         spacing: Gap.xs,
         children: [
           Flexible(child: title),
-          _BandTarget(
+          TapBandTarget(
             link: info!,
             child: Semantics(
               container: true,
@@ -286,7 +347,9 @@ class ListRow extends StatelessWidget {
             child: Text(
               value!,
               textAlign: TextAlign.end,
-              style: text.bodySmall,
+              style: disabled
+                  ? text.bodySmall!.copyWith(color: colors.lineStrong)
+                  : text.bodySmall,
             ),
           ),
         ?trailing,
@@ -316,33 +379,40 @@ class ListRow extends StatelessWidget {
       type: tint == null ? MaterialType.transparency : MaterialType.canvas,
       color: tint,
       child: InkWell(
-        onTap: onTap,
+        onTap: disabled ? null : onTap,
         child: info == null && handle == null
             ? _frame(row)
-            : _BandArea(links: [?info, ?handle], child: _frame(row)),
+            : TapBandArea(links: [?info, ?handle], child: _frame(row)),
       ),
     );
-    if (checked != null) {
+    if (checked != null || disabled) {
       result = MergeSemantics(
-        child: Semantics(checked: checked, child: result),
+        child: Semantics(
+          checked: checked,
+          enabled: disabled ? false : null,
+          child: result,
+        ),
       );
     }
     return result;
   }
 
-  Widget? _endMark(ForgePalette colors) => switch (end) {
-    ListRowEnd.none => null,
-    ListRowEnd.chevron => ForgeIcon(
-      ForgeIcons.chevronRight,
-      size: 18,
-      color: colors.inkMuted,
-    ),
-    ListRowEnd.external => ForgeIcon(
-      ForgeIcons.openInNew,
-      size: 16,
-      color: colors.inkMuted,
-    ),
-  };
+  Widget? _endMark(ForgePalette colors) {
+    final color = disabled ? colors.lineStrong : colors.inkMuted;
+    return switch (end) {
+      ListRowEnd.none => null,
+      ListRowEnd.chevron => ForgeIcon(
+        ForgeIcons.chevronRight,
+        size: 18,
+        color: color,
+      ),
+      ListRowEnd.external => ForgeIcon(
+        ForgeIcons.openInNew,
+        size: 16,
+        color: color,
+      ),
+    };
+  }
 
   Widget _frame(Widget child) => ConstrainedBox(
     constraints: const BoxConstraints(minHeight: _minHeight),
@@ -466,79 +536,5 @@ class _Checkbox extends StatelessWidget {
           ? ForgeIcon(ForgeIcons.check, size: 14, color: colors.onAccent)
           : null,
     );
-  }
-}
-
-/// Lets the row find a small control (the info icon, the drag handle)
-/// when hit-testing.
-class _BandLink {
-  RenderBox? target;
-}
-
-/// Marks a small control for its row's [_BandArea].
-class _BandTarget extends SingleChildRenderObjectWidget {
-  const _BandTarget({required this.link, required super.child});
-
-  final _BandLink link;
-
-  @override
-  RenderProxyBox createRenderObject(BuildContext context) =>
-      _RenderBandTarget(link);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderBandTarget target) =>
-      target.link = link;
-}
-
-class _RenderBandTarget extends RenderProxyBox {
-  _RenderBandTarget(_BandLink link) {
-    this.link = link;
-  }
-
-  set link(_BandLink link) => link.target = this;
-}
-
-/// Sends touches within a tap-min square around each linked control to
-/// that control, though it is drawn smaller and the layout stays as drawn.
-class _BandArea extends SingleChildRenderObjectWidget {
-  const _BandArea({required this.links, required super.child});
-
-  final List<_BandLink> links;
-
-  @override
-  RenderProxyBox createRenderObject(BuildContext context) =>
-      _RenderBandArea(links);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderBandArea area) =>
-      area.links = links;
-}
-
-class _RenderBandArea extends RenderProxyBox {
-  _RenderBandArea(this.links);
-
-  List<_BandLink> links;
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    if (size.contains(position)) {
-      for (final link in links) {
-        final target = link.target;
-        if (target == null || !target.attached || !target.hasSize) continue;
-        final local = target.globalToLocal(localToGlobal(position));
-        final centre = target.size.center(Offset.zero);
-        final area = Rect.fromCenter(
-          center: centre,
-          width: max(ForgeTheme.tapMin, target.size.width),
-          height: max(ForgeTheme.tapMin, target.size.height),
-        );
-        if (area.contains(local)) {
-          target.hitTest(result, position: centre);
-          result.add(BoxHitTestEntry(this, position));
-          return true;
-        }
-      }
-    }
-    return super.hitTest(result, position: position);
   }
 }

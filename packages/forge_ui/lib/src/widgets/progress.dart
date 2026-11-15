@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../spacing.dart';
 import '../theme/forge_style.dart';
+import 'runner_line.dart';
 
 /// Progress toward a goal as a thin bar or a ring on surface-sunken, with
 /// the [figure] and a [caption]. Reaching the [goal] turns the fill and the
-/// caption success. [Progress.track] is the bare bar.
+/// caption success. [Progress.track] is the bare bar;
+/// [Progress.indeterminate] stands for work of unknown length.
 class Progress extends StatelessWidget {
   /// A 6px bar under the figure, the caption at the right.
   const Progress.bar({
@@ -17,7 +19,8 @@ class Progress extends StatelessWidget {
     required String this.figure,
     required String this.caption,
   }) : _form = _Form.bar,
-       thin = false;
+       thin = false,
+       label = null;
 
   /// A 136px ring with an 8px stroke, the figure and caption inside.
   const Progress.ring({
@@ -27,7 +30,8 @@ class Progress extends StatelessWidget {
     required String this.figure,
     required String this.caption,
   }) : _form = _Form.ring,
-       thin = false;
+       thin = false,
+       label = null;
 
   /// The bare bar: 6px on surface-sunken, or [thin], 4px on line. Filled in
   /// accent to [value], from 0 to 1; given a [goal], to [value] out of it,
@@ -39,13 +43,26 @@ class Progress extends StatelessWidget {
     this.thin = false,
   }) : _form = _Form.track,
        figure = null,
-       caption = null;
+       caption = null,
+       label = null;
+
+  /// A 3px line, full width, an ink-muted runner crossing its track again
+  /// and again: under the app bar while the page saves. Screen readers
+  /// hear [label] ("Saving").
+  const Progress.indeterminate({super.key, required String this.label})
+    : _form = _Form.indeterminate,
+      value = 0,
+      goal = null,
+      figure = null,
+      caption = null,
+      thin = false;
 
   final double value;
   final double? goal;
   final String? figure;
   final String? caption;
   final bool thin;
+  final String? label;
   final _Form _form;
 
   static const _barHeight = 6.0;
@@ -60,6 +77,12 @@ class Progress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
+    if (_form == _Form.indeterminate) {
+      return Semantics(
+        label: label,
+        child: RunnerLine(color: colors.inkMuted),
+      );
+    }
     final fill = _reached ? colors.success : colors.accent;
     if (_form == _Form.track) {
       return _Track(
@@ -133,7 +156,7 @@ class Progress extends StatelessWidget {
   }
 }
 
-enum _Form { bar, ring, track }
+enum _Form { bar, ring, track, indeterminate }
 
 class _Track extends StatelessWidget {
   const _Track({

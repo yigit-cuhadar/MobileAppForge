@@ -50,4 +50,43 @@ void main() {
     expect(await fillOf(tester, 0.6), colors.accent);
     expect(await fillOf(tester, 0.9), colors.danger);
   });
+
+  testWidgets('the compact form keeps its ticks under 13/11px labels', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: const Scaffold(
+          body: BandBar.compact(
+            label: 'Item title',
+            valueLabel: '[VALUE]',
+            value: 0.5,
+            low: 0.4,
+            high: 0.8,
+          ),
+        ),
+      ),
+    );
+    final colors = ForgeStyle.of(tester.element(find.byType(BandBar))).colors;
+    final ticks = tester.widgetList<Container>(
+      find.descendant(
+        of: find.byType(BandBar),
+        matching: find.byWidgetPredicate(
+          (w) => w is Container && w.color == colors.lineStrong,
+        ),
+      ),
+    );
+
+    expect(ticks, hasLength(2));
+    expect(tester.widget<Text>(find.text('Item title')).style!.fontSize, 13);
+    expect(tester.widget<Text>(find.text('[VALUE]')).style!.fontSize, 11);
+    final label = tester.getRect(find.text('Item title'));
+    final track = tester.getRect(
+      find
+          .descendant(of: find.byType(BandBar), matching: find.byType(Stack))
+          .first,
+    );
+    expect(track.top - label.bottom, Gap.xs);
+  });
 }

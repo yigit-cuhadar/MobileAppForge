@@ -155,7 +155,7 @@ void main() {
       expect(fill(tester), colors(tester).danger);
     });
 
-    testWidgets('the compact form has no ticks', (tester) async {
+    testWidgets('the compact form keeps its two ticks', (tester) async {
       await pump(
         tester,
         const BandBar.compact(
@@ -172,7 +172,7 @@ void main() {
           of: find.byType(BandBar),
           matching: find.byType(Container),
         ),
-        findsNothing,
+        findsNWidgets(2),
       );
       expect(fill(tester), colors(tester).accent);
     });
@@ -182,5 +182,66 @@ void main() {
       final c = colors(tester);
       expect(fill(tester), Color.lerp(c.surface, c.accent, 0.4));
     });
+  });
+
+  testWidgets('the plain form has no chevron and takes no tap', (tester) async {
+    await pump(
+      tester,
+      const SectionCard.plain(title: 'Section title', child: Text('Body')),
+    );
+
+    expect(find.byType(ForgeIcon), findsNothing);
+    expect(find.byType(InkWell), findsNothing);
+    expect(find.text('Body'), findsOneWidget);
+  });
+
+  testWidgets('the plain form\'s action takes taps across a 44px band', (
+    tester,
+  ) async {
+    var edits = 0;
+    await pump(
+      tester,
+      SectionCard.plain(
+        title: 'Section title',
+        actionLabel: 'Edit',
+        onAction: () => edits++,
+        child: const Text('Body'),
+      ),
+    );
+    final edit = tester.getRect(find.text('Edit'));
+
+    final label = tester.widget<Text>(find.text('Edit')).style!;
+    final colors = ForgeStyle.of(tester.element(find.text('Edit'))).colors;
+    expect((label.fontSize, label.fontWeight), (14, FontWeight.w600));
+    expect(label.color, colors.accent);
+    expect(edit.height, lessThan(ForgeTheme.tapMin));
+    await tester.tapAt(edit.center.translate(0, ForgeTheme.tapMin / 2 - 1));
+    expect(edits, 1);
+    await tester.tap(find.text('Body'));
+    expect(edits, 1);
+    expect(
+      tester.getSemantics(find.text('Edit')),
+      matchesSemantics(isButton: true, hasTapAction: true, label: 'Edit'),
+    );
+  });
+
+  testWidgets('the plain form without content is its header alone', (
+    tester,
+  ) async {
+    var adds = 0;
+    await pump(
+      tester,
+      SectionCard.plain(
+        title: 'Section title',
+        actionLabel: 'Add',
+        onAction: () => adds++,
+      ),
+    );
+    final card = tester.getRect(find.byType(SectionCard));
+    final title = tester.getRect(find.text('Section title'));
+
+    expect(card.height, title.height + 2 * Gap.md);
+    await tester.tap(find.text('Add'));
+    expect(adds, 1);
   });
 }

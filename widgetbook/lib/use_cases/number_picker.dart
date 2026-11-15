@@ -74,6 +74,41 @@ Widget timeWheelDevice(BuildContext context) => Center(
   ),
 );
 
+/// [wheel] over the scrim, as [showForgeDurationWheel] shows it.
+Widget _durationWheel(BuildContext context, ForgeDurationWheel wheel) =>
+    ColoredBox(color: Theme.of(context).colorScheme.scrim, child: wheel);
+
+@widgetbook.UseCase(
+  name: 'Duration wheel · hours and minutes',
+  type: ForgeDurationWheel,
+)
+Widget durationHoursMinutes(BuildContext context) => _durationWheel(
+  context,
+  ForgeDurationWheel.hoursMinutes(
+    label: 'Duration',
+    initial: const Duration(minutes: 50),
+    max: const Duration(hours: 24),
+    hourUnit: 'h',
+    minuteUnit: 'min',
+    onChanged: (_) {},
+  ),
+);
+
+@widgetbook.UseCase(
+  name: 'Duration wheel · minutes and seconds',
+  type: ForgeDurationWheel,
+)
+Widget durationMinutesSeconds(BuildContext context) => _durationWheel(
+  context,
+  ForgeDurationWheel.minutesSeconds(
+    label: 'Rest',
+    initial: const Duration(minutes: 1, seconds: 30),
+    max: const Duration(minutes: 10),
+    step: const Duration(seconds: 15),
+    onChanged: (_) {},
+  ),
+);
+
 class _Live extends StatefulWidget {
   const _Live({required this.value, required this.builder});
 
