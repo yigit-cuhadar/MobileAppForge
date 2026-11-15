@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -30,6 +31,32 @@ void main() {
     await tester.tap(find.text('Body'));
     await tester.tap(find.text('[DETAIL]'));
     expect(taps, 2);
+  });
+
+  testWidgets('a long detail ends in an ellipsis at narrow width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(
+      tester,
+      SectionCard(
+        title: 'Section title',
+        detail: '[DETAIL] · [DETAIL] · [DETAIL] · [DETAIL]',
+        onTap: () {},
+        child: const Text('Body'),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final detail = find.text('[DETAIL] · [DETAIL] · [DETAIL] · [DETAIL]');
+    expect(tester.widget<Text>(detail).maxLines, 1);
+    expect(tester.widget<Text>(detail).overflow, TextOverflow.ellipsis);
+    expect(
+      tester.renderObject<RenderParagraph>(detail).didExceedMaxLines,
+      isTrue,
+    );
   });
 
   testWidgets('loading shows two skeleton bars', (tester) async {

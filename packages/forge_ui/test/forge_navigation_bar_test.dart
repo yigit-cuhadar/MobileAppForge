@@ -9,11 +9,20 @@ void main() {
     ForgeDestination(icon: ForgeIcons.person, label: '[TAB 3]'),
   ];
 
-  Future<List<int>> pump(WidgetTester tester, {int selected = 0}) async {
+  Future<List<int>> pump(
+    WidgetTester tester, {
+    int selected = 0,
+    double textScale = 1,
+  }) async {
     final taps = <int>[];
     await tester.pumpWidget(
       MaterialApp(
         theme: ForgeTheme.light(),
+        builder: (context, child) => MediaQuery.withClampedTextScaling(
+          minScaleFactor: textScale,
+          maxScaleFactor: textScale,
+          child: child!,
+        ),
         home: Scaffold(
           bottomNavigationBar: ForgeNavigationBar(
             destinations: destinations,
@@ -35,6 +44,25 @@ void main() {
 
   Text text(WidgetTester tester, String label) =>
       tester.widget(find.text(label));
+
+  testWidgets('labels stop growing at 1.5x and fit at 3x', (tester) async {
+    await pump(tester, textScale: 3);
+
+    expect(tester.takeException(), isNull);
+    final scaler = MediaQuery.textScalerOf(
+      tester.element(find.text('[TAB 1]')),
+    );
+    expect(scaler.scale(10), 15);
+  });
+
+  testWidgets('labels follow the text size up to 1.5x', (tester) async {
+    await pump(tester, textScale: 1.3);
+
+    final scaler = MediaQuery.textScalerOf(
+      tester.element(find.text('[TAB 1]')),
+    );
+    expect(scaler.scale(10), 13);
+  });
 
   testWidgets('a tap selects that tab', (tester) async {
     final taps = await pump(tester);

@@ -97,7 +97,6 @@ class Sparkline extends StatelessWidget {
   final _State _state;
 
   static const double _lineHeight = 64;
-  static const double _boxHeight = 48;
 
   @override
   Widget build(BuildContext context) {
@@ -161,32 +160,13 @@ class Sparkline extends StatelessWidget {
       ],
       _State.empty => [
         if (figure != null) Text(figure!, style: stat),
-        CustomPaint(
-          painter: DashedBorderPainter(
-            color: colors.lineStrong,
-            width: 1,
-            radius: ForgeRadii.button,
-          ),
-          child: SizedBox(
-            height: _boxHeight,
-            child: Center(
-              child: Text(
-                message!,
-                textAlign: TextAlign.center,
-                style: text.labelMedium!.copyWith(
-                  color: colors.inkMuted,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-          ),
-        ),
+        SparklineEmptyBox(message: message!),
       ],
       _State.loading => [
         SkeletonBar(widthFactor: 0.4, height: 24, radius: style.radii.md),
         const SkeletonBar(
           widthFactor: 1,
-          height: _boxHeight,
+          height: SparklineEmptyBox._height,
           radius: ForgeRadii.button,
         ),
       ],
@@ -226,6 +206,39 @@ class Sparkline extends StatelessWidget {
 }
 
 enum _State { filled, empty, loading, error }
+
+/// The empty form's dashed box with its [message], for a trend that sits in
+/// another card.
+class SparklineEmptyBox extends StatelessWidget {
+  const SparklineEmptyBox({super.key, required this.message});
+
+  final String message;
+
+  static const double _height = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ForgeStyle.of(context).colors;
+    return CustomPaint(
+      painter: DashedBorderPainter(
+        color: colors.lineStrong,
+        width: 1,
+        radius: ForgeRadii.button,
+      ),
+      child: SizedBox(
+        height: _height,
+        child: Center(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelMedium!
+                .copyWith(color: colors.inkMuted, fontWeight: FontWeight.w400),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _SparkPainter extends CustomPainter {
   const _SparkPainter({

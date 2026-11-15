@@ -304,6 +304,154 @@ void main() {
     expect(details['importance'], Importance.high.value);
   });
 
+  group('sound', () {
+    const chime = NotificationChannel(
+      id: 'rest_chime',
+      name: 'Rest timer',
+      description: 'When a rest is over',
+      importance: Importance.high,
+      sound: NotificationSound('chime'),
+    );
+    const quiet = NotificationChannel(
+      id: 'rest_silent',
+      name: 'Rest timer, silent',
+      description: 'When a rest is over',
+      importance: Importance.high,
+      sound: NotificationSound.silent,
+    );
+
+    Map<Object?, Object?> details(String method) =>
+        (native.named(method).single.arguments as Map)['platformSpecifics']
+            as Map;
+
+    test('show posts to the sound channel with its bundled sound', () async {
+      await init();
+
+      await notifications.show(1, title: 'T', body: 'B', channel: chime);
+
+      final android = details('show');
+      expect(android['channelId'], 'rest_chime');
+      expect(android['channelName'], 'Rest timer');
+      expect(android['playSound'], isTrue);
+      expect(android['sound'], 'chime');
+      // A raw resource (AndroidNotificationSoundSource.rawResource).
+      expect(android['soundSource'], 0);
+    });
+
+    test('a silent channel plays no sound', () async {
+      await init();
+
+      await notifications.show(1, title: 'T', body: 'B', channel: quiet);
+
+      final android = details('show');
+      expect(android['channelId'], 'rest_silent');
+      expect(android['playSound'], isFalse);
+      expect(android.containsKey('sound'), isFalse);
+    });
+
+    test('a channel without vibration stays still, others vibrate', () async {
+      const off = NotificationChannel(
+        id: 'rest_off',
+        name: 'Rest timer, off',
+        description: 'When a rest is over',
+        importance: Importance.high,
+        sound: NotificationSound.silent,
+        vibrate: false,
+      );
+      notifications = LocalNotifications(
+        channel: off,
+        androidIcon: 'ic_notification',
+      );
+      await init();
+
+      await notifications.show(1, title: 'T', body: 'B', channel: quiet);
+      await notifications.show(2, title: 'T', body: 'B');
+
+      final created =
+          native.named('createNotificationChannel').single.arguments as Map;
+      expect(created['playSound'], isFalse);
+      expect(created['enableVibration'], isFalse);
+      final shown = [
+        for (final call in native.named('show'))
+          (call.arguments as Map)['platformSpecifics'] as Map,
+      ];
+      expect(shown.first['enableVibration'], isTrue);
+      expect(shown.last['channelId'], 'rest_off');
+      expect(shown.last['enableVibration'], isFalse);
+    });
+
+    test('scheduleIn carries the channel and its sound', () async {
+      await init();
+
+      await at(
+        () => notifications.scheduleIn(
+          7,
+          const Duration(seconds: 90),
+          title: 'Rest is over',
+          body: 'Next set',
+          channel: chime,
+        ),
+      );
+
+      final android = details('zonedSchedule');
+      expect(android['channelId'], 'rest_chime');
+      expect(android['sound'], 'chime');
+    });
+
+    test('without a channel the app channel keeps the system sound', () async {
+      await init();
+
+      await notifications.show(1, title: 'T', body: 'B');
+
+      final android = details('show');
+      expect(android['channelId'], 'reminders');
+      expect(android['playSound'], isTrue);
+      expect(android.containsKey('sound'), isFalse);
+    });
+
+    test('the app channel is created with its sound', () async {
+      notifications = LocalNotifications(
+        channel: chime,
+        androidIcon: 'ic_notification',
+      );
+
+      await init();
+
+      final args =
+          native.named('createNotificationChannel').single.arguments as Map;
+      expect(args['playSound'], isTrue);
+      expect(args['sound'], 'chime');
+    });
+
+    test('on iOS a bundled sound is its .caf file, silent none', () async {
+      usePlatform(TargetPlatform.iOS);
+      await init();
+
+      await notifications.show(1, title: 'T', body: 'B', channel: chime);
+      await at(
+        () => notifications.scheduleAt(
+          2,
+          now.add(const Duration(minutes: 1)),
+          title: 'T',
+          body: 'B',
+          channel: quiet,
+        ),
+      );
+      await notifications.show(3, title: 'T', body: 'B');
+
+      final shown = [
+        for (final call in native.named('show'))
+          (call.arguments as Map)['platformSpecifics'] as Map,
+      ];
+      expect(shown.first['presentSound'], isTrue);
+      expect(shown.first['sound'], 'chime.caf');
+      final silent = details('zonedSchedule');
+      expect(silent['presentSound'], isFalse);
+      expect(silent['sound'], isNull);
+      expect(shown.last['sound'], isNull);
+    });
+  });
+
   test('the plugin rejects an id beyond 32 bits', () async {
     await init();
 

@@ -131,22 +131,32 @@ class SectionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: Gap.md,
             children: [
-              Row(
-                spacing: Gap.sm,
-                children: [
-                  Expanded(child: Text(title, style: text.titleMedium)),
-                  if (detail != null)
-                    Text(
-                      detail!,
-                      style: style.data.copyWith(color: colors.inkMuted),
+              LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  spacing: Gap.sm,
+                  children: [
+                    Expanded(child: Text(title, style: text.titleMedium)),
+                    if (detail != null)
+                      // A long detail ends in an ellipsis at half the header.
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth / 2,
+                        ),
+                        child: Text(
+                          detail!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: style.data.copyWith(color: colors.inkMuted),
+                        ),
+                      ),
+                    ?tag,
+                    ForgeIcon(
+                      ForgeIcons.chevronRight,
+                      size: 18,
+                      color: colors.inkMuted,
                     ),
-                  ?tag,
-                  ForgeIcon(
-                    ForgeIcons.chevronRight,
-                    size: 18,
-                    color: colors.inkMuted,
-                  ),
-                ],
+                  ],
+                ),
               ),
               body,
             ],

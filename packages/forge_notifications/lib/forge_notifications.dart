@@ -50,6 +50,12 @@
 /// ```
 /// No `Info.plist` keys or capabilities are needed.
 ///
+/// A bundled [NotificationSound] `<name>`: on Android
+/// `res/raw/<name>.ogg` (or `.mp3`, `.wav`), listed in `res/raw/keep.xml`'s
+/// `tools:keep` as `@raw/<name>`; on iOS `<name>.caf` (or a renamed
+/// `.aiff`/`.wav`, at most 30 seconds) in the Runner target's Copy Bundle
+/// Resources.
+///
 /// ## App lifecycle
 ///
 /// At start: `init`, then re-apply every repeating schedule. On resume:
