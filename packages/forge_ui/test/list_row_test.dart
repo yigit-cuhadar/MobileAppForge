@@ -32,6 +32,41 @@ void main() {
     expect(find.byType(Divider), findsNWidgets(2));
   });
 
+  testWidgets('the sliver form builds only the rows in view', (tester) async {
+    final built = <int>{};
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              ListRowCard.sliver(
+                itemCount: 400,
+                itemBuilder: (context, i) {
+                  built.add(i);
+                  return ListRow(title: 'Row $i', onTap: () => taps++);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(built, hasLength(lessThan(30)));
+    expect(
+      find.byType(Divider),
+      findsNWidgets(find.byType(ListRow).evaluate().length - 1),
+    );
+    await tester.tap(find.text('Row 0'));
+    expect(taps, 1);
+
+    await tester.scrollUntilVisible(find.text('Row 399'), 2000);
+    expect(find.text('Row 399'), findsOneWidget);
+    expect(find.text('Row 0'), findsNothing);
+  });
+
   testWidgets('tapping a row calls onTap; the chevron and value show', (
     tester,
   ) async {

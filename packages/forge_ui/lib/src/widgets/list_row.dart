@@ -17,7 +17,18 @@ import 'skeleton.dart';
 
 /// [ListRow]s in one card, a 1px line between each two.
 class ListRowCard extends StatelessWidget {
-  const ListRowCard({super.key, required this.children, this.onReorder});
+  const ListRowCard({super.key, required this.children, this.onReorder})
+    : itemCount = 0,
+      itemBuilder = null;
+
+  /// The lazy form for a long list: a sliver for a [CustomScrollView] that
+  /// builds each of its [itemCount] rows only as it scrolls into view.
+  const ListRowCard.sliver({
+    super.key,
+    required this.itemCount,
+    required IndexedWidgetBuilder this.itemBuilder,
+  }) : children = const [],
+       onReorder = null;
 
   final List<Widget> children;
 
@@ -25,9 +36,13 @@ class ListRowCard extends StatelessWidget {
   /// needs a key. Reports the row moved from one index to another, with
   /// `to` counted after the row was taken out.
   final void Function(int from, int to)? onReorder;
+  final int itemCount;
+  final IndexedWidgetBuilder? itemBuilder;
 
   @override
   Widget build(BuildContext context) {
+    final itemBuilder = this.itemBuilder;
+    if (itemBuilder != null) return _sliver(context, itemBuilder);
     final onReorder = this.onReorder;
     if (onReorder == null) {
       return CardFrame(
@@ -63,6 +78,45 @@ class ListRowCard extends StatelessWidget {
               child: row,
             ),
         ],
+      ),
+    );
+  }
+
+  /// The card drawn as [CardFrame] draws it, around rows built on demand.
+  Widget _sliver(BuildContext context, IndexedWidgetBuilder itemBuilder) {
+    final style = ForgeStyle.of(context);
+    final radius = Radius.circular(style.radii.lg);
+    Widget row(BuildContext context, int i) {
+      final row = itemBuilder(context, i);
+      if (i > 0 && i < itemCount - 1) return row;
+      // Tinted first and last rows keep inside the rounded corners.
+      return ClipRRect(
+        borderRadius: BorderRadius.vertical(
+          top: i == 0 ? radius : Radius.zero,
+          bottom: i == itemCount - 1 ? radius : Radius.zero,
+        ),
+        child: row,
+      );
+    }
+
+    return DecoratedSliver(
+      decoration: BoxDecoration(
+        color: style.colors.surface,
+        borderRadius: BorderRadius.all(radius),
+      ),
+      sliver: DecoratedSliver(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.all(radius),
+          border: style.cardBorder == 0
+              ? null
+              : Border.all(color: style.colors.line, width: style.cardBorder),
+        ),
+        sliver: SliverList.separated(
+          itemCount: itemCount,
+          itemBuilder: row,
+          separatorBuilder: (_, _) => const Divider(),
+        ),
       ),
     );
   }
