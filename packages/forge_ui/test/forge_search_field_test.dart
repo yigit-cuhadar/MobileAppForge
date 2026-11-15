@@ -132,4 +132,16 @@ void main() {
     );
     expect((outline.foregroundDecoration! as BoxDecoration).border, isNotNull);
   });
+
+  testWidgets('draws no border of its own inside the pill', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+
+    final decoration = tester
+        .widget<InputDecorator>(find.byType(InputDecorator))
+        .decoration;
+    expect(decoration.enabledBorder, InputBorder.none);
+    expect(decoration.focusedBorder, InputBorder.none);
+  });
 }

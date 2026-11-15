@@ -5,6 +5,7 @@ import '../spacing.dart';
 import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import 'pressable.dart';
+import 'bare_decoration.dart';
 
 /// An outlined text field: the [label] above a 44px box. It takes a 2px
 /// accent outline while typing, a 2px danger outline with the message under
@@ -303,7 +304,7 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
                   ),
                   textAlign: TextAlign.end,
                   style: value,
-                  decoration: InputDecoration.collapsed(
+                  decoration: bareDecoration(
                     hintText: '—',
                     hintStyle: value.copyWith(color: p.inkSubtle),
                   ),

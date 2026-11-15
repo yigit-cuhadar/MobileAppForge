@@ -6,6 +6,7 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'numbers.dart';
 import 'pressable.dart';
+import 'bare_decoration.dart';
 
 /// A sunken 50px pill with round minus and plus buttons at its ends and the
 /// value in mono with its [unit] small under it, with the fewest decimals
@@ -202,7 +203,7 @@ class _StepperFieldState extends State<StepperField> {
               ),
               textAlign: TextAlign.center,
               style: valueStyle,
-              decoration: const InputDecoration.collapsed(hintText: null),
+              decoration: bareDecoration(),
               cursorWidth: 2,
             ),
           )
