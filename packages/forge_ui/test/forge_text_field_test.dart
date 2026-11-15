@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -126,6 +127,34 @@ void main() {
       expect(controller.text, 'Item ');
       expect(find.textContaining('/5'), findsNothing);
       expect(tester.getSize(find.byType(TextField)).height, 44);
+    });
+
+    testWidgets('a caller-set error shows and goes as the caller changes it', (
+      tester,
+    ) async {
+      final changes = <String>[];
+      Widget field(String? error) => ForgeTextField(
+        label: 'Count',
+        errorText: error,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        onChanged: changes.add,
+      );
+      await pump(tester, field('Enter a number'));
+      final colors = ForgeStyle.of(tester.element(find.byType(TextField)))
+          .colors;
+
+      expect(find.text('Enter a number'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text('Count')).style!.color,
+        colors.danger,
+      );
+
+      await tester.enterText(find.byType(TextField), '1a2');
+      expect(changes, ['12']);
+      expect(find.text('12'), findsOneWidget);
+
+      await pump(tester, field(null));
+      expect(find.text('Enter a number'), findsNothing);
     });
 
     testWidgets('reads the label out with the field', (tester) async {

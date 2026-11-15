@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../spacing.dart';
 import '../theme/forge_preset.dart';
@@ -7,7 +8,8 @@ import 'pressable.dart';
 
 /// An outlined text field: the [label] above a 44px box. It takes a 2px
 /// accent outline while typing, a 2px danger outline with the message under
-/// it when [validator] fails, and a sunken fill when disabled. [multiline]
+/// it when [validator] fails or the caller sets [errorText], and a sunken
+/// fill when disabled. [multiline]
 /// is the note form: the same box, wrapping and growing up to three lines,
 /// then scrolling inside. [maxLength] stops input at that many characters,
 /// with no counter.
@@ -18,13 +20,16 @@ class ForgeTextField extends StatefulWidget {
     this.hint,
     this.controller,
     this.validator,
+    this.errorText,
     this.keyboardType,
+    this.inputFormatters,
     this.obscure = false,
     this.multiline = false,
     this.maxLength,
     this.enabled = true,
     this.textInputAction,
     this.autofillHints,
+    this.onChanged,
     this.onSubmitted,
   });
 
@@ -32,13 +37,19 @@ class ForgeTextField extends StatefulWidget {
   final String? hint;
   final TextEditingController? controller;
   final FormFieldValidator<String>? validator;
+
+  /// An error the caller keeps up to date as the user types; it wins over
+  /// [validator]'s.
+  final String? errorText;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final bool obscure;
   final bool multiline;
   final int? maxLength;
   final bool enabled;
   final TextInputAction? textInputAction;
   final Iterable<String>? autofillHints;
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
   @override
@@ -73,7 +84,7 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
           ? null
           : (_) => widget.validator!(_controller.text),
       builder: (field) {
-        final error = field.errorText;
+        final error = widget.errorText ?? field.errorText;
         return MergeSemantics(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,12 +101,14 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
                 controller: _controller,
                 enabled: widget.enabled,
                 keyboardType: widget.keyboardType,
+                inputFormatters: widget.inputFormatters,
                 obscureText: widget.obscure,
                 maxLines: widget.multiline ? 3 : 1,
                 minLines: 1,
                 maxLength: widget.maxLength,
                 textInputAction: widget.textInputAction,
                 autofillHints: widget.autofillHints,
+                onChanged: widget.onChanged,
                 onSubmitted: widget.onSubmitted,
                 style: text.bodyMedium!.copyWith(color: p.ink),
                 decoration: InputDecoration(
