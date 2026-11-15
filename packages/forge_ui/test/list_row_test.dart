@@ -53,6 +53,35 @@ void main() {
     expect(tester.getSize(find.byType(ListRow)).height, 52);
   });
 
+  testWidgets('a long value wraps instead of overflowing at large text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(3),
+          ),
+          child: Scaffold(
+            body: ListRowCard(
+              children: [
+                ListRow(
+                  title: 'Item title',
+                  value: '[VALUE] · [VALUE]',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a destructive row has its title in danger', (tester) async {
     await pump(tester, const ListRow(title: 'Delete', destructive: true));
 
