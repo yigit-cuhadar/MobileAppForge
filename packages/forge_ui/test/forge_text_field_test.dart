@@ -84,16 +84,48 @@ void main() {
       expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
     });
 
-    testWidgets('the note form grows from 84px', (tester) async {
+    testWidgets('the note form grows from one line to three, then stops', (
+      tester,
+    ) async {
       await pump(tester, const ForgeTextField(label: 'Note', multiline: true));
+      double height() => tester.getSize(find.byType(TextField)).height;
 
-      expect(tester.getSize(find.byType(TextField)).height, 84);
+      expect(height(), 44);
+      await tester.enterText(find.byType(TextField), 'One\nTwo');
+      await tester.pump();
+      final two = height();
+      expect(two, greaterThan(44));
+      await tester.enterText(find.byType(TextField), 'One\nTwo\nThree');
+      await tester.pump();
+      final three = height();
+      expect(three, greaterThan(two));
       await tester.enterText(
         find.byType(TextField),
         'One\nTwo\nThree\nFour\nFive',
       );
       await tester.pump();
-      expect(tester.getSize(find.byType(TextField)).height, greaterThan(84));
+      expect(height(), three);
+    });
+
+    testWidgets('input stops at maxLength with no counter', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      await pump(
+        tester,
+        ForgeTextField(
+          label: 'Note',
+          multiline: true,
+          maxLength: 5,
+          controller: controller,
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), 'Item title');
+      await tester.pump();
+
+      expect(controller.text, 'Item ');
+      expect(find.textContaining('/5'), findsNothing);
+      expect(tester.getSize(find.byType(TextField)).height, 44);
     });
 
     testWidgets('reads the label out with the field', (tester) async {

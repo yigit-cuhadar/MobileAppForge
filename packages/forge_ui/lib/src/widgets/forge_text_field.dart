@@ -8,7 +8,9 @@ import 'pressable.dart';
 /// An outlined text field: the [label] above a 44px box. It takes a 2px
 /// accent outline while typing, a 2px danger outline with the message under
 /// it when [validator] fails, and a sunken fill when disabled. [multiline]
-/// is the note form: the same box, at least 84px, growing with its text.
+/// is the note form: the same box, wrapping and growing up to three lines,
+/// then scrolling inside. [maxLength] stops input at that many characters,
+/// with no counter.
 class ForgeTextField extends StatefulWidget {
   const ForgeTextField({
     super.key,
@@ -19,6 +21,7 @@ class ForgeTextField extends StatefulWidget {
     this.keyboardType,
     this.obscure = false,
     this.multiline = false,
+    this.maxLength,
     this.enabled = true,
     this.textInputAction,
     this.autofillHints,
@@ -32,6 +35,7 @@ class ForgeTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final bool obscure;
   final bool multiline;
+  final int? maxLength;
   final bool enabled;
   final TextInputAction? textInputAction;
   final Iterable<String>? autofillHints;
@@ -87,10 +91,9 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
                 enabled: widget.enabled,
                 keyboardType: widget.keyboardType,
                 obscureText: widget.obscure,
-                maxLines: widget.multiline ? null : 1,
-                textAlignVertical: widget.multiline
-                    ? TextAlignVertical.top
-                    : null,
+                maxLines: widget.multiline ? 3 : 1,
+                minLines: 1,
+                maxLength: widget.maxLength,
                 textInputAction: widget.textInputAction,
                 autofillHints: widget.autofillHints,
                 onSubmitted: widget.onSubmitted,
@@ -98,12 +101,7 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
                 decoration: InputDecoration(
                   hintText: widget.hint,
                   fillColor: widget.enabled ? p.surface : p.surfaceSunken,
-                  contentPadding: widget.multiline
-                      ? const EdgeInsets.all(Gap.md)
-                      : null,
-                  constraints: widget.multiline
-                      ? const BoxConstraints(minHeight: 84)
-                      : null,
+                  counterText: '',
                   enabledBorder: error == null ? null : outline(p.danger, 2),
                   focusedBorder: error == null ? null : outline(p.danger, 2),
                 ),
