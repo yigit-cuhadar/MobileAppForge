@@ -1,19 +1,16 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_palette.dart';
 import '../theme/forge_style.dart';
-import '../theme/forge_theme.dart';
 import 'busy_ring.dart';
 import 'card_frame.dart';
 import 'chart_paint.dart';
 import 'day_circle.dart';
 import 'skeleton.dart';
+import 'tap_band.dart';
 
 /// [ListRow]s in one card, a 1px line between each two.
 class ListRowCard extends StatelessWidget {
@@ -267,12 +264,12 @@ class ListRow extends StatelessWidget {
         ? colors.onAccentSoft
         : colors.inkMuted;
     final line = error ?? detail;
-    final info = onInfo == null ? null : _BandLink();
-    final handle = this.leading is ListRowDragHandle ? _BandLink() : null;
+    final info = onInfo == null ? null : TapBandLink();
+    final handle = this.leading is ListRowDragHandle ? TapBandLink() : null;
     final leading = checked != null
         ? _Checkbox(checked: on)
         : handle != null
-        ? _BandTarget(link: handle, child: this.leading!)
+        ? TapBandTarget(link: handle, child: this.leading!)
         : this.leading;
 
     final prominent = this.leading is ListRowDateBox || onInfo != null;
@@ -287,7 +284,7 @@ class ListRow extends StatelessWidget {
         spacing: Gap.xs,
         children: [
           Flexible(child: title),
-          _BandTarget(
+          TapBandTarget(
             link: info!,
             child: Semantics(
               container: true,
@@ -373,7 +370,7 @@ class ListRow extends StatelessWidget {
         onTap: onTap,
         child: info == null && handle == null
             ? _frame(row)
-            : _BandArea(links: [?info, ?handle], child: _frame(row)),
+            : TapBandArea(links: [?info, ?handle], child: _frame(row)),
       ),
     );
     if (checked != null) {
@@ -520,79 +517,5 @@ class _Checkbox extends StatelessWidget {
           ? ForgeIcon(ForgeIcons.check, size: 14, color: colors.onAccent)
           : null,
     );
-  }
-}
-
-/// Lets the row find a small control (the info icon, the drag handle)
-/// when hit-testing.
-class _BandLink {
-  RenderBox? target;
-}
-
-/// Marks a small control for its row's [_BandArea].
-class _BandTarget extends SingleChildRenderObjectWidget {
-  const _BandTarget({required this.link, required super.child});
-
-  final _BandLink link;
-
-  @override
-  RenderProxyBox createRenderObject(BuildContext context) =>
-      _RenderBandTarget(link);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderBandTarget target) =>
-      target.link = link;
-}
-
-class _RenderBandTarget extends RenderProxyBox {
-  _RenderBandTarget(_BandLink link) {
-    this.link = link;
-  }
-
-  set link(_BandLink link) => link.target = this;
-}
-
-/// Sends touches within a tap-min square around each linked control to
-/// that control, though it is drawn smaller and the layout stays as drawn.
-class _BandArea extends SingleChildRenderObjectWidget {
-  const _BandArea({required this.links, required super.child});
-
-  final List<_BandLink> links;
-
-  @override
-  RenderProxyBox createRenderObject(BuildContext context) =>
-      _RenderBandArea(links);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderBandArea area) =>
-      area.links = links;
-}
-
-class _RenderBandArea extends RenderProxyBox {
-  _RenderBandArea(this.links);
-
-  List<_BandLink> links;
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    if (size.contains(position)) {
-      for (final link in links) {
-        final target = link.target;
-        if (target == null || !target.attached || !target.hasSize) continue;
-        final local = target.globalToLocal(localToGlobal(position));
-        final centre = target.size.center(Offset.zero);
-        final area = Rect.fromCenter(
-          center: centre,
-          width: max(ForgeTheme.tapMin, target.size.width),
-          height: max(ForgeTheme.tapMin, target.size.height),
-        );
-        if (area.contains(local)) {
-          target.hitTest(result, position: centre);
-          result.add(BoxHitTestEntry(this, position));
-          return true;
-        }
-      }
-    }
-    return super.hitTest(result, position: position);
   }
 }

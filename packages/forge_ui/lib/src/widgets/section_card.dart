@@ -6,10 +6,12 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
+import 'tap_band.dart';
 import 'skeleton.dart';
 
 /// A card for one section of a page: the [title], a [detail] in data
 /// ink-muted and a chevron; the whole card opens the section's page.
+/// [SectionCard.plain] only holds its content.
 class SectionCard extends StatelessWidget {
   /// Filled: [child] holds the content (BandBars, rows).
   const SectionCard({
@@ -22,7 +24,9 @@ class SectionCard extends StatelessWidget {
        message = null,
        onRetry = null,
        retryLabel = null,
-       tag = null;
+       tag = null,
+       actionLabel = null,
+       onAction = null;
 
   /// Shimmering skeleton bars while the content loads.
   const SectionCard.loading({
@@ -35,7 +39,9 @@ class SectionCard extends StatelessWidget {
        message = null,
        onRetry = null,
        retryLabel = null,
-       tag = null;
+       tag = null,
+       actionLabel = null,
+       onAction = null;
 
   /// Loading failed: [message] in danger and an outline Retry.
   const SectionCard.error({
@@ -48,7 +54,9 @@ class SectionCard extends StatelessWidget {
   }) : _state = _State.error,
        detail = null,
        child = null,
-       tag = null;
+       tag = null,
+       actionLabel = null,
+       onAction = null;
 
   /// Nothing yet: one muted [message].
   const SectionCard.empty({
@@ -61,7 +69,9 @@ class SectionCard extends StatelessWidget {
        child = null,
        onRetry = null,
        retryLabel = null,
-       tag = null;
+       tag = null,
+       actionLabel = null,
+       onAction = null;
 
   /// Premium: the Premium [tag] (Tags) before the chevron and one muted
   /// [message]; [onTap] opens the paywall.
@@ -75,16 +85,37 @@ class SectionCard extends StatelessWidget {
        detail = null,
        child = null,
        onRetry = null,
-       retryLabel = null;
+       retryLabel = null,
+       actionLabel = null,
+       onAction = null;
+
+  /// The [title] over [child], no chevron and no tap; an optional text
+  /// action ([actionLabel], such as "Edit") ends the header.
+  const SectionCard.plain({
+    super.key,
+    required this.title,
+    required Widget this.child,
+    this.actionLabel,
+    this.onAction,
+  }) : assert((actionLabel == null) == (onAction == null)),
+       _state = _State.filled,
+       onTap = null,
+       detail = null,
+       message = null,
+       onRetry = null,
+       retryLabel = null,
+       tag = null;
 
   final String title;
   final String? detail;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Widget? child;
   final String? message;
   final VoidCallback? onRetry;
   final String? retryLabel;
   final Widget? tag;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   final _State _state;
 
   @override
@@ -121,48 +152,60 @@ class SectionCard extends StatelessWidget {
       ),
       _State.empty || _State.locked => Text(message!, style: text.bodySmall),
     };
-    return CardFrame(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: Gap.md,
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) => Row(
-                  spacing: Gap.sm,
-                  children: [
-                    Expanded(child: Text(title, style: text.titleMedium)),
-                    if (detail != null)
-                      // A long detail ends in an ellipsis at half the header.
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth / 2,
-                        ),
-                        child: Text(
-                          detail!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: style.data.copyWith(color: colors.inkMuted),
-                        ),
-                      ),
-                    ?tag,
-                    ForgeIcon(
-                      ForgeIcons.chevronRight,
-                      size: 18,
-                      color: colors.inkMuted,
+    final action = actionLabel == null ? null : TapBandLink();
+    Widget card = Padding(
+      padding: const EdgeInsets.all(Gap.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: Gap.md,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) => Row(
+              spacing: Gap.sm,
+              children: [
+                Expanded(child: Text(title, style: text.titleMedium)),
+                if (detail != null)
+                  // A long detail ends in an ellipsis at half the header.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth / 2,
                     ),
-                  ],
-                ),
-              ),
-              body,
-            ],
+                    child: Text(
+                      detail!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: style.data.copyWith(color: colors.inkMuted),
+                    ),
+                  ),
+                ?tag,
+                if (actionLabel case final label?)
+                  TapBandTarget(
+                    link: action!,
+                    child: Semantics(
+                      button: true,
+                      child: GestureDetector(
+                        onTap: onAction,
+                        child: Text(label, style: text.bodySmall),
+                      ),
+                    ),
+                  ),
+                if (onTap != null)
+                  ForgeIcon(
+                    ForgeIcons.chevronRight,
+                    size: 18,
+                    color: colors.inkMuted,
+                  ),
+              ],
+            ),
           ),
-        ),
+          body,
+        ],
       ),
+    );
+    if (action != null) card = TapBandArea(links: [action], child: card);
+    return CardFrame(
+      child: onTap == null ? card : InkWell(onTap: onTap, child: card),
     );
   }
 }
