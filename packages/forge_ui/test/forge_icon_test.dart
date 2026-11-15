@@ -57,6 +57,7 @@ const _all = [
   ForgeIcons.openInNew,
   ForgeIcons.person,
   ForgeIcons.photoCamera,
+  ForgeIcons.playArrow,
   ForgeIcons.remove,
   ForgeIcons.removeCircle,
   ForgeIcons.search,
