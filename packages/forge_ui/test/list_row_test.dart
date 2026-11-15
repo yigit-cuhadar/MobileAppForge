@@ -227,6 +227,36 @@ void main() {
     expect(textColor(tester, '[DETAIL]'), colors(tester).inkSubtle);
   });
 
+  testWidgets('a disabled row is line-strong, takes no tap, reads disabled', (
+    tester,
+  ) async {
+    var taps = 0;
+    await pump(
+      tester,
+      ListRow(
+        title: 'Item title',
+        detail: '[DETAIL]',
+        value: '[VALUE]',
+        disabled: true,
+        onTap: () => taps++,
+      ),
+    );
+
+    for (final text in ['Item title', '[DETAIL]', '[VALUE]']) {
+      expect(textColor(tester, text), colors(tester).lineStrong);
+    }
+    await tester.tap(find.text('Item title'));
+    expect(taps, 0);
+    expect(
+      tester.getSemantics(find.byType(ListRow)),
+      matchesSemantics(
+        label: 'Item title\n[DETAIL]\n[VALUE]',
+        hasEnabledState: true,
+        isEnabled: false,
+      ),
+    );
+  });
+
   testWidgets('a busy row turns a ring', (tester) async {
     await pump(
       tester,

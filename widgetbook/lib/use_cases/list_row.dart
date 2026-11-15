@@ -230,6 +230,21 @@ Widget lockedRows(BuildContext context) => _page(
   ),
 );
 
+@widgetbook.UseCase(name: 'Disabled', type: ListRow)
+Widget disabledRows(BuildContext context) => _page(
+  ListRowCard(
+    children: [
+      ListRow(title: 'Item one', onTap: () {}),
+      ListRow(
+        title: 'Item two · [VALUE]',
+        disabled: context.knobs.boolean(label: 'Disabled', initialValue: true),
+        onTap: () {},
+      ),
+      ListRow(title: 'Item three', onTap: () {}),
+    ],
+  ),
+);
+
 @widgetbook.UseCase(name: 'Unlocking, then Retry', type: ListRow)
 Widget unlockingRows(BuildContext context) => _page(
   ListRowCard(

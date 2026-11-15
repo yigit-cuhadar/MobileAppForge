@@ -146,6 +146,7 @@ class ListRow extends StatelessWidget {
     this.missing = false,
     this.locked = false,
     this.busy = false,
+    this.disabled = false,
   }) : assert(checked == null || leading == null),
        assert(
          (onInfo == null) == (infoLabel == null),
@@ -173,6 +174,7 @@ class ListRow extends StatelessWidget {
       missing = false,
       locked = false,
       busy = false,
+      disabled = false,
       loading = true;
 
   final String? title;
@@ -213,6 +215,9 @@ class ListRow extends StatelessWidget {
   /// Work the user started on this row (unlocking): a small turning ring
   /// at the end.
   final bool busy;
+
+  /// Cannot be picked now (a full item): its text in line-strong, no tap.
+  final bool disabled;
   final bool loading;
   final int _skeleton;
 
@@ -249,14 +254,18 @@ class ListRow extends StatelessWidget {
     }
 
     final on = checked ?? false;
-    final titleColor = destructive
+    final titleColor = disabled
+        ? colors.lineStrong
+        : destructive
         ? colors.danger
         : locked
         ? colors.inkMuted
         : on
         ? colors.onAccentSoft
         : colors.ink;
-    final detailColor = error != null
+    final detailColor = disabled
+        ? colors.lineStrong
+        : error != null
         ? colors.danger
         : locked
         ? colors.inkSubtle
@@ -337,7 +346,9 @@ class ListRow extends StatelessWidget {
             child: Text(
               value!,
               textAlign: TextAlign.end,
-              style: text.bodySmall,
+              style: disabled
+                  ? text.bodySmall!.copyWith(color: colors.lineStrong)
+                  : text.bodySmall,
             ),
           ),
         ?trailing,
@@ -367,15 +378,19 @@ class ListRow extends StatelessWidget {
       type: tint == null ? MaterialType.transparency : MaterialType.canvas,
       color: tint,
       child: InkWell(
-        onTap: onTap,
+        onTap: disabled ? null : onTap,
         child: info == null && handle == null
             ? _frame(row)
             : TapBandArea(links: [?info, ?handle], child: _frame(row)),
       ),
     );
-    if (checked != null) {
+    if (checked != null || disabled) {
       result = MergeSemantics(
-        child: Semantics(checked: checked, child: result),
+        child: Semantics(
+          checked: checked,
+          enabled: disabled ? false : null,
+          child: result,
+        ),
       );
     }
     return result;
