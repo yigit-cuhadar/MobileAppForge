@@ -71,6 +71,17 @@ Widget emptyViewNoButton(BuildContext context) => _page(
   ),
 );
 
+@widgetbook.UseCase(name: 'Empty · no title', type: EmptyView)
+Widget emptyViewNoTitle(BuildContext context) => _page(
+  EmptyView(
+    message: context.knobs.string(
+      label: 'Message',
+      initialValue: 'Add items to get started.',
+    ),
+    actions: [ForgeButton(label: 'Add item', onPressed: () {})],
+  ),
+);
+
 /// The compact forms sit inside a card, as in a chart or a plan list.
 Widget _inCard(Widget child) => _page(
   Card(
