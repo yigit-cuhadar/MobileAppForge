@@ -218,3 +218,18 @@ class _SelectedNoCheckState extends State<_SelectedNoCheck> {
     ),
   );
 }
+
+@widgetbook.UseCase(name: 'Add', type: ForgeChip)
+Widget add(BuildContext context) => Center(
+  child: Wrap(
+    spacing: Gap.sm,
+    children: [
+      ForgeChip(label: 'Item A', onPressed: () {}),
+      ForgeChip(label: 'Item B', onPressed: () {}),
+      ForgeChip.add(
+        label: context.knobs.string(label: 'Label', initialValue: 'Item'),
+        onPressed: () {},
+      ),
+    ],
+  ),
+);

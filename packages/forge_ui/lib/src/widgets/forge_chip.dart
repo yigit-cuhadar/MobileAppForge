@@ -33,7 +33,8 @@ class ForgeChip extends StatelessWidget {
        ),
        sample = null,
        removeHint = null,
-       _menu = false;
+       _menu = false,
+       _add = false;
 
   /// An unset filter that opens a menu or sheet of its values: the filter's
   /// name with a ▾ after it.
@@ -50,7 +51,23 @@ class ForgeChip extends StatelessWidget {
        optionsLabel = null,
        sample = null,
        removeHint = null,
-       _menu = true;
+       _menu = true,
+       _add = false;
+
+  /// Adds an item to a row of chips: a + before the [label], both in
+  /// ink-muted.
+  const ForgeChip.add({super.key, required this.label, required this.onPressed})
+    : selected = false,
+      showCheck = false,
+      count = null,
+      locked = false,
+      leading = const ForgeIcon(ForgeIcons.add, size: 16),
+      onOptions = null,
+      optionsLabel = null,
+      sample = null,
+      removeHint = null,
+      _menu = false,
+      _add = true;
 
   /// A small 28px chip for a chart series: the series' [sample] (a short
   /// line in its colour, or an icon) before the label, no check.
@@ -67,7 +84,8 @@ class ForgeChip extends StatelessWidget {
        onOptions = null,
        optionsLabel = null,
        removeHint = null,
-       _menu = false;
+       _menu = false,
+       _add = false;
 
   /// An active filter above a list: the chosen look with a close icon on
   /// the right; tapping it calls [onRemoved]. Screen readers announce
@@ -86,7 +104,8 @@ class ForgeChip extends StatelessWidget {
        onOptions = null,
        optionsLabel = null,
        sample = null,
-       _menu = false;
+       _menu = false,
+       _add = false;
 
   final String label;
   final VoidCallback onPressed;
@@ -112,6 +131,7 @@ class ForgeChip extends StatelessWidget {
   final Widget? sample;
   final String? removeHint;
   final bool _menu;
+  final bool _add;
 
   bool get _removable => removeHint != null;
 
@@ -153,7 +173,11 @@ class ForgeChip extends StatelessWidget {
         ),
       );
     }
-    final ink = selected ? p.onAccentSoft : p.ink;
+    final ink = selected
+        ? p.onAccentSoft
+        : _add
+        ? p.inkMuted
+        : p.ink;
     return _frame(
       p,
       height: height,

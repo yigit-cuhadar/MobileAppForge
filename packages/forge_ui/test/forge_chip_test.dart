@@ -339,4 +339,28 @@ void main() {
     expect(box.color, colors.accentSoft);
     expect(box.border, Border.all(color: colors.accent, width: 1.5));
   });
+
+  testWidgets('the add form shows a + and its label in ink-muted', (
+    tester,
+  ) async {
+    var taps = 0;
+    await pump(tester, ForgeChip.add(label: 'Item', onPressed: () => taps++));
+    final colors = ForgeStyle.of(tester.element(find.byType(ForgeChip))).colors;
+
+    expect(tester.getSize(icon(ForgeIcons.add)), const Size.square(16));
+    expect(
+      IconTheme.of(tester.element(icon(ForgeIcons.add))).color,
+      colors.inkMuted,
+    );
+    expect(
+      tester.widget<Text>(find.text('Item')).style!.color,
+      colors.inkMuted,
+    );
+    expect(
+      tester.getTopRight(icon(ForgeIcons.add)).dx,
+      lessThan(tester.getTopLeft(find.text('Item')).dx),
+    );
+    await tester.tap(find.byType(ForgeChip));
+    expect(taps, 1);
+  });
 }
