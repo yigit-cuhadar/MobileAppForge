@@ -279,7 +279,13 @@ class ListRow extends StatelessWidget {
         if (missing)
           Text('—', style: text.bodySmall!.copyWith(color: colors.danger))
         else if (value != null)
-          Text(value!, style: text.bodySmall),
+          Flexible(
+            child: Text(
+              value!,
+              textAlign: TextAlign.end,
+              style: text.bodySmall,
+            ),
+          ),
         ?trailing,
         if (busy)
           Opacity(
