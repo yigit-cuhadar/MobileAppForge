@@ -42,13 +42,24 @@ notes of the feature you will touch, continue.
   summary. Work that does not depend on the answer goes on meanwhile.
 - Sub-agents never take these decisions: they stop and report each one with
   2-4 options and a recommendation, and the main session asks the user.
-- Design-phase questions (looks, texts, flows, and any choice a board or an
-  earlier answer does not settle) are all drawn first: one row per decision
-  on a Design canvas artifact, today's use on the left, each option drawn as
-  a real screen with every element present, the recommendation marked
-  "Öneri". Then ask them in canvas order, one decision per question, the
-  recommendation first and labelled "(Önerilen)". Different states or
-  aspects get separate rows, never rival bundles.
+- The owner decides from drawings. Every design-phase question (looks,
+  texts, flows, and any choice a board or an earlier answer leaves open) is
+  drawn before it is asked:
+  - One Design canvas artifact per batch (Artifact type "Design"), one
+    artboard row per decision, rows in one column in the order they will be
+    asked. A row is named "<code> · <short question>" with a one or two line
+    intro (in the owner's language) on what differs and why it is a decision.
+  - Columns, each a 390px phone drawn as a real screen in the studio's look
+    with every element present: first "Bugün" (what the code does now, or
+    "Pano" when only the board has it), then "A · …", "B · …" with a one-line
+    note. Exactly one option is "Öneri", with a green tag and border. Only the
+    option's difference changes between columns; nothing is clipped.
+  - Different states or aspects get separate rows, never rival bundles.
+  - Then ask in canvas order, one decision per question (up to four per
+    question dialog), recommendation first and labelled "(Önerilen)",
+    naming the row. Record each answer at once; an answer that adds
+    something new becomes a new drawn row before it is built.
+  - The app's SPEC links each batch's canvas under Design.
 - Colours stay muted: neutral grounds, one desaturated accent, colour only for
   status.
 - Decide the rest yourself and note it in `SPEC.md`: app-wide decisions under
