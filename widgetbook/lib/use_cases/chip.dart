@@ -176,7 +176,10 @@ Widget leadingIcon(BuildContext context) => Center(
   ),
 );
 
-@widgetbook.UseCase(name: 'Selected without check', type: ForgeChip)
+@widgetbook.UseCase(
+  name: 'Selected without check, with options',
+  type: ForgeChip,
+)
 Widget selectedNoCheck(BuildContext context) => const _SelectedNoCheck();
 
 class _SelectedNoCheck extends StatefulWidget {
@@ -205,12 +208,12 @@ class _SelectedNoCheckState extends State<_SelectedNoCheck> {
                 selected: _chosen == label,
                 showCheck: false,
                 onPressed: () => setState(() => _chosen = label),
-                onLongPress: () => setState(() => _held = label),
-                longPressLabel: 'Item options',
+                onOptions: () => setState(() => _held = label),
+                optionsLabel: 'Item options',
               ),
           ],
         ),
-        Text(_held.isEmpty ? 'Long-press a chip' : 'Held: $_held'),
+        Text(_held.isEmpty ? 'No options opened' : 'Options of $_held'),
       ],
     ),
   );

@@ -13,7 +13,8 @@ import 'pressable.dart';
 /// check unless [showCheck] is false, or a [count] badge in its place). A
 /// [locked] chip shows a lock before the label and stays tappable:
 /// [onPressed] then opens the paywall. The chip takes taps across a 44px
-/// band; [ForgeChip.series] is the small form for a chart's series.
+/// band; [ForgeChip.series] is the small form for a chart's series. A
+/// chip with [onOptions] opens its item's options.
 class ForgeChip extends StatelessWidget {
   const ForgeChip({
     super.key,
@@ -24,11 +25,11 @@ class ForgeChip extends StatelessWidget {
     this.count,
     this.locked = false,
     this.leading,
-    this.onLongPress,
-    this.longPressLabel,
+    this.onOptions,
+    this.optionsLabel,
   }) : assert(
-         (onLongPress == null) == (longPressLabel == null),
-         'Name the long-press action for screen readers.',
+         (onOptions == null) == (optionsLabel == null),
+         'Name the options for screen readers.',
        ),
        sample = null,
        removeHint = null,
@@ -45,8 +46,8 @@ class ForgeChip extends StatelessWidget {
        count = null,
        locked = false,
        leading = null,
-       onLongPress = null,
-       longPressLabel = null,
+       onOptions = null,
+       optionsLabel = null,
        sample = null,
        removeHint = null,
        _menu = true;
@@ -63,8 +64,8 @@ class ForgeChip extends StatelessWidget {
        locked = false,
        showCheck = false,
        leading = null,
-       onLongPress = null,
-       longPressLabel = null,
+       onOptions = null,
+       optionsLabel = null,
        removeHint = null,
        _menu = false;
 
@@ -82,8 +83,8 @@ class ForgeChip extends StatelessWidget {
        count = null,
        locked = false,
        leading = null,
-       onLongPress = null,
-       longPressLabel = null,
+       onOptions = null,
+       optionsLabel = null,
        sample = null,
        _menu = false;
 
@@ -99,10 +100,15 @@ class ForgeChip extends StatelessWidget {
   /// An icon before the label, 14px in the label's ink unless it sets its
   /// own (an add icon, a danger alert).
   final Widget? leading;
-  final VoidCallback? onLongPress;
 
-  /// What screen readers call the long-press action ("Day options").
-  final String? longPressLabel;
+  /// Opens the item's options (a menu): a long press, and while [selected]
+  /// a tap on the chip or on the ⋯ it then shows at its end.
+  final VoidCallback? onOptions;
+
+  /// What screen readers call the options ("Item options").
+  final String? optionsLabel;
+
+  bool get _options => selected && onOptions != null;
   final Widget? sample;
   final String? removeHint;
   final bool _menu;
@@ -153,7 +159,7 @@ class ForgeChip extends StatelessWidget {
       height: height,
       padding: EdgeInsets.only(
         left: Gap.md,
-        right: _removable || _menu ? Gap.sm : Gap.md,
+        right: _removable || _menu || _options ? Gap.sm : Gap.md,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -198,6 +204,14 @@ class ForgeChip extends StatelessWidget {
             ),
           if (_removable) ForgeIcon(ForgeIcons.close, size: 14, color: ink),
           if (_menu) ForgeIcon(ForgeIcons.expandMore, size: 16, color: ink),
+          if (_options)
+            Semantics(
+              container: true,
+              button: true,
+              label: optionsLabel,
+              onTap: onOptions,
+              child: ForgeIcon(ForgeIcons.moreHoriz, size: 16, color: ink),
+            ),
         ],
       ),
     );
@@ -213,12 +227,12 @@ class ForgeChip extends StatelessWidget {
       button: true,
       selected: selected,
       hint: removeHint,
-      customSemanticsActions: onLongPress == null
+      customSemanticsActions: onOptions == null
           ? null
-          : {CustomSemanticsAction(label: longPressLabel!): onLongPress!},
+          : {CustomSemanticsAction(label: optionsLabel!): onOptions!},
       child: Pressable(
-        onTap: onPressed,
-        onLongPress: onLongPress,
+        onTap: _options ? onOptions : onPressed,
+        onLongPress: onOptions,
         height: height,
         builder: (context, _) => Container(
           height: height,

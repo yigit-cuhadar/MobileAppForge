@@ -227,24 +227,25 @@ void main() {
     );
   });
 
-  testWidgets('a long press calls onLongPress, also as a reader action', (
+  testWidgets('a long press opens the options, also as a reader action', (
     tester,
   ) async {
     var taps = 0;
-    var holds = 0;
+    var options = 0;
     await pump(
       tester,
       ForgeChip(
         label: 'Item',
-        selected: true,
         onPressed: () => taps++,
-        onLongPress: () => holds++,
-        longPressLabel: 'Item options',
+        onOptions: () => options++,
+        optionsLabel: 'Item options',
       ),
     );
 
+    expect(icon(ForgeIcons.moreHoriz), findsNothing);
     await tester.longPress(find.byType(ForgeChip));
-    expect((taps, holds), (0, 1));
+    await tester.tap(find.byType(ForgeChip));
+    expect((taps, options), (1, 1));
 
     final node = tester.getSemantics(find.byType(ForgeChip));
     const action = CustomSemanticsAction(label: 'Item options');
@@ -253,7 +254,6 @@ void main() {
       matchesSemantics(
         isButton: true,
         hasSelectedState: true,
-        isSelected: true,
         hasTapAction: true,
         hasLongPressAction: true,
         label: 'Item',
@@ -265,7 +265,48 @@ void main() {
       SemanticsAction.customAction,
       CustomSemanticsAction.getIdentifier(action),
     );
-    expect(holds, 2);
+    expect(options, 2);
+  });
+
+  testWidgets('selected, it shows a ⋯; the ⋯, a tap and a long press open '
+      'the options', (tester) async {
+    var taps = 0;
+    var options = 0;
+    await pump(
+      tester,
+      ForgeChip(
+        label: 'Item',
+        selected: true,
+        showCheck: false,
+        onPressed: () => taps++,
+        onOptions: () => options++,
+        optionsLabel: 'Item options',
+      ),
+    );
+    final more = icon(ForgeIcons.moreHoriz);
+    final chip = tester.getRect(find.byType(ForgeChip));
+
+    expect(tester.getSize(more), const Size.square(16));
+    expect(chip.height, ForgeTheme.tapMin);
+    expect(
+      tester.getTopLeft(more).dx,
+      greaterThan(tester.getTopRight(find.text('Item')).dx),
+    );
+    await tester.tapAt(tester.getCenter(more).translate(0, 20));
+    await tester.tap(find.text('Item'));
+    await tester.longPress(find.byType(ForgeChip));
+    expect((taps, options), (0, 3));
+
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Item options')),
+      matchesSemantics(
+        isButton: true,
+        hasTapAction: true,
+        label: 'Item options',
+      ),
+    );
+    tester.semantics.tap(find.semantics.byLabel('Item options'));
+    expect(options, 4);
   });
 
   testWidgets('a selected chip without the check keeps its fill and border', (
