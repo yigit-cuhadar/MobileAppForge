@@ -69,6 +69,26 @@ Widget note(BuildContext context) => _padded(
   ),
 );
 
+@widgetbook.UseCase(name: 'Note at three lines', type: ForgeTextField)
+Widget noteCapped(BuildContext context) => _padded(
+  ForgeTextField(
+    label: 'Note',
+    multiline: true,
+    maxLength: context.knobs.int.slider(
+      label: 'Max length',
+      initialValue: 500,
+      min: 10,
+      max: 500,
+    ),
+    controller: TextEditingController(
+      text:
+          'A long note that wraps past the third line. The box stops growing '
+          'at three lines and the rest of the text scrolls inside it, so the '
+          'page around it keeps its place.',
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Inline number', type: ForgeNumberField)
 Widget inlineNumber(BuildContext context) => _padded(
   Column(
