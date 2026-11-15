@@ -155,7 +155,7 @@ void main() {
       expect(fill(tester), colors(tester).danger);
     });
 
-    testWidgets('the compact form has no ticks', (tester) async {
+    testWidgets('the compact form keeps its two ticks', (tester) async {
       await pump(
         tester,
         const BandBar.compact(
@@ -172,7 +172,7 @@ void main() {
           of: find.byType(BandBar),
           matching: find.byType(Container),
         ),
-        findsNothing,
+        findsNWidgets(2),
       );
       expect(fill(tester), colors(tester).accent);
     });
