@@ -18,6 +18,7 @@ final class NotificationChannel {
     required this.description,
     required this.importance,
     this.sound,
+    this.vibrate = true,
   });
 
   final String id;
@@ -29,6 +30,10 @@ final class NotificationChannel {
 
   /// Null for the system's notification sound.
   final NotificationSound? sound;
+
+  /// Android only, fixed with the channel like its [sound]: false never
+  /// vibrates, true vibrates as the device's settings say.
+  final bool vibrate;
 }
 
 /// What a notification sounds like besides the system sound: a sound the
@@ -40,8 +45,8 @@ final class NotificationSound {
 
   const NotificationSound._silent() : name = null;
 
-  /// No sound. Android still vibrates as the device's settings say; iOS
-  /// does not.
+  /// No sound. Android still vibrates unless the channel's `vibrate` is
+  /// false; iOS does not.
   static const silent = NotificationSound._silent();
 
   /// Null when [silent].

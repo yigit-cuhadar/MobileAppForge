@@ -51,6 +51,7 @@ class LocalNotifications implements Notifications {
         importance: channel.importance,
         playSound: sound != NotificationSound.silent,
         sound: _androidSound(sound),
+        enableVibration: channel.vibrate,
       ),
       iOS: sound == null
           ? const DarwinNotificationDetails()
@@ -531,6 +532,7 @@ class LocalNotifications implements Notifications {
         importance: channel.importance,
         playSound: channel.sound != NotificationSound.silent,
         sound: _androidSound(channel.sound),
+        enableVibration: channel.vibrate,
       ),
     );
     final countdown = countdownChannel;

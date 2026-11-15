@@ -349,6 +349,37 @@ void main() {
       expect(android.containsKey('sound'), isFalse);
     });
 
+    test('a channel without vibration stays still, others vibrate', () async {
+      const off = NotificationChannel(
+        id: 'rest_off',
+        name: 'Rest timer, off',
+        description: 'When a rest is over',
+        importance: Importance.high,
+        sound: NotificationSound.silent,
+        vibrate: false,
+      );
+      notifications = LocalNotifications(
+        channel: off,
+        androidIcon: 'ic_notification',
+      );
+      await init();
+
+      await notifications.show(1, title: 'T', body: 'B', channel: quiet);
+      await notifications.show(2, title: 'T', body: 'B');
+
+      final created =
+          native.named('createNotificationChannel').single.arguments as Map;
+      expect(created['playSound'], isFalse);
+      expect(created['enableVibration'], isFalse);
+      final shown = [
+        for (final call in native.named('show'))
+          (call.arguments as Map)['platformSpecifics'] as Map,
+      ];
+      expect(shown.first['enableVibration'], isTrue);
+      expect(shown.last['channelId'], 'rest_off');
+      expect(shown.last['enableVibration'], isFalse);
+    });
+
     test('scheduleIn carries the channel and its sound', () async {
       await init();
 
