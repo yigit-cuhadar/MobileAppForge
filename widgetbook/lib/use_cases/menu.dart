@@ -38,6 +38,36 @@ Widget selectedMenu(BuildContext context) => _centred(
   ),
 );
 
+@widgetbook.UseCase(name: 'With icons', type: ForgeMenu)
+Widget iconMenu(BuildContext context) => _centred(
+  ForgeMenu(
+    items: [
+      ForgeMenuItem(label: 'Rename', icon: ForgeIcons.edit, onTap: () {}),
+      ForgeMenuItem(
+        label: 'Duplicate',
+        icon: ForgeIcons.contentCopy,
+        onTap: () {},
+      ),
+      ForgeMenuItem(
+        label: 'Move up',
+        icon: ForgeIcons.arrowUpward,
+        onTap: () {},
+      ),
+      ForgeMenuItem(
+        label: 'Move down',
+        icon: ForgeIcons.arrowDownward,
+        onTap: () {},
+      ),
+      ForgeMenuItem(
+        label: 'Delete',
+        icon: ForgeIcons.delete,
+        destructive: true,
+        onTap: () {},
+      ),
+    ],
+  ),
+);
+
 @widgetbook.UseCase(name: 'Opened from more button', type: ForgeMenu)
 Widget openedMenu(BuildContext context) => Padding(
   padding: const EdgeInsets.all(Gap.md),

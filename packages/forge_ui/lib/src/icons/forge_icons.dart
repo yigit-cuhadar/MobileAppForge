@@ -6,6 +6,9 @@ import 'forge_icon.dart';
 
 abstract final class ForgeIcons {
   static const add = ForgeIconData('<path d="M12 5v14M5 12h14"/>');
+  static const arrowDownward = ForgeIconData(
+    '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  );
   static const arrowUpward = ForgeIconData('<path d="M12 19V5M6 11l6-6 6 6"/>');
   static const autoAwesome = ForgeIconData(
     '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',

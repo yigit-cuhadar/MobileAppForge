@@ -4,6 +4,7 @@ import 'package:forge_ui/forge_ui.dart';
 
 const _all = [
   ForgeIcons.add,
+  ForgeIcons.arrowDownward,
   ForgeIcons.arrowUpward,
   ForgeIcons.autoAwesome,
   ForgeIcons.backspace,

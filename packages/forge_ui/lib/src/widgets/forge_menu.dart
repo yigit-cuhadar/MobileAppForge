@@ -20,6 +20,7 @@ Future<void> showForgeMenu({
       for (final item in items)
         ForgeMenuItem(
           label: item.label,
+          icon: item.icon,
           destructive: item.destructive,
           selected: item.selected,
           onTap: () {
@@ -48,12 +49,17 @@ class ForgeMenuItem {
   const ForgeMenuItem({
     required this.label,
     required this.onTap,
+    this.icon,
     this.destructive = false,
     this.selected = false,
   });
 
   final String label;
   final VoidCallback onTap;
+
+  /// Drawn before the label, in its colour; give every row of a menu one or
+  /// none.
+  final ForgeIconData? icon;
 
   /// In danger; it sits last.
   final bool destructive;
@@ -62,13 +68,17 @@ class ForgeMenuItem {
   final bool selected;
 }
 
-/// A small floating menu: plain text rows split by lines, no icons, one
-/// group, a destructive action last.
+/// A small floating menu: text rows split by lines, each with an icon in
+/// front or none with one, one group, a destructive action last.
 class ForgeMenu extends StatelessWidget {
   ForgeMenu({super.key, required this.items})
     : assert(
         items.every((item) => !item.destructive || item == items.last),
         'Only the last row may be destructive.',
+      ),
+      assert(
+        items.every((item) => (item.icon == null) == (items[0].icon == null)),
+        'Give every row an icon, or none.',
       );
 
   final List<ForgeMenuItem> items;
@@ -98,7 +108,14 @@ class ForgeMenu extends StatelessWidget {
                         : Border(top: BorderSide(color: colors.line)),
                   ),
                   child: Row(
+                    spacing: Gap.md,
                     children: [
+                      if (item.icon case final icon?)
+                        ForgeIcon(
+                          icon,
+                          size: 18,
+                          color: item.destructive ? colors.danger : colors.ink,
+                        ),
                       Expanded(
                         child: Text(
                           item.label,

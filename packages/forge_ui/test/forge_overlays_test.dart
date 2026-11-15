@@ -321,6 +321,60 @@ void main() {
       expect(find.byType(ForgeIcon), findsOneWidget);
     });
 
+    testWidgets('an icon sits before each label, danger in a destructive row', (
+      tester,
+    ) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: ForgeMenu(
+              items: [
+                ForgeMenuItem(
+                  label: 'Edit',
+                  icon: ForgeIcons.edit,
+                  onTap: () => taps++,
+                ),
+                ForgeMenuItem(
+                  label: 'Delete',
+                  icon: ForgeIcons.delete,
+                  destructive: true,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final colors = ForgeStyle.of(tester.element(find.byType(ForgeMenu)))
+          .colors;
+      ForgeIcon icon(ForgeIconData data) => tester.widget<ForgeIcon>(
+        find.byWidgetPredicate((w) => w is ForgeIcon && w.icon == data),
+      );
+
+      expect(icon(ForgeIcons.edit).color, colors.ink);
+      expect(icon(ForgeIcons.delete).color, colors.danger);
+      expect(
+        tester.getTopRight(find.byType(ForgeIcon).first).dx,
+        lessThan(tester.getTopLeft(find.text('Edit')).dx),
+      );
+      await tester.tap(find.byType(ForgeIcon).first);
+      expect(taps, 1);
+    });
+
+    test('every row has an icon, or none', () {
+      expect(
+        () => ForgeMenu(
+          items: [
+            ForgeMenuItem(label: 'Edit', icon: ForgeIcons.edit, onTap: () {}),
+            ForgeMenuItem(label: 'Other', onTap: () {}),
+          ],
+        ),
+        throwsAssertionError,
+      );
+    });
+
     test('only the last row may be destructive', () {
       expect(
         () => ForgeMenu(
