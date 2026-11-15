@@ -42,6 +42,15 @@ notes of the feature you will touch, continue.
   summary. Work that does not depend on the answer goes on meanwhile.
 - Sub-agents never take these decisions: they stop and report each one with
   2-4 options and a recommendation, and the main session asks the user.
+- Design-phase questions (looks, texts, flows, and any choice a board or an
+  earlier answer does not settle) are all drawn first: one row per decision
+  on a Design canvas artifact, today's use on the left, each option drawn as
+  a real screen with every element present, the recommendation marked
+  "Öneri". Then ask them in canvas order, one decision per question, the
+  recommendation first and labelled "(Önerilen)". Different states or
+  aspects get separate rows, never rival bundles.
+- Colours stay muted: neutral grounds, one desaturated accent, colour only for
+  status.
 - Decide the rest yourself and note it in `SPEC.md`: app-wide decisions under
   Decisions, how a feature behaves under Feature notes.
 - Never ask the user to do by hand what an API or CLI can do. If a credential
@@ -163,6 +172,10 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
   result.
 - Never two Flutter builds or simulator runs at once: sub-agents only format,
   analyze and unit-test; the Architect does every device check, one at a time.
+- Memory turns into swap on the same disk: run tests with `--timeout 60s`,
+  never build while an agent runs the full suite, and kill a runaway
+  `flutter_tester` first when free disk drops. After a device check delete the
+  worktree's `build/` and its `DerivedData/Runner-*` entry.
 - Analyze and test only what you changed; CI covers the rest.
 
 ## Roles
