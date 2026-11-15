@@ -247,7 +247,7 @@ void main() {
     expect((taps, holds), (0, 1));
 
     final node = tester.getSemantics(find.byType(ForgeChip));
-    final action = CustomSemanticsAction(label: 'Item options');
+    const action = CustomSemanticsAction(label: 'Item options');
     expect(
       node,
       matchesSemantics(
@@ -260,7 +260,7 @@ void main() {
         customActions: [action],
       ),
     );
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+    node.owner!.performAction(
       node.id,
       SemanticsAction.customAction,
       CustomSemanticsAction.getIdentifier(action),
