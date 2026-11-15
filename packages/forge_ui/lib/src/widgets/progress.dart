@@ -29,13 +29,17 @@ class Progress extends StatelessWidget {
   }) : _form = _Form.ring,
        thin = false;
 
-  /// The bare bar filled in accent to [value], from 0 to 1: 6px on
-  /// surface-sunken, or [thin], 4px on line.
-  const Progress.track({super.key, required this.value, this.thin = false})
-    : _form = _Form.track,
-      goal = null,
-      figure = null,
-      caption = null;
+  /// The bare bar: 6px on surface-sunken, or [thin], 4px on line. Filled in
+  /// accent to [value], from 0 to 1; given a [goal], to [value] out of it,
+  /// in success once it is reached.
+  const Progress.track({
+    super.key,
+    required this.value,
+    this.goal,
+    this.thin = false,
+  }) : _form = _Form.track,
+       figure = null,
+       caption = null;
 
   final double value;
   final double? goal;
@@ -49,23 +53,23 @@ class Progress extends StatelessWidget {
   static const _ringSize = 136.0;
   static const _ringStroke = 8.0;
 
-  bool get _reached => value >= goal!;
+  bool get _reached => goal != null && value >= goal!;
 
   double get _share => goal! <= 0 ? 1 : (value / goal!).clamp(0.0, 1.0);
 
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
+    final fill = _reached ? colors.success : colors.accent;
     if (_form == _Form.track) {
       return _Track(
-        share: value.clamp(0.0, 1.0),
+        share: goal == null ? value.clamp(0.0, 1.0) : _share,
         height: thin ? _thinHeight : _barHeight,
         track: thin ? colors.line : colors.surfaceSunken,
-        fill: colors.accent,
+        fill: fill,
       );
     }
     final text = Theme.of(context).textTheme;
-    final fill = _reached ? colors.success : colors.accent;
     // stat-style, in sans at 22px.
     final figureStyle = text.titleMedium!.copyWith(
       fontSize: 22,

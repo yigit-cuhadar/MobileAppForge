@@ -29,6 +29,16 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('without a detail only the name shows', (tester) async {
+    await pump(
+      tester,
+      ProfileHeader(initials: 'U', name: 'user@example.com', onTap: () {}),
+    );
+
+    final texts = tester.widgetList<Text>(find.byType(Text)).map((t) => t.data);
+    expect(texts, ['U', 'user@example.com']);
+  });
+
   testWidgets('a guest shows the person icon instead of initials', (
     tester,
   ) async {

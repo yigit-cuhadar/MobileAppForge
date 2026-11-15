@@ -197,4 +197,109 @@ void main() {
       handle.dispose();
     });
   });
+
+  group('time wheel', () {
+    late List<TimeOfDay> times;
+
+    setUp(() => times = []);
+
+    Future<void> pumpTime(
+      WidgetTester tester, {
+      TimeOfDay initial = const TimeOfDay(hour: 18, minute: 0),
+      bool h24 = false,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: h24),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: ForgeTimeWheel(initial: initial, onChanged: times.add),
+        ),
+      ),
+    );
+
+    /// Drags the wheel showing [text] at its centre by [steps] rows; up
+    /// for positive steps.
+    Future<void> turn(WidgetTester tester, String text, int steps) async {
+      await tester.dragFrom(
+        tester.getCenter(find.text(text)),
+        Offset(0, -NumberPicker.wheelPitch * steps),
+        touchSlopX: 0,
+        touchSlopY: 0,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the 12-hour form: hours 1 to 12, minutes and AM/PM', (
+      tester,
+    ) async {
+      await pumpTime(tester);
+
+      expect(find.text('6'), findsOneWidget);
+      expect(find.text('00'), findsOneWidget);
+      expect(find.text('PM'), findsOneWidget);
+      expect(find.text('AM'), findsOneWidget);
+      expect(find.text('18'), findsNothing);
+    });
+
+    testWidgets('the 24-hour form follows the device setting', (tester) async {
+      await pumpTime(tester, h24: true);
+
+      expect(find.text('18'), findsOneWidget);
+      expect(find.text('PM'), findsNothing);
+      expect(find.text('AM'), findsNothing);
+    });
+
+    testWidgets('reports each wheel as it turns', (tester) async {
+      await pumpTime(tester);
+
+      await turn(tester, '6', 2);
+      expect(times.last, const TimeOfDay(hour: 20, minute: 0));
+
+      await turn(tester, 'PM', -1);
+      expect(times.last, const TimeOfDay(hour: 8, minute: 0));
+
+      await turn(tester, '00', 15);
+      expect(times.last, const TimeOfDay(hour: 8, minute: 15));
+    });
+
+    testWidgets('hours and minutes go round', (tester) async {
+      await pumpTime(tester, initial: const TimeOfDay(hour: 11, minute: 0));
+
+      await turn(tester, '00', -1);
+      expect(times.last, const TimeOfDay(hour: 11, minute: 59));
+
+      await turn(tester, '11', 1);
+      expect(times.last, const TimeOfDay(hour: 0, minute: 59));
+    });
+
+    testWidgets('a tap outside closes the dialog', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showForgeTimeWheel(
+                context: context,
+                initial: const TimeOfDay(hour: 7, minute: 30),
+                onChanged: times.add,
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ForgeTimeWheel), findsOneWidget);
+
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ForgeTimeWheel), findsNothing);
+      expect(times, isEmpty);
+    });
+  });
 }

@@ -78,6 +78,36 @@ void main() {
       expect(thinColor, colors(tester).line);
     });
 
+    testWidgets('a track with a goal fills toward it, success once reached', (
+      tester,
+    ) async {
+      Future<(double, Color?)> fill(double value) async {
+        await pump(
+          tester,
+          SizedBox(
+            width: 200,
+            child: Progress.track(value: value, goal: 10000),
+          ),
+        );
+        final fill = find.descendant(
+          of: find.byType(FractionallySizedBox),
+          matching: find.byType(DecoratedBox),
+        );
+        return (
+          tester.getSize(fill).width,
+          (tester.widget<DecoratedBox>(fill).decoration as BoxDecoration).color,
+        );
+      }
+
+      final (part, partColor) = await fill(6400);
+      expect(part, closeTo(200 * 0.64, 0.01));
+      expect(partColor, colors(tester).accent);
+
+      final (full, fullColor) = await fill(10400);
+      expect(full, 200);
+      expect(fullColor, colors(tester).success);
+    });
+
     testWidgets('reaching the goal turns the caption success', (tester) async {
       await pump(
         tester,

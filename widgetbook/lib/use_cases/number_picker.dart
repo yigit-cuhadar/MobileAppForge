@@ -44,6 +44,36 @@ Widget numberPickerRuler(BuildContext context) => _card(
   ),
 );
 
+/// The time wheel over the scrim, as [showForgeTimeWheel] shows it.
+Widget _timeWheel(BuildContext context, {required bool h24}) => ColoredBox(
+  color: Theme.of(context).colorScheme.scrim,
+  child: MediaQuery(
+    data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: h24),
+    child: ForgeTimeWheel(
+      initial: const TimeOfDay(hour: 18, minute: 0),
+      onChanged: (_) {},
+    ),
+  ),
+);
+
+@widgetbook.UseCase(name: 'Time wheel · 12-hour', type: ForgeTimeWheel)
+Widget timeWheel12(BuildContext context) => _timeWheel(context, h24: false);
+
+@widgetbook.UseCase(name: 'Time wheel · 24-hour', type: ForgeTimeWheel)
+Widget timeWheel24(BuildContext context) => _timeWheel(context, h24: true);
+
+@widgetbook.UseCase(name: 'Time wheel · device setting', type: ForgeTimeWheel)
+Widget timeWheelDevice(BuildContext context) => Center(
+  child: ForgeButton(
+    label: 'Open',
+    onPressed: () => showForgeTimeWheel(
+      context: context,
+      initial: const TimeOfDay(hour: 7, minute: 30),
+      onChanged: (_) {},
+    ),
+  ),
+);
+
 class _Live extends StatefulWidget {
   const _Live({required this.value, required this.builder});
 
