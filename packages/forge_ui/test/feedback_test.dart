@@ -161,6 +161,30 @@ void main() {
       expect(find.text('Browse'), findsOneWidget);
     });
 
+    testWidgets('empty without a title shows only its line and action', (
+      tester,
+    ) async {
+      var taps = 0;
+      await pump(
+        tester,
+        EmptyView(
+          message: 'Add items to get started.',
+          actions: [ForgeButton(label: 'Add item', onPressed: () => taps++)],
+        ),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(EmptyView),
+          matching: find.byType(Text),
+        ),
+        findsNWidgets(2),
+      );
+      expect(find.text('Add items to get started.'), findsOneWidget);
+      await tester.tap(find.text('Add item'));
+      expect(taps, 1);
+    });
+
     testWidgets('working shows the ring for work the user started', (
       tester,
     ) async {

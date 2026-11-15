@@ -83,3 +83,39 @@ Widget countAppBar(BuildContext context) => _pushed(
     ],
   ),
 );
+
+/// The value form with a small action that shows its [loading] state.
+Widget _valueBar(BuildContext context, {required bool loading}) => Scaffold(
+  appBar: ForgeAppBar.value(
+    leading: ForgeAppBarAction.icon(
+      icon: ForgeIcons.expandMore,
+      label: 'Minimise',
+      onPressed: () {},
+    ),
+    value: context.knobs.string(label: 'Value', initialValue: '24:16'),
+    subtitle: context.knobs.string(
+      label: 'Subtitle',
+      initialValue: 'Item title · [DETAIL]',
+    ),
+    actions: [
+      ForgeButton(
+        label: 'Done',
+        size: ForgeButtonSize.small,
+        loading: loading,
+        onPressed: () {},
+      ),
+      ForgeAppBarAction.icon(
+        icon: ForgeIcons.moreHoriz,
+        label: 'More',
+        onPressed: () {},
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Value', type: ForgeAppBar)
+Widget valueAppBar(BuildContext context) => _valueBar(context, loading: false);
+
+@widgetbook.UseCase(name: 'Value · action loading', type: ForgeAppBar)
+Widget valueLoadingAppBar(BuildContext context) =>
+    _valueBar(context, loading: true);

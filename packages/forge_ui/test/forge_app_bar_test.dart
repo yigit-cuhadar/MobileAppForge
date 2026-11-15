@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:forge_ui/src/widgets/busy_ring.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, ForgeAppBar bar) => tester.pumpWidget(
@@ -142,6 +143,70 @@ void main() {
     );
 
     expect(find.byType(Text), findsOneWidget);
+  });
+
+  group('value form', () {
+    ForgeAppBar bar({
+      VoidCallback? onLeading,
+      VoidCallback? onAction,
+      bool loading = false,
+    }) => ForgeAppBar.value(
+      leading: ForgeAppBarAction.icon(
+        icon: ForgeIcons.expandMore,
+        label: 'Minimise',
+        onPressed: onLeading,
+      ),
+      value: '24:16',
+      subtitle: 'Item title · 1 of 6',
+      actions: [
+        ForgeButton(
+          label: 'Done',
+          size: ForgeButtonSize.small,
+          loading: loading,
+          onPressed: onAction,
+        ),
+        ForgeAppBarAction.icon(
+          icon: ForgeIcons.moreHoriz,
+          label: 'More',
+          onPressed: () {},
+        ),
+      ],
+    );
+
+    testWidgets('shows the value over its subtitle, 68 high', (tester) async {
+      await pump(tester, bar());
+
+      expect(find.text('24:16'), findsOneWidget);
+      expect(find.text('Item title · 1 of 6'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Item title · 1 of 6')).dy,
+        greaterThanOrEqualTo(tester.getBottomLeft(find.text('24:16')).dy),
+      );
+      expect(tester.getSize(find.byType(ForgeAppBar)).height, 68);
+    });
+
+    testWidgets('the leading icon and the action fire', (tester) async {
+      var leading = 0;
+      var action = 0;
+      await pump(
+        tester,
+        bar(onLeading: () => leading++, onAction: () => action++),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Minimise'));
+      await tester.tap(find.text('Done'));
+      expect(leading, 1);
+      expect(action, 1);
+    });
+
+    testWidgets('a loading action ignores taps', (tester) async {
+      var action = 0;
+      await pump(tester, bar(onAction: () => action++, loading: true));
+
+      expect(find.byType(BusyRing), findsOneWidget);
+      await tester.tap(find.text('Done'), warnIfMissed: false);
+      expect(action, 0);
+    });
   });
 
   testWidgets('status bar icons contrast with the ground', (tester) async {

@@ -86,19 +86,19 @@ class ErrorView extends StatelessWidget {
 }
 
 /// Nothing to show yet: an icon, a title, one line and up to two [actions]
-/// (Buttons), or none.
+/// (Buttons), or none. Without a [title] the line says it all.
 class EmptyView extends StatelessWidget {
   const EmptyView({
     super.key,
     this.icon = ForgeIcons.inbox,
-    required this.title,
+    this.title,
     required this.message,
     this.actions = const [],
     this.compact = false,
   });
 
   final ForgeIconData icon;
-  final String title;
+  final String? title;
   final String message;
   final List<Widget> actions;
 
@@ -153,7 +153,7 @@ class _Message extends StatelessWidget {
 
   final ForgeIconData icon;
   final Color iconColor;
-  final String title;
+  final String? title;
   final String message;
   final List<Widget> actions;
   final bool compact;
@@ -189,7 +189,7 @@ class _Centred extends StatelessWidget {
   });
 
   final Widget top;
-  final String title;
+  final String? title;
   final String message;
   final List<Widget> actions;
   final bool compact;
@@ -208,8 +208,10 @@ class _Centred extends StatelessWidget {
           children: [
             top,
             SizedBox(height: gap),
-            Text(title, textAlign: TextAlign.center, style: text.titleMedium),
-            const SizedBox(height: Gap.xs),
+            if (title case final title?) ...[
+              Text(title, textAlign: TextAlign.center, style: text.titleMedium),
+              const SizedBox(height: Gap.xs),
+            ],
             Text(message, textAlign: TextAlign.center, style: text.bodySmall),
             if (actions.isNotEmpty) ...[
               SizedBox(height: gap),

@@ -11,6 +11,8 @@ import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
 import 'busy_ring.dart';
 import 'card_frame.dart';
+import 'chart_paint.dart';
+import 'day_circle.dart';
 import 'skeleton.dart';
 
 /// [ListRow]s in one card, a 1px line between each two.
@@ -339,30 +341,46 @@ class ListRow extends StatelessWidget {
   );
 }
 
-/// A row's leading date: the weekday over the day of the month, filled
-/// accent for [today].
+/// A row's leading date: the weekday over the day of the month, marked as
+/// the calendar's day circles are: plain on surface-sunken, done filled
+/// accent, missed a danger outline, planned a dashed line-strong outline,
+/// today a 2.5px ink ring.
 class ListRowDateBox extends StatelessWidget {
   const ListRowDateBox({
     super.key,
     required this.weekday,
     required this.day,
-    this.today = false,
-  });
+    this.state = DayState.none,
+  }) : assert(
+         state != DayState.light && state != DayState.todayDone,
+         'The date box draws none, done, missed, planned and today.',
+       );
 
   final String weekday;
   final String day;
-  final bool today;
+  final DayState state;
+
+  static const _width = 1.5;
 
   @override
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
-    final ink = today ? style.colors.onAccent : style.colors.ink;
-    return Container(
+    final p = style.colors;
+    final radius = style.radii.sm;
+    final (fill, ink, ring, ringWidth) = switch (state) {
+      DayState.done => (p.accent, p.onAccent, null, 0.0),
+      DayState.missed => (p.surface, p.danger, p.danger, _width),
+      DayState.planned => (p.surface, p.ink, null, 0.0),
+      DayState.today => (p.surface, p.ink, p.ink, 2.5),
+      _ => (p.surfaceSunken, p.ink, null, 0.0),
+    };
+    final box = Container(
       width: 40,
       height: 44,
       decoration: BoxDecoration(
-        color: today ? style.colors.accent : style.colors.surfaceSunken,
-        borderRadius: BorderRadius.circular(style.radii.sm),
+        color: fill,
+        borderRadius: BorderRadius.circular(radius),
+        border: ring == null ? null : Border.all(color: ring, width: ringWidth),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -382,6 +400,15 @@ class ListRowDateBox extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (state != DayState.planned) return box;
+    return CustomPaint(
+      foregroundPainter: DashedBorderPainter(
+        color: p.lineStrong,
+        width: _width,
+        radius: radius,
+      ),
+      child: box,
     );
   }
 }
