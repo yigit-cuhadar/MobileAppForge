@@ -171,3 +171,44 @@ Widget compactNumbers(BuildContext context) => _padded(
     ],
   ),
 );
+
+@widgetbook.UseCase(name: 'Tap-only', type: ForgeTextField)
+Widget tapOnly(BuildContext context) => _padded(
+  Column(
+    mainAxisSize: MainAxisSize.min,
+    spacing: Gap.md,
+    children: [
+      ForgeTextField.tapOnly(label: 'Value', value: '1:30', onTap: () {}),
+      ForgeTextField.tapOnly(
+        label: 'Value',
+        value: null,
+        hint: '[VALUE]',
+        onTap: () {},
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'In a dialog, focused', type: ForgeTextField)
+Widget inDialog(BuildContext context) => Center(
+  child: ForgeButton(
+    label: 'Open',
+    onPressed: () => showForgeDialog<void>(
+      context: context,
+      builder: (context) => ForgeDialog(
+        title: 'Item title',
+        message: 'One line about the field.',
+        field: const ForgeTextField(label: 'Name', autofocus: true),
+        action: ForgeButton(
+          label: 'Save',
+          onPressed: () => Navigator.pop(context),
+        ),
+        cancel: ForgeButton(
+          label: 'Cancel',
+          variant: ForgeButtonVariant.secondary,
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+    ),
+  ),
+);

@@ -157,6 +157,91 @@ void main() {
       expect(find.text('Enter a number'), findsNothing);
     });
 
+    testWidgets('the tap-only form looks like the field and calls onTap', (
+      tester,
+    ) async {
+      var taps = 0;
+      await pump(
+        tester,
+        Column(
+          children: [
+            const ForgeTextField(label: 'Typed', hint: 'Hint'),
+            ForgeTextField.tapOnly(
+              label: 'Picked',
+              value: '[VALUE]',
+              onTap: () => taps++,
+            ),
+          ],
+        ),
+      );
+      final box = find.byType(InputDecorator).last;
+
+      expect(find.byType(EditableText), findsOneWidget);
+      expect(
+        tester.getSize(box).height,
+        tester.getSize(find.byType(TextField)).height,
+      );
+      expect(find.text('[VALUE]'), findsOneWidget);
+
+      await tester.tap(find.text('[VALUE]'));
+      await tester.pump();
+      expect(taps, 1);
+      expect(tester.testTextInput.isVisible, isFalse);
+      expect(
+        tester.getSemantics(find.text('Picked')),
+        matchesSemantics(
+          isButton: true,
+          hasTapAction: true,
+          label: 'Picked\n[VALUE]',
+        ),
+      );
+    });
+
+    testWidgets('the tap-only form shows the hint until there is a value', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        ForgeTextField.tapOnly(
+          label: 'Picked',
+          value: null,
+          hint: 'Pick one',
+          onTap: () {},
+        ),
+      );
+
+      expect(find.text('Pick one'), findsOneWidget);
+    });
+
+    testWidgets('autofocus raises the keyboard as a dialog opens', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showForgeDialog<void>(
+              context: context,
+              builder: (_) => ForgeDialog(
+                title: 'Item title',
+                message: 'One line.',
+                field: const ForgeTextField(label: 'Name', autofocus: true),
+                action: const SizedBox(),
+                cancel: const SizedBox(),
+              ),
+            ),
+            child: const Text('Open'),
+          ),
+        ),
+      );
+      expect(tester.testTextInput.isVisible, isFalse);
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(tester.testTextInput.isVisible, isTrue);
+    });
+
     testWidgets('reads the label out with the field', (tester) async {
       await pump(tester, const ForgeTextField(label: 'Name'));
 
