@@ -222,12 +222,12 @@ void main() {
           builder: (context) => TextButton(
             onPressed: () => showForgeDialog<void>(
               context: context,
-              builder: (_) => ForgeDialog(
+              builder: (_) => const ForgeDialog(
                 title: 'Item title',
                 message: 'One line.',
-                field: const ForgeTextField(label: 'Name', autofocus: true),
-                action: const SizedBox(),
-                cancel: const SizedBox(),
+                field: ForgeTextField(label: 'Name', autofocus: true),
+                action: SizedBox(),
+                cancel: SizedBox(),
               ),
             ),
             child: const Text('Open'),
