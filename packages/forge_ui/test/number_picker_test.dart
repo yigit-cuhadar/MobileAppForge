@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -401,6 +401,54 @@ void main() {
           hasDecreaseAction: true,
         ),
       );
+    });
+
+    testWidgets('the widest minutes:seconds row fits on one line', (
+      tester,
+    ) async {
+      for (final scale in [1.0, 1.5]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ForgeTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: ForgeDurationWheel.minutesSeconds(
+                label: 'Rest',
+                initial: const Duration(minutes: 10),
+                max: const Duration(minutes: 10),
+                step: const Duration(seconds: 15),
+                onChanged: durations.add,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.text('10:00'),
+        );
+        final column = tester.getRect(
+          find
+              .ancestor(of: find.text('10:00'), matching: find.byType(SizedBox))
+              .last,
+        );
+
+        expect(tester.takeException(), isNull);
+        // One line: as tall as the text laid out with no width limit.
+        expect(
+          paragraph.size.height,
+          paragraph.getMaxIntrinsicHeight(double.infinity),
+        );
+        expect(paragraph.didExceedMaxLines, isFalse);
+        expect(
+          paragraph.getMaxIntrinsicWidth(double.infinity),
+          lessThanOrEqualTo(paragraph.size.width + 0.01),
+        );
+        expect(paragraph.size.width, lessThanOrEqualTo(column.width));
+      }
     });
 
     testWidgets('a tap outside closes the dialog', (tester) async {

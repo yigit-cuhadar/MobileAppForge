@@ -621,20 +621,33 @@ class _ForgeDurationWheelState extends State<ForgeDurationWheel> {
     final minuteUnit = widget.minuteUnit;
     if (minuteUnit == null) {
       final step = widget.step.inMilliseconds;
+      String format(Duration at) =>
+          '${at.inMinutes}:${'${at.inSeconds % 60}'.padLeft(2, '0')}';
+      // Wide enough for the longest row, max, at the centre row's size.
+      final widest = TextPainter(
+        text: TextSpan(
+          text: format(widget.max),
+          style: ForgeStyle.of(context).data.copyWith(
+            fontSize: _NumberPickerState._wheelSizes.first,
+            height: 1,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout();
+      final width = widest.width.ceilToDouble();
+      widest.dispose();
       return _WheelDialog(
         label: widget.label,
         wheels: [
           SizedBox(
-            width: _columnWidth,
+            width: width > _columnWidth ? width : _columnWidth,
             child: NumberPicker._column(
               label: widget.label,
               count: widget.max.inMilliseconds ~/ step + 1,
               index: _value.inMilliseconds ~/ step,
-              format: (i) {
-                final at = widget.step * i;
-                final seconds = '${at.inSeconds % 60}'.padLeft(2, '0');
-                return '${at.inMinutes}:$seconds';
-              },
+              format: (i) => format(widget.step * i),
               onIndex: (i) => _set(widget.step * i),
             ),
           ),
