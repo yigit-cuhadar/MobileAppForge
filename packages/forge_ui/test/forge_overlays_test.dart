@@ -98,6 +98,36 @@ void main() {
         Gap.lg,
       );
     });
+
+    testWidgets('opens on the root navigator, over a nested one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute<void>(
+                builder: (context) => TextButton(
+                  onPressed: () => showForgeBottomSheet<void>(
+                    context: context,
+                    builder: sheet,
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+            bottomNavigationBar: const SizedBox(height: 80),
+          ),
+        ),
+      );
+      await open(tester);
+
+      expect(
+        tester.getBottomLeft(find.byType(ForgeBottomSheet)).dy,
+        tester.getSize(find.byType(MaterialApp)).height,
+      );
+    });
   });
 
   group('ForgeDialog', () {

@@ -4,8 +4,9 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
 
-/// Shows a [ForgeBottomSheet] over a scrim; a swipe down or a tap on the
-/// scrim closes it.
+/// Shows a [ForgeBottomSheet] over a scrim on the root navigator, so it
+/// covers a shell's tab bar; a swipe down or a tap on the scrim closes it.
+/// Widgets inside it do not see providers placed below the root navigator.
 Future<T?> showForgeBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -13,6 +14,7 @@ Future<T?> showForgeBottomSheet<T>({
   context: context,
   isScrollControlled: true,
   useSafeArea: true,
+  useRootNavigator: true,
   builder: builder,
 );
 
