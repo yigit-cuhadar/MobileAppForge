@@ -193,11 +193,62 @@ void main() {
       tester,
       const ListRow(
         title: 'Item title',
-        leading: ListRowDateBox(weekday: 'Fri', day: '13', today: true),
+        leading: ListRowDateBox(
+          weekday: 'Fri',
+          day: '13',
+          state: DayState.today,
+        ),
       ),
     );
 
     expect(tester.getSize(find.byType(ListRowDateBox)), const Size(40, 44));
+  });
+
+  testWidgets('the date box takes the calendar marks', (tester) async {
+    BoxDecoration look(DayState state) =>
+        tester
+                .widget<Container>(
+                  find.descendant(
+                    of: find.byWidgetPredicate(
+                      (w) => w is ListRowDateBox && w.state == state,
+                    ),
+                    matching: find.byType(Container),
+                  ),
+                )
+                .decoration!
+            as BoxDecoration;
+    await pump(
+      tester,
+      Column(
+        children: [
+          for (final state in const [
+            DayState.none,
+            DayState.done,
+            DayState.missed,
+            DayState.planned,
+            DayState.today,
+          ])
+            ListRowDateBox(weekday: 'Mon', day: '9', state: state),
+        ],
+      ),
+    );
+    final p = colors(tester);
+
+    expect(look(DayState.none).color, p.surfaceSunken);
+    expect(look(DayState.done).color, p.accent);
+    expect(look(DayState.missed).border!.top.color, p.danger);
+    expect(look(DayState.planned).border, isNull);
+    expect(
+      find.descendant(
+        of: find.byWidgetPredicate(
+          (w) => w is ListRowDateBox && w.state == DayState.planned,
+        ),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+    );
+    expect(look(DayState.today).border!.top.width, 2.5);
+    expect(look(DayState.today).color, p.surface);
   });
 
   testWidgets('dragging a handle reorders the rows in the card', (

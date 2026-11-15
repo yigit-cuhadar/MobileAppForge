@@ -38,7 +38,11 @@ Widget dateBoxRows(BuildContext context) => _page(
       ListRow(
         title: 'Item title',
         detail: 'Today · [DETAIL]',
-        leading: const ListRowDateBox(weekday: 'Fri', day: '13', today: true),
+        leading: const ListRowDateBox(
+          weekday: 'Fri',
+          day: '13',
+          state: DayState.today,
+        ),
         trailing: ForgeButton(
           label: 'Start',
           onPressed: () {},
@@ -55,7 +59,11 @@ Widget dateBoxRows(BuildContext context) => _page(
       ListRow(
         title: 'Item title',
         error: 'Missed',
-        leading: const ListRowDateBox(weekday: 'Wed', day: '11'),
+        leading: const ListRowDateBox(
+          weekday: 'Wed',
+          day: '11',
+          state: DayState.missed,
+        ),
         trailing: ForgeButton(
           label: 'Do it now',
           onPressed: () {},
@@ -221,5 +229,44 @@ Widget unlockingRows(BuildContext context) => _page(
         ),
       ),
     ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Date box marks', type: ListRowDateBox)
+Widget dateBoxMarks(BuildContext context) => _page(
+  ListRowCard(
+    children: [
+      for (final (state, detail) in [
+        (DayState.none, '[DETAIL]'),
+        (DayState.done, 'done'),
+        (DayState.missed, 'missed'),
+        (DayState.today, 'today'),
+        (DayState.planned, 'planned'),
+      ])
+        ListRow(
+          title: 'Item title',
+          detail: detail,
+          leading: ListRowDateBox(weekday: 'Mon', day: '9', state: state),
+        ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Default', type: ListRowDateBox)
+Widget dateBox(BuildContext context) => _page(
+  ListRowDateBox(
+    weekday: 'Mon',
+    day: '9',
+    state: context.knobs.object.dropdown(
+      label: 'State',
+      options: const [
+        DayState.none,
+        DayState.done,
+        DayState.missed,
+        DayState.planned,
+        DayState.today,
+      ],
+      labelBuilder: (s) => s.name,
+    ),
   ),
 );
