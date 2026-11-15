@@ -5,8 +5,8 @@ import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 
-/// The top of a profile, plain with no card: an avatar, the [name], one
-/// [detail] line the app passes (the account, a count) and a chevron to
+/// The top of a profile, plain with no card: an avatar, the [name], an
+/// optional [detail] line the app passes (the account, a count) and a chevron to
 /// the account page. A signed-in user has their [initials] on accent;
 /// [ProfileHeader.guest] has a person icon and asks to create an account.
 class ProfileHeader extends StatelessWidget {
@@ -14,7 +14,7 @@ class ProfileHeader extends StatelessWidget {
     super.key,
     required String this.initials,
     required this.name,
-    required this.detail,
+    this.detail,
     required this.onTap,
   });
 
@@ -27,7 +27,7 @@ class ProfileHeader extends StatelessWidget {
 
   final String? initials;
   final String name;
-  final String detail;
+  final String? detail;
   final VoidCallback onTap;
 
   static const double _avatar = 56;
@@ -37,6 +37,7 @@ class ProfileHeader extends StatelessWidget {
     final colors = ForgeStyle.of(context).colors;
     final text = Theme.of(context).textTheme;
     final initials = this.initials;
+    final detail = this.detail;
     return Semantics(
       button: true,
       child: InkWell(
@@ -78,7 +79,7 @@ class ProfileHeader extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: text.titleLarge!.copyWith(fontSize: 18),
                   ),
-                  Text(detail, style: text.bodySmall),
+                  if (detail != null) Text(detail, style: text.bodySmall),
                 ],
               ),
             ),
