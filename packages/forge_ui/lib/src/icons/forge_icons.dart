@@ -173,6 +173,9 @@ abstract final class ForgeIcons {
   static const today = ForgeIconData(
     '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><rect x="8" y="13" width="3" height="3" rx=".5"/>',
   );
+  static const trendingDown = ForgeIconData(
+    '<path d="M3 7l6 6 4-4 8 8M15 17h6v-6"/>',
+  );
   static const trendingUp = ForgeIconData(
     '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   );

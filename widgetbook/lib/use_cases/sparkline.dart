@@ -44,3 +44,13 @@ Widget errorSparkline(BuildContext context) => _page(
     retryLabel: 'Retry',
   ),
 );
+
+@widgetbook.UseCase(name: 'Alone', type: SparklineEmptyBox)
+Widget sparklineEmptyBox(BuildContext context) => _page(
+  SparklineEmptyBox(
+    message: context.knobs.string(
+      label: 'Message',
+      initialValue: 'Add one more entry to see the trend',
+    ),
+  ),
+);

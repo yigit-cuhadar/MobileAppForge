@@ -341,6 +341,20 @@ void main() {
       expect(find.text('Add one more entry to see the trend'), findsOneWidget);
       expect(find.byType(SkeletonBar), findsNWidgets(2));
     });
+
+    testWidgets('the empty box stands alone with its message', (tester) async {
+      await pump(
+        tester,
+        const SparklineEmptyBox(message: 'Add one more entry to see the trend'),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(SparklineEmptyBox),
+          matching: find.text('Add one more entry to see the trend'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 
   group('StatTile', () {

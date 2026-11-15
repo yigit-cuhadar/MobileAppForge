@@ -66,6 +66,7 @@ const _all = [
   ForgeIcons.sync,
   ForgeIcons.timer,
   ForgeIcons.today,
+  ForgeIcons.trendingDown,
   ForgeIcons.trendingUp,
   ForgeIcons.tune,
   ForgeIcons.warning,
