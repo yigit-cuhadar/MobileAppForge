@@ -33,8 +33,8 @@ class BandBar extends StatelessWidget {
   }) : assert(0 <= low && low <= high && high <= 1),
        _compact = false;
 
-  /// The tighter form inside a SectionCard: no ticks, the bar 4px under
-  /// the label.
+  /// The tighter form inside a SectionCard: a 13px label, an 11px figure
+  /// and the bar 4px under them.
   const BandBar.compact({
     super.key,
     required this.label,
@@ -75,6 +75,13 @@ class BandBar extends StatelessWidget {
         ? fills.below
         : fills.within;
     const radius = BorderRadius.all(Radius.circular(_height / 2));
+    final text = Theme.of(context).textTheme;
+    final labelStyle = _compact
+        ? text.bodySmall!.copyWith(color: colors.ink)
+        : text.bodyMedium;
+    final valueStyle = _compact
+        ? style.data.copyWith(fontSize: 11, height: 14 / 11)
+        : style.data;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -83,12 +90,10 @@ class BandBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
-              child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-            ),
+            Flexible(child: Text(label, style: labelStyle)),
             Text(
               valueLabel,
-              style: style.data.copyWith(color: colors.inkMuted),
+              style: valueStyle.copyWith(color: colors.inkMuted),
             ),
           ],
         ),
@@ -129,7 +134,8 @@ class BandBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (!_compact) ...[tick(low), tick(high)],
+                  tick(low),
+                  tick(high),
                 ],
               );
             },
