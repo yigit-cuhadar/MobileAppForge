@@ -7,6 +7,7 @@ import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
 import 'pressable.dart';
+import 'bare_decoration.dart';
 
 /// A grey 44px search pill with a clear button while it holds text. With
 /// [onFilters], a round filter button sits beside it, with a badge counting
@@ -167,7 +168,7 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
               onChanged: widget.onChanged,
               textInputAction: TextInputAction.search,
               style: body.copyWith(color: p.ink),
-              decoration: InputDecoration.collapsed(
+              decoration: bareDecoration(
                 hintText: widget.hint,
                 hintStyle: body.copyWith(color: p.inkSubtle),
               ),
