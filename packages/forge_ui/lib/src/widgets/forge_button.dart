@@ -222,7 +222,9 @@ class _Look {
   };
 }
 
-/// The dashed full-width "Add …" button at the end of a list.
+/// The dashed full-width "Add …" button at the end of a list. While
+/// [onPressed] is null (the list is full) its icon and label turn
+/// line-strong and it takes no taps.
 class ForgeAddButton extends StatelessWidget {
   const ForgeAddButton({
     super.key,
@@ -231,14 +233,16 @@ class ForgeAddButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final p = style.colors;
+    final ink = onPressed == null ? p.lineStrong : p.ink;
     return Semantics(
       button: true,
+      enabled: onPressed != null,
       child: Pressable(
         onTap: onPressed,
         height: ForgeTheme.tapMin,
@@ -260,7 +264,7 @@ class ForgeAddButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ForgeIcon(ForgeIcons.add, size: 18, color: p.ink),
+                ForgeIcon(ForgeIcons.add, size: 18, color: ink),
                 const SizedBox(width: Gap.sm),
                 Flexible(
                   child: Text(
@@ -268,7 +272,7 @@ class ForgeAddButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelLarge!
-                        .copyWith(color: p.ink),
+                        .copyWith(color: ink),
                   ),
                 ),
               ],
