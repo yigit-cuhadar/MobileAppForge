@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 
@@ -182,5 +183,119 @@ void main() {
           .overflow,
       TextOverflow.ellipsis,
     );
+  });
+
+  testWidgets('the menu form shows a ▾ after the name and calls onPressed', (
+    tester,
+  ) async {
+    var taps = 0;
+    await pump(
+      tester,
+      ForgeChip.menu(label: 'Filter', onPressed: () => taps++),
+    );
+
+    expect(icon(ForgeIcons.expandMore), findsOneWidget);
+    expect(
+      tester.getTopLeft(icon(ForgeIcons.expandMore)).dx,
+      greaterThan(tester.getTopRight(find.text('Filter')).dx),
+    );
+    await tester.tap(find.byType(ForgeChip));
+    expect(taps, 1);
+  });
+
+  testWidgets('a leading icon sits before the label at 14px in its ink', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      ForgeChip(
+        label: 'Add',
+        leading: const ForgeIcon(ForgeIcons.add),
+        onPressed: () {},
+      ),
+    );
+    final colors = ForgeStyle.of(tester.element(find.byType(ForgeChip))).colors;
+
+    expect(tester.getSize(icon(ForgeIcons.add)), const Size.square(14));
+    expect(
+      tester.getTopRight(icon(ForgeIcons.add)).dx,
+      lessThan(tester.getTopLeft(find.text('Add')).dx),
+    );
+    expect(
+      IconTheme.of(tester.element(icon(ForgeIcons.add))).color,
+      colors.ink,
+    );
+  });
+
+  testWidgets('a long press calls onLongPress, also as a reader action', (
+    tester,
+  ) async {
+    var taps = 0;
+    var holds = 0;
+    await pump(
+      tester,
+      ForgeChip(
+        label: 'Item',
+        selected: true,
+        onPressed: () => taps++,
+        onLongPress: () => holds++,
+        longPressLabel: 'Item options',
+      ),
+    );
+
+    await tester.longPress(find.byType(ForgeChip));
+    expect((taps, holds), (0, 1));
+
+    final node = tester.getSemantics(find.byType(ForgeChip));
+    final action = CustomSemanticsAction(label: 'Item options');
+    expect(
+      node,
+      matchesSemantics(
+        isButton: true,
+        hasSelectedState: true,
+        isSelected: true,
+        hasTapAction: true,
+        hasLongPressAction: true,
+        label: 'Item',
+        customActions: [action],
+      ),
+    );
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.customAction,
+      CustomSemanticsAction.getIdentifier(action),
+    );
+    expect(holds, 2);
+  });
+
+  testWidgets('a selected chip without the check keeps its fill and border', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      ForgeChip(
+        label: 'Item',
+        selected: true,
+        showCheck: false,
+        onPressed: () {},
+      ),
+    );
+    final colors = ForgeStyle.of(tester.element(find.byType(ForgeChip))).colors;
+    final box =
+        tester
+                .widget<Container>(
+                  find
+                      .descendant(
+                        of: find.byType(ForgeChip),
+                        matching: find.byType(Container),
+                      )
+                      .first,
+                )
+                .decoration!
+            as BoxDecoration;
+
+    expect(icon(ForgeIcons.check), findsNothing);
+    expect(box.color, colors.accentSoft);
+    expect(box.border, Border.all(color: colors.accent, width: 1.5));
   });
 }

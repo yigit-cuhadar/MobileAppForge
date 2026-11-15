@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
@@ -9,20 +10,46 @@ import '../theme/forge_style.dart';
 import 'pressable.dart';
 
 /// An outlined 36px chip: an action, or a filter that is [selected] (with a
-/// check, or a [count] badge in its place). A [locked] chip shows a lock
-/// before the label and stays tappable: [onPressed] then opens the paywall.
-/// The chip takes taps across a 44px band; [ForgeChip.series] is the
-/// small form for a chart's series.
+/// check unless [showCheck] is false, or a [count] badge in its place). A
+/// [locked] chip shows a lock before the label and stays tappable:
+/// [onPressed] then opens the paywall. The chip takes taps across a 44px
+/// band; [ForgeChip.series] is the small form for a chart's series.
 class ForgeChip extends StatelessWidget {
   const ForgeChip({
     super.key,
     required this.label,
     required this.onPressed,
     this.selected = false,
+    this.showCheck = true,
     this.count,
     this.locked = false,
-  }) : sample = null,
-       removeHint = null;
+    this.leading,
+    this.onLongPress,
+    this.longPressLabel,
+  }) : assert(
+         (onLongPress == null) == (longPressLabel == null),
+         'Name the long-press action for screen readers.',
+       ),
+       sample = null,
+       removeHint = null,
+       _menu = false;
+
+  /// An unset filter that opens a menu or sheet of its values: the filter's
+  /// name with a ▾ after it.
+  const ForgeChip.menu({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  }) : selected = false,
+       showCheck = false,
+       count = null,
+       locked = false,
+       leading = null,
+       onLongPress = null,
+       longPressLabel = null,
+       sample = null,
+       removeHint = null,
+       _menu = true;
 
   /// A small 28px chip for a chart series: the series' [sample] (a short
   /// line in its colour, or an icon) before the label, no check.
@@ -34,7 +61,12 @@ class ForgeChip extends StatelessWidget {
     this.selected = false,
   }) : count = null,
        locked = false,
-       removeHint = null;
+       showCheck = false,
+       leading = null,
+       onLongPress = null,
+       longPressLabel = null,
+       removeHint = null,
+       _menu = false;
 
   /// An active filter above a list: the chosen look with a close icon on
   /// the right; tapping it calls [onRemoved]. Screen readers announce
@@ -46,17 +78,34 @@ class ForgeChip extends StatelessWidget {
     required String this.removeHint,
   }) : onPressed = onRemoved,
        selected = true,
+       showCheck = false,
        count = null,
        locked = false,
-       sample = null;
+       leading = null,
+       onLongPress = null,
+       longPressLabel = null,
+       sample = null,
+       _menu = false;
 
   final String label;
   final VoidCallback onPressed;
   final bool selected;
+
+  /// False for a selected chip marked by its fill and border alone.
+  final bool showCheck;
   final int? count;
   final bool locked;
+
+  /// An icon before the label, 14px in the label's ink unless it sets its
+  /// own (an add icon, a danger alert).
+  final Widget? leading;
+  final VoidCallback? onLongPress;
+
+  /// What screen readers call the long-press action ("Day options").
+  final String? longPressLabel;
   final Widget? sample;
   final String? removeHint;
+  final bool _menu;
 
   bool get _removable => removeHint != null;
 
@@ -104,14 +153,19 @@ class ForgeChip extends StatelessWidget {
       height: height,
       padding: EdgeInsets.only(
         left: Gap.md,
-        right: _removable ? Gap.sm : Gap.md,
+        right: _removable || _menu ? Gap.sm : Gap.md,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        spacing: Gap.sm,
+        spacing: _menu ? Gap.xs : Gap.sm,
         children: [
           if (locked) ForgeIcon(ForgeIcons.lock, size: 14, color: ink),
-          if (selected && count == null && !_removable)
+          if (leading case final leading?)
+            IconTheme.merge(
+              data: IconThemeData(size: 14, color: ink),
+              child: leading,
+            ),
+          if (selected && showCheck && count == null)
             ForgeIcon(ForgeIcons.check, size: 14, weight: 3, color: ink),
           Flexible(
             child: Text(
@@ -143,6 +197,7 @@ class ForgeChip extends StatelessWidget {
               ),
             ),
           if (_removable) ForgeIcon(ForgeIcons.close, size: 14, color: ink),
+          if (_menu) ForgeIcon(ForgeIcons.expandMore, size: 16, color: ink),
         ],
       ),
     );
@@ -158,8 +213,12 @@ class ForgeChip extends StatelessWidget {
       button: true,
       selected: selected,
       hint: removeHint,
+      customSemanticsActions: onLongPress == null
+          ? null
+          : {CustomSemanticsAction(label: longPressLabel!): onLongPress!},
       child: Pressable(
         onTap: onPressed,
+        onLongPress: onLongPress,
         height: height,
         builder: (context, _) => Container(
           height: height,
