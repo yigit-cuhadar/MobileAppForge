@@ -253,7 +253,7 @@ class ListRow extends StatelessWidget {
       );
     }
 
-    final row = Row(
+    Widget rowOf(double rowWidth) => Row(
       spacing: prominent ? Gap.sm : Gap.md,
       children: [
         ?leading,
@@ -279,7 +279,10 @@ class ListRow extends StatelessWidget {
         if (missing)
           Text('—', style: text.bodySmall!.copyWith(color: colors.danger))
         else if (value != null)
-          Flexible(
+          // At most half the row, so a long value wraps under large text
+          // while a short one keeps its natural width at the end.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: rowWidth / 2),
             child: Text(
               value!,
               textAlign: TextAlign.end,
@@ -299,6 +302,9 @@ class ListRow extends StatelessWidget {
           ),
         ?_endMark(colors),
       ],
+    );
+    final row = LayoutBuilder(
+      builder: (context, constraints) => rowOf(constraints.maxWidth),
     );
 
     final tint = on
