@@ -101,6 +101,18 @@ const _facts = [
 Widget infoCard(BuildContext context) =>
     _centred(const ForgeInfoCard(title: '[VALUE] on [DETAIL]', facts: _facts));
 
+@widgetbook.UseCase(name: 'Info, with a note', type: ForgeInfoCard)
+Widget infoCardNote(BuildContext context) => _centred(
+  ForgeInfoCard(
+    title: '[VALUE]',
+    facts: const [('Fact one', '[VALUE]')],
+    note: context.knobs.string(
+      label: 'Note',
+      initialValue: 'One line about the value.',
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Info, long value', type: ForgeInfoCard)
 Widget infoCardLongValue(BuildContext context) => _centred(
   ForgeInfoCard(

@@ -38,10 +38,11 @@ Future<void> showForgeInfo({
   required BuildContext context,
   required String title,
   required List<(String, String)> facts,
+  String? note,
 }) => _showUnder(
   context,
   gap: Gap.sm,
-  builder: (_) => ForgeInfoCard(title: title, facts: facts),
+  builder: (_) => ForgeInfoCard(title: title, facts: facts, note: note),
 );
 
 /// One row of a [ForgeMenu].
@@ -144,20 +145,35 @@ class ForgeMenu extends StatelessWidget {
 }
 
 /// The info form: a title line and rows of facts, label left and value
-/// right in mono; no actions. A long value wraps, right-aligned.
+/// right in mono; no actions. A long value wraps, right-aligned. A [note]
+/// takes a row of its own under the facts, in ink-muted.
 class ForgeInfoCard extends StatelessWidget {
-  const ForgeInfoCard({super.key, required this.title, required this.facts});
+  const ForgeInfoCard({
+    super.key,
+    required this.title,
+    required this.facts,
+    this.note,
+  });
 
   final String title;
 
   /// Label and value of each row.
   final List<(String, String)> facts;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final colors = style.colors;
     final body = Theme.of(context).textTheme.bodyMedium!;
+    Widget row(Widget child) => Container(
+      constraints: const BoxConstraints(minHeight: 36),
+      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.line)),
+      ),
+      child: child,
+    );
     return _Floating(
       child: Semantics(
         label: title,
@@ -176,13 +192,8 @@ class ForgeInfoCard extends StatelessWidget {
                 ),
               ),
               for (final (label, value) in facts)
-                Container(
-                  constraints: const BoxConstraints(minHeight: 36),
-                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-                  decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: colors.line)),
-                  ),
-                  child: Row(
+                row(
+                  Row(
                     spacing: Gap.md,
                     children: [
                       Text(label, style: body.copyWith(color: colors.inkMuted)),
@@ -199,6 +210,8 @@ class ForgeInfoCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              if (note case final note?)
+                row(Text(note, style: body.copyWith(color: colors.inkMuted))),
             ],
           ),
         ),
