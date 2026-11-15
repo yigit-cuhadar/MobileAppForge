@@ -127,6 +127,57 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('a toggled icon is ink outline off and filled accent on', (
+    tester,
+  ) async {
+    Future<ForgeIcon> pumpToggled(bool on) async {
+      await pump(
+        tester,
+        ForgeAppBar(
+          title: 'Item',
+          actions: [
+            ForgeAppBarAction.icon(
+              icon: ForgeIcons.star,
+              label: 'Favourite',
+              toggled: on,
+              onPressed: () {},
+            ),
+          ],
+        ),
+      );
+      return tester.widget<ForgeIcon>(find.byType(ForgeIcon));
+    }
+
+    final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
+    final off = await pumpToggled(false);
+    expect((off.color, off.filled), (colors.ink, false));
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Favourite')),
+      isSemantics(
+        label: 'Favourite',
+        isButton: true,
+        isEnabled: true,
+        hasTapAction: true,
+        hasToggledState: true,
+        isToggled: false,
+      ),
+    );
+
+    final on = await pumpToggled(true);
+    expect((on.color, on.filled), (colors.accent, true));
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Favourite')),
+      isSemantics(
+        label: 'Favourite',
+        isButton: true,
+        isEnabled: true,
+        hasTapAction: true,
+        hasToggledState: true,
+        isToggled: true,
+      ),
+    );
+  });
+
   testWidgets('without a count there is no badge', (tester) async {
     await pump(
       tester,
