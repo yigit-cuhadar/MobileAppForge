@@ -90,7 +90,7 @@ class SectionCard extends StatelessWidget {
        onAction = null;
 
   /// The [title] over [child], no chevron and no tap; an optional text
-  /// action ([actionLabel], such as "Edit") ends the header.
+  /// action in accent ([actionLabel], such as "Edit") ends the header.
   const SectionCard.plain({
     super.key,
     required this.title,
@@ -186,7 +186,12 @@ class SectionCard extends StatelessWidget {
                       button: true,
                       child: GestureDetector(
                         onTap: onAction,
-                        child: Text(label, style: text.bodySmall),
+                        child: Text(
+                          label,
+                          style: text.labelLarge!.copyWith(
+                            color: colors.accent,
+                          ),
+                        ),
                       ),
                     ),
                   ),

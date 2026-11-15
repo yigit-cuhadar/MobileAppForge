@@ -234,13 +234,14 @@ Widget lockedRows(BuildContext context) => _page(
 Widget disabledRows(BuildContext context) => _page(
   ListRowCard(
     children: [
-      ListRow(title: 'Item one', onTap: () {}),
+      ListRow(title: 'Item one', end: ListRowEnd.chevron, onTap: () {}),
       ListRow(
         title: 'Item two · [VALUE]',
         disabled: context.knobs.boolean(label: 'Disabled', initialValue: true),
+        end: ListRowEnd.chevron,
         onTap: () {},
       ),
-      ListRow(title: 'Item three', onTap: () {}),
+      ListRow(title: 'Item three', end: ListRowEnd.chevron, onTap: () {}),
     ],
   ),
 );

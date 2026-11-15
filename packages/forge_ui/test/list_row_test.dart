@@ -237,6 +237,7 @@ void main() {
         title: 'Item title',
         detail: '[DETAIL]',
         value: '[VALUE]',
+        end: ListRowEnd.chevron,
         disabled: true,
         onTap: () => taps++,
       ),
@@ -245,6 +246,10 @@ void main() {
     for (final text in ['Item title', '[DETAIL]', '[VALUE]']) {
       expect(textColor(tester, text), colors(tester).lineStrong);
     }
+    expect(
+      tester.widget<ForgeIcon>(find.byType(ForgeIcon)).color,
+      colors(tester).lineStrong,
+    );
     await tester.tap(find.text('Item title'));
     expect(taps, 0);
     expect(

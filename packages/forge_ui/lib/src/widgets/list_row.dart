@@ -216,7 +216,8 @@ class ListRow extends StatelessWidget {
   /// at the end.
   final bool busy;
 
-  /// Cannot be picked now (a full item): its text in line-strong, no tap.
+  /// Cannot be picked now (a full item): its text and end mark in
+  /// line-strong, no tap.
   final bool disabled;
   final bool loading;
   final int _skeleton;
@@ -396,19 +397,22 @@ class ListRow extends StatelessWidget {
     return result;
   }
 
-  Widget? _endMark(ForgePalette colors) => switch (end) {
-    ListRowEnd.none => null,
-    ListRowEnd.chevron => ForgeIcon(
-      ForgeIcons.chevronRight,
-      size: 18,
-      color: colors.inkMuted,
-    ),
-    ListRowEnd.external => ForgeIcon(
-      ForgeIcons.openInNew,
-      size: 16,
-      color: colors.inkMuted,
-    ),
-  };
+  Widget? _endMark(ForgePalette colors) {
+    final color = disabled ? colors.lineStrong : colors.inkMuted;
+    return switch (end) {
+      ListRowEnd.none => null,
+      ListRowEnd.chevron => ForgeIcon(
+        ForgeIcons.chevronRight,
+        size: 18,
+        color: color,
+      ),
+      ListRowEnd.external => ForgeIcon(
+        ForgeIcons.openInNew,
+        size: 16,
+        color: color,
+      ),
+    };
+  }
 
   Widget _frame(Widget child) => ConstrainedBox(
     constraints: const BoxConstraints(minHeight: _minHeight),

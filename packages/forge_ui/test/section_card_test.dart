@@ -210,6 +210,10 @@ void main() {
     );
     final edit = tester.getRect(find.text('Edit'));
 
+    final label = tester.widget<Text>(find.text('Edit')).style!;
+    final colors = ForgeStyle.of(tester.element(find.text('Edit'))).colors;
+    expect((label.fontSize, label.fontWeight), (14, FontWeight.w600));
+    expect(label.color, colors.accent);
     expect(edit.height, lessThan(ForgeTheme.tapMin));
     await tester.tapAt(edit.center.translate(0, ForgeTheme.tapMin / 2 - 1));
     expect(edits, 1);
