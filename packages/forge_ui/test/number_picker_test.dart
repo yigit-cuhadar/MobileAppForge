@@ -302,4 +302,131 @@ void main() {
       expect(times, isEmpty);
     });
   });
+
+  group('duration wheel', () {
+    late List<Duration> durations;
+
+    setUp(() => durations = []);
+
+    Future<void> pumpWheel(WidgetTester tester, ForgeDurationWheel wheel) =>
+        tester.pumpWidget(
+          MaterialApp(
+            theme: ForgeTheme.light(),
+            home: Scaffold(body: wheel),
+          ),
+        );
+
+    Future<void> turn(WidgetTester tester, String text, int steps) async {
+      await tester.dragFrom(
+        tester.getCenter(find.text(text)),
+        Offset(0, -NumberPicker.wheelPitch * steps),
+        touchSlopX: 0,
+        touchSlopY: 0,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    ForgeDurationWheel hoursMinutes(Duration initial) =>
+        ForgeDurationWheel.hoursMinutes(
+          label: 'Duration',
+          initial: initial,
+          max: const Duration(hours: 24),
+          hourUnit: 'h',
+          minuteUnit: 'min',
+          onChanged: durations.add,
+        );
+
+    testWidgets('hours and minutes, each with its unit', (tester) async {
+      await pumpWheel(tester, hoursMinutes(const Duration(minutes: 50)));
+
+      expect(find.text('h'), findsOneWidget);
+      expect(find.text('min'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('h')).dx,
+        lessThan(tester.getTopLeft(find.text('50')).dx),
+      );
+
+      await turn(tester, '0', 1);
+      expect(durations.last, const Duration(hours: 1, minutes: 50));
+
+      await turn(tester, '50', 15);
+      expect(durations.last, const Duration(hours: 1, minutes: 5));
+    });
+
+    testWidgets('stops at max with the minutes at 0', (tester) async {
+      await pumpWheel(
+        tester,
+        hoursMinutes(const Duration(hours: 23, minutes: 30)),
+      );
+
+      await turn(tester, '23', 3);
+
+      expect(durations.last, const Duration(hours: 24));
+      expect(find.text('24'), findsOneWidget);
+      expect(
+        tester.getCenter(find.text('00')).dy,
+        moreOrLessEquals(tester.getCenter(find.text('24')).dy),
+      );
+    });
+
+    testWidgets('minutes:seconds in steps, from 0:00 to max', (tester) async {
+      await pumpWheel(
+        tester,
+        ForgeDurationWheel.minutesSeconds(
+          label: 'Rest',
+          initial: const Duration(minutes: 1, seconds: 30),
+          max: const Duration(minutes: 10),
+          step: const Duration(seconds: 15),
+          onChanged: durations.add,
+        ),
+      );
+
+      expect(find.text('1:30'), findsOneWidget);
+      await turn(tester, '1:30', 2);
+      expect(durations.last, const Duration(minutes: 2));
+
+      await turn(tester, '2:00', 60);
+      expect(durations.last, const Duration(minutes: 10));
+
+      await turn(tester, '10:00', -100);
+      expect(durations.last, Duration.zero);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Rest').last),
+        matchesSemantics(
+          label: 'Rest',
+          value: '0:00',
+          increasedValue: '0:15',
+          isSlider: true,
+          hasIncreaseAction: true,
+          hasDecreaseAction: true,
+        ),
+      );
+    });
+
+    testWidgets('a tap outside closes the dialog', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showForgeDurationWheel(
+                context: context,
+                wheel: hoursMinutes(const Duration(minutes: 50)),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ForgeDurationWheel), findsOneWidget);
+
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ForgeDurationWheel), findsNothing);
+      expect(durations, isEmpty);
+    });
+  });
 }
