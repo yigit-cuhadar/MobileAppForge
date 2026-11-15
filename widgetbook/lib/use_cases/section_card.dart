@@ -89,3 +89,12 @@ Widget plainSectionCard(BuildContext context) => _page(
     ],
   ),
 );
+
+@widgetbook.UseCase(name: 'Plain, no content', type: SectionCard)
+Widget plainEmptySectionCard(BuildContext context) => _page(
+  SectionCard.plain(
+    title: 'Section title',
+    actionLabel: context.knobs.string(label: 'Action', initialValue: 'Add'),
+    onAction: () {},
+  ),
+);

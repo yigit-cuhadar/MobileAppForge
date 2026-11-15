@@ -224,4 +224,24 @@ void main() {
       matchesSemantics(isButton: true, hasTapAction: true, label: 'Edit'),
     );
   });
+
+  testWidgets('the plain form without content is its header alone', (
+    tester,
+  ) async {
+    var adds = 0;
+    await pump(
+      tester,
+      SectionCard.plain(
+        title: 'Section title',
+        actionLabel: 'Add',
+        onAction: () => adds++,
+      ),
+    );
+    final card = tester.getRect(find.byType(SectionCard));
+    final title = tester.getRect(find.text('Section title'));
+
+    expect(card.height, title.height + 2 * Gap.md);
+    await tester.tap(find.text('Add'));
+    expect(adds, 1);
+  });
 }

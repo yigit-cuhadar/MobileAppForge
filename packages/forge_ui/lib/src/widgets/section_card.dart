@@ -91,10 +91,11 @@ class SectionCard extends StatelessWidget {
 
   /// The [title] over [child], no chevron and no tap; an optional text
   /// action in accent ([actionLabel], such as "Edit") ends the header.
+  /// Without [child] the card is the header alone.
   const SectionCard.plain({
     super.key,
     required this.title,
-    required Widget this.child,
+    this.child,
     this.actionLabel,
     this.onAction,
   }) : assert((actionLabel == null) == (onAction == null)),
@@ -123,8 +124,8 @@ class SectionCard extends StatelessWidget {
     final style = ForgeStyle.of(context);
     final colors = style.colors;
     final text = Theme.of(context).textTheme;
-    final body = switch (_state) {
-      _State.filled => child!,
+    final Widget? body = switch (_state) {
+      _State.filled => child,
       _State.loading => const Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +205,7 @@ class SectionCard extends StatelessWidget {
               ],
             ),
           ),
-          body,
+          ?body,
         ],
       ),
     );
