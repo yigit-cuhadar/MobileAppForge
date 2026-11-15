@@ -31,6 +31,8 @@ class ForgeNavigationBar extends StatelessWidget {
   /// Stroke of an unselected tab's icon.
   static const double _weight = 1.8;
 
+  static const double _maxTextScale = 1.5;
+
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
@@ -103,13 +105,18 @@ class _Tab extends StatelessWidget {
                 : ForgeNavigationBar._weight,
           ),
           const SizedBox(height: Gap.xs),
-          Text(
-            destination.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: style.copyWith(
-              color: color,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          // Capped as Material's bar caps it, so the label fits the fixed
+          // height at the largest text sizes.
+          MediaQuery.withClampedTextScaling(
+            maxScaleFactor: ForgeNavigationBar._maxTextScale,
+            child: Text(
+              destination.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style.copyWith(
+                color: color,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
         ],

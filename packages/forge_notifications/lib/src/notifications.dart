@@ -5,14 +5,19 @@ import 'package:forge_core/forge_core.dart';
 import 'schedule.dart';
 
 /// An Android notification channel: the one every notification is posted
-/// to, or the ongoing ones' own (`Notifications.showCountdown`,
-/// `Notifications.showStopwatch`).
+/// to, one with its own [sound] for some of them (the `channel` of
+/// `Notifications.show`, `scheduleAt` and `scheduleIn`), or the ongoing
+/// ones' own (`Notifications.showCountdown`, `Notifications.showStopwatch`).
+///
+/// Android fixes a channel's sound when it is created, so each sound needs a
+/// channel id of its own. iOS has no channels and only takes the [sound].
 final class NotificationChannel {
   const NotificationChannel({
     required this.id,
     required this.name,
     required this.description,
     required this.importance,
+    this.sound,
   });
 
   final String id;
@@ -21,6 +26,26 @@ final class NotificationChannel {
   final String name;
   final String description;
   final Importance importance;
+
+  /// Null for the system's notification sound.
+  final NotificationSound? sound;
+}
+
+/// What a notification sounds like besides the system sound: a sound the
+/// app bundles, or none.
+final class NotificationSound {
+  /// The bundled sound [name], without extension: `res/raw/<name>.<ext>` on
+  /// Android, `<name>.caf` in the app bundle on iOS.
+  const NotificationSound(String this.name);
+
+  const NotificationSound._silent() : name = null;
+
+  /// No sound. Android still vibrates as the device's settings say; iOS
+  /// does not.
+  static const silent = NotificationSound._silent();
+
+  /// Null when [silent].
+  final String? name;
 }
 
 /// Whether the app may show notifications.
@@ -125,11 +150,16 @@ abstract interface class Notifications {
   /// platform could not open them.
   Future<Result<void>> openSettings();
 
+  /// Shows now. With a [channel], it is posted there and sounds as the
+  /// channel's sound says, instead of on the app's channel; the
+  /// [scheduleAt] and [scheduleIn] [channel] works the same way. Android
+  /// creates the channel with the first notification posted to it.
   Future<Result<void>> show(
     int id, {
     required String title,
     required String body,
     String? payload,
+    NotificationChannel? channel,
   });
 
   /// Shows once at [when], rounded up to a whole second, which must be in
@@ -140,6 +170,7 @@ abstract interface class Notifications {
     required String title,
     required String body,
     String? payload,
+    NotificationChannel? channel,
   });
 
   /// Makes the pending notifications with ids [baseId] to
@@ -172,6 +203,7 @@ abstract interface class Notifications {
     required String title,
     required String body,
     String? payload,
+    NotificationChannel? channel,
   });
 
   /// Shows every [weekday] (ISO, 1 = Monday) at [time] local wall-clock time.

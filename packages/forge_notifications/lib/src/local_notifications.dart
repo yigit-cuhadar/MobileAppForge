@@ -41,15 +41,30 @@ class LocalNotifications implements Notifications {
         IOSFlutterLocalNotificationsPlugin
       >();
 
-  NotificationDetails get _details => NotificationDetails(
-    android: AndroidNotificationDetails(
-      channel.id,
-      channel.name,
-      channelDescription: channel.description,
-      importance: channel.importance,
-    ),
-    iOS: const DarwinNotificationDetails(),
-  );
+  static NotificationDetails _details(NotificationChannel channel) {
+    final sound = channel.sound;
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        channel.id,
+        channel.name,
+        channelDescription: channel.description,
+        importance: channel.importance,
+        playSound: sound != NotificationSound.silent,
+        sound: _androidSound(sound),
+      ),
+      iOS: sound == null
+          ? const DarwinNotificationDetails()
+          : DarwinNotificationDetails(
+              presentSound: sound != NotificationSound.silent,
+              sound: sound.name == null ? null : '${sound.name}.caf',
+            ),
+    );
+  }
+
+  static AndroidNotificationSound? _androidSound(NotificationSound? sound) =>
+      sound?.name == null
+      ? null
+      : RawResourceAndroidNotificationSound(sound!.name);
 
   tz.TZDateTime get _now => tz.TZDateTime.from(clock.now(), tz.local);
 
@@ -152,12 +167,13 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
+    NotificationChannel? channel,
   }) => _run(
     () => _plugin.show(
       id: id,
       title: title,
       body: body,
-      notificationDetails: _details,
+      notificationDetails: _details(channel ?? this.channel),
       payload: payload,
     ),
   );
@@ -169,11 +185,20 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
+    NotificationChannel? channel,
   }) => _run(() async {
     final at = ceilToSecond(tz.TZDateTime.from(when, tz.local));
     checkFuture(at, _now);
     await _checkBudget({id}, 1);
-    await _schedule(id, at, title, body, payload, await _scheduleMode());
+    await _schedule(
+      id,
+      at,
+      title,
+      body,
+      payload,
+      await _scheduleMode(),
+      channel: channel,
+    );
   });
 
   @override
@@ -289,12 +314,14 @@ class LocalNotifications implements Notifications {
     required String title,
     required String body,
     String? payload,
+    NotificationChannel? channel,
   }) => scheduleAt(
     id,
     clock.now().add(delay),
     title: title,
     body: body,
     payload: payload,
+    channel: channel,
   );
 
   @override
@@ -502,6 +529,8 @@ class LocalNotifications implements Notifications {
         channel.name,
         description: channel.description,
         importance: channel.importance,
+        playSound: channel.sound != NotificationSound.silent,
+        sound: _androidSound(channel.sound),
       ),
     );
     final countdown = countdownChannel;
@@ -539,10 +568,11 @@ class LocalNotifications implements Notifications {
     String? payload,
     AndroidScheduleMode mode, {
     bool weekly = false,
+    NotificationChannel? channel,
   }) => _plugin.zonedSchedule(
     id: id,
     scheduledDate: at,
-    notificationDetails: _details,
+    notificationDetails: _details(channel ?? this.channel),
     androidScheduleMode: mode,
     title: title,
     body: body,
