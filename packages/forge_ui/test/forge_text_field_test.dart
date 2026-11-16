@@ -447,4 +447,27 @@ void main() {
       expect(border().top, BorderSide(color: colors.danger, width: 1.5));
     });
   });
+
+  testWidgets('an empty error marks the field without a line under it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: const Scaffold(
+          body: ForgeTextField(label: 'Feet', errorText: ''),
+        ),
+      ),
+    );
+
+    final decoration = tester
+        .widget<InputDecorator>(find.byType(InputDecorator))
+        .decoration;
+    expect(decoration.enabledBorder, isA<OutlineInputBorder>());
+    expect(
+      (decoration.enabledBorder! as OutlineInputBorder).borderSide.color,
+      ForgeTheme.light().extension<ForgeStyle>()!.colors.danger,
+    );
+    expect(find.byType(Text), findsOneWidget); // the label only
+  });
 }
