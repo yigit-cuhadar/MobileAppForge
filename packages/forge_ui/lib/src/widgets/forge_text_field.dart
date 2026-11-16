@@ -229,11 +229,13 @@ class ForgeNumberField extends StatefulWidget {
     this.controller,
     this.side,
   }) : boxSize = size,
-       invalid = false;
+       invalid = false,
+       _tall = false;
 
-  /// A 40px box [width] wide with no unit and the value at its start, for
-  /// values edited inside a row. An [invalid] value gets a danger border,
-  /// also while typing; the row says what is wrong.
+  /// A 34px box [width] wide with no unit and the value right-aligned, for
+  /// values edited inside a row (a set's weight and reps). An [invalid]
+  /// value gets a danger border, also while typing; the row says what is
+  /// wrong.
   ForgeNumberField.compact({
     super.key,
     required this.label,
@@ -243,7 +245,22 @@ class ForgeNumberField extends StatefulWidget {
     this.invalid = false,
   }) : unit = null,
        side = null,
-       boxSize = Size(width, compactHeight);
+       boxSize = Size(width, compactHeight),
+       _tall = false;
+
+  /// [ForgeNumberField.compact] 40px tall with the value at its start in
+  /// 15px, for a row made of its own fields (a custom warm-up set).
+  ForgeNumberField.tall({
+    super.key,
+    required this.label,
+    required double width,
+    required this.onChanged,
+    this.controller,
+    this.invalid = false,
+  }) : unit = null,
+       side = null,
+       boxSize = Size(width, tallHeight),
+       _tall = true;
 
   final String label;
   final String? unit;
@@ -254,10 +271,12 @@ class ForgeNumberField extends StatefulWidget {
   /// The drawn box of this field.
   final Size boxSize;
   final bool invalid;
+  final bool _tall;
 
   /// The drawn box of the form with a unit.
   static const Size size = Size(96, 36);
-  static const double compactHeight = 40;
+  static const double compactHeight = 34;
+  static const double tallHeight = 40;
 
   @override
   State<ForgeNumberField> createState() => _ForgeNumberFieldState();
@@ -282,11 +301,8 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final p = style.colors;
-    final compact = widget.unit == null;
-    final value = style.data.copyWith(
-      fontSize: compact ? 15 : 14,
-      color: p.ink,
-    );
+    final tall = widget._tall;
+    final value = style.data.copyWith(fontSize: tall ? 15 : 14, color: p.ink);
     final text = Theme.of(context).textTheme;
     final side = widget.side;
     final border = widget.invalid
@@ -303,7 +319,7 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
         height: widget.boxSize.height,
         // The value keeps its place as the border thickens.
         padding: EdgeInsets.symmetric(
-          horizontal: (compact ? 10 : Gap.sm) - (border.top.width - 1),
+          horizontal: (tall ? 10 : Gap.sm) - (border.top.width - 1),
         ),
         decoration: BoxDecoration(
           color: p.surface,
@@ -335,7 +351,7 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  textAlign: compact ? TextAlign.start : TextAlign.end,
+                  textAlign: tall ? TextAlign.start : TextAlign.end,
                   style: value,
                   decoration: bareDecoration(
                     hintText: '—',
