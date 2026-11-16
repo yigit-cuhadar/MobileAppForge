@@ -357,6 +357,34 @@ void main() {
       expect(find.text('2.0'), findsOneWidget);
     });
 
+    testWidgets('a point formatter gets the tapped point with its day', (
+      tester,
+    ) async {
+      final asked = <ChartPoint>[];
+      await pump(
+        tester,
+        chart(
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: [at(0, 3), at(83, 1)],
+              format: format,
+              formatPoint: (point) {
+                asked.add(point);
+                return 'entry ${point.day.month}/${point.day.day}';
+              },
+              look: SeriesLook.accent,
+            ),
+          ],
+        ),
+      );
+      final box = plot(tester);
+      await tester.tapAt(Offset(box.right - 4, box.center.dy));
+      await tester.pump();
+      expect(find.text('entry 11/16'), findsOneWidget);
+      expect(asked.last, at(83, 1));
+    });
+
     testWidgets('a target is labelled in its series colour', (tester) async {
       await pump(tester, chart(target: true));
       expect(

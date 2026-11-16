@@ -39,6 +39,7 @@ class ChartSeries {
     required this.label,
     required this.points,
     required this.format,
+    this.formatPoint,
     required this.look,
     this.target,
     this.targetLabel,
@@ -61,6 +62,7 @@ class ChartSeries {
     required String this.dailyLabel,
     required String this.averageLabel,
     required this.format,
+    this.formatPoint,
     required this.look,
     this.target,
     this.targetLabel,
@@ -76,6 +78,7 @@ class ChartSeries {
     required this.label,
     required this.points,
     required this.format,
+    this.formatPoint,
   }) : look = SeriesLook.info,
        bars = true,
        target = null,
@@ -97,6 +100,7 @@ class ChartSeries {
     required VoidCallback this.onRetry,
   }) : points = const [],
        format = _none,
+       formatPoint = null,
        bars = false,
        target = null,
        targetLabel = null,
@@ -107,6 +111,10 @@ class ChartSeries {
   final String label;
   final List<ChartPoint> points;
   final String Function(double value) format;
+
+  /// Writes a point in the tap tag in place of [format], given the point
+  /// itself, so the app can find the entry behind its day.
+  final String Function(ChartPoint point)? formatPoint;
   final SeriesLook look;
   final bool bars;
   final double? target;
@@ -707,7 +715,11 @@ class _PlotState extends State<_Plot> {
                             for (final s in widget.series)
                               for (final point in s.points)
                                 if (_dayOf(point.day, widget.from) == selected)
-                                  (s, s.format(point.value)),
+                                  (
+                                    s,
+                                    s.formatPoint?.call(point) ??
+                                        s.format(point.value),
+                                  ),
                           ],
                         ),
                       ),
