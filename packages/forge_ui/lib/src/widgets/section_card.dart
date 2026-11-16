@@ -5,7 +5,7 @@ import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
-import 'forge_button.dart';
+import 'error_line.dart';
 import 'tap_band.dart';
 import 'skeleton.dart';
 
@@ -135,21 +135,10 @@ class SectionCard extends StatelessWidget {
           SkeletonBar(widthFactor: 0.55, height: 10),
         ],
       ),
-      _State.error => Row(
-        spacing: Gap.sm,
-        children: [
-          Expanded(
-            child: Text(
-              message!,
-              style: text.bodySmall!.copyWith(color: colors.danger),
-            ),
-          ),
-          ForgeButton(
-            label: retryLabel!,
-            onPressed: onRetry,
-            variant: ForgeButtonVariant.outline,
-          ),
-        ],
+      _State.error => ErrorLine(
+        message: message!,
+        retryLabel: retryLabel!,
+        onRetry: onRetry!,
       ),
       _State.empty || _State.locked => Text(message!, style: text.bodySmall),
     };

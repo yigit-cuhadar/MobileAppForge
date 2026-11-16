@@ -6,14 +6,16 @@ import 'local_days.dart';
 
 /// In-memory health store for tests, simulators and demos. Deterministic:
 /// each past day has a fixed count from [stepsFor], the current day counts
-/// up through the day by the clock, and future days are zero. Every field
-/// can be changed while it runs.
+/// up through the day by the clock, and future days are zero. Its
+/// workouts are [workoutList]. Every field can be changed while it runs.
 class FakeHealthSteps implements HealthSteps {
   FakeHealthSteps({
     this.status = HealthAvailability.available,
     this.permissionStatus = HealthPermission.denied,
     this.grantOnRequest = HealthPermission.granted,
+    this.workoutsPermissionStatus = HealthPermission.denied,
     int Function(DateTime day)? stepsFor,
+    this.workoutList = const [],
     DateTime Function()? clock,
   }) : stepsFor = stepsFor ?? defaultSteps,
        _clock = clock ?? DateTime.now;
@@ -23,8 +25,14 @@ class FakeHealthSteps implements HealthSteps {
   HealthAvailability status;
   HealthPermission permissionStatus;
 
-  /// What [requestPermission] changes [permissionStatus] to.
+  HealthPermission workoutsPermissionStatus;
+
+  /// What [requestPermission] changes [permissionStatus] to, and
+  /// [requestWorkoutsPermission] [workoutsPermissionStatus].
   HealthPermission grantOnRequest;
+
+  /// Every workout in the store, in any order.
+  List<HealthWorkout> workoutList;
 
   /// The full count of a past day, given its local midnight.
   int Function(DateTime day) stepsFor;
@@ -66,6 +74,38 @@ class FakeHealthSteps implements HealthSteps {
       _run(() async => _read(first, last));
 
   @override
+  Future<Result<HealthPermission>> workoutsPermission() => _run(() async {
+    _requireAvailable();
+    return workoutsPermissionStatus;
+  });
+
+  @override
+  Future<Result<HealthPermission>> requestWorkoutsPermission() =>
+      _run(() async {
+        _requireAvailable();
+        if (workoutsPermissionStatus == HealthPermission.denied) {
+          workoutsPermissionStatus = grantOnRequest;
+        }
+        return workoutsPermissionStatus;
+      });
+
+  @override
+  Future<Result<List<HealthWorkout>>> workouts(DateTime first, DateTime last) =>
+      _run(() async {
+        _requireAvailable();
+        if (workoutsPermissionStatus == HealthPermission.denied) {
+          throw const PermissionFailure('Workouts read access not granted');
+        }
+        final days = readDays(first, last);
+        final from = days.first.start;
+        final to = days.last.end;
+        return [
+          for (final w in workoutList)
+            if (!w.start.isBefore(from) && w.start.isBefore(to)) w,
+        ]..sort((a, b) => a.start.compareTo(b.start));
+      });
+
+  @override
   Future<Result<void>> openSettings() => _run(() async {
     if (status == HealthAvailability.unsupported) {
       throw const HealthFailure();
@@ -78,17 +118,9 @@ class FakeHealthSteps implements HealthSteps {
     if (permissionStatus == HealthPermission.denied) {
       throw const PermissionFailure('Steps read access not granted');
     }
-    if (startOfDay(last).isBefore(startOfDay(first))) {
-      throw ValidationFailure('$last is before $first');
-    }
-    final days = localDays(first, last);
-    if (days.length > maxStepDays) {
-      throw ValidationFailure(
-        '${days.length} days requested, at most $maxStepDays',
-      );
-    }
     return [
-      for (final day in days) DailySteps(day.start, _count(day.start, day.end)),
+      for (final day in readDays(first, last))
+        DailySteps(day.start, _count(day.start, day.end)),
     ];
   }
 

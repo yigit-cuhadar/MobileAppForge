@@ -6,22 +6,22 @@ import '../theme/forge_style.dart';
 import 'card_frame.dart';
 
 /// A calm card about one thing that is off or over (a permission turned
-/// off, Premium ended) with one [action]: the [icon] in danger in a
-/// surface-sunken circle, a [title], one or two lines of [message] and the
-/// action (Button's secondary form) across the full width.
+/// off, Premium ended): the [icon] in danger in a surface-sunken circle, a
+/// [title], one or two lines of [message] and an optional [action]
+/// (Button's secondary form) across the full width.
 class NoticeBanner extends StatelessWidget {
   const NoticeBanner({
     super.key,
     required this.icon,
     required this.title,
     required this.message,
-    required this.action,
+    this.action,
   });
 
   final ForgeIconData icon;
   final String title;
   final String message;
-  final Widget action;
+  final Widget? action;
 
   static const _circle = 36.0;
 
@@ -64,7 +64,7 @@ class NoticeBanner extends StatelessWidget {
                 ),
               ],
             ),
-            action,
+            ?action,
           ],
         ),
       ),

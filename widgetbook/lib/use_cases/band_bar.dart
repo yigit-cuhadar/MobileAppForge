@@ -81,6 +81,47 @@ Widget compactBandBars(BuildContext context) => ListView(
   ],
 );
 
+@widgetbook.UseCase(name: 'Muted zero, listed last', type: BandBar)
+Widget mutedBandBars(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: const [
+    Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: EdgeInsets.all(Gap.md),
+        child: Column(
+          spacing: Gap.sm,
+          children: [
+            BandBar.compact(
+              label: 'Item one',
+              valueLabel: '14 [UNIT]',
+              value: 0.56,
+              low: 0.4,
+              high: 0.8,
+            ),
+            BandBar.compact(
+              label: 'Item two',
+              valueLabel: '0 [UNIT]',
+              value: 0,
+              low: 0.4,
+              high: 0.8,
+              muted: true,
+            ),
+            BandBar.compact(
+              label: 'Item three',
+              valueLabel: '0 [UNIT]',
+              value: 0,
+              low: 0.4,
+              high: 0.8,
+              muted: true,
+            ),
+          ],
+        ),
+      ),
+    ),
+  ],
+);
+
 @widgetbook.UseCase(name: 'App fills', type: BandBar)
 Widget bandBarFills(BuildContext context) {
   final colors = ForgeStyle.of(context).colors;

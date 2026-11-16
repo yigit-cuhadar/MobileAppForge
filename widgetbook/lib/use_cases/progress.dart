@@ -74,6 +74,10 @@ Widget progressRingReached(BuildContext context) => _card(
   ),
 );
 
+@widgetbook.UseCase(name: 'Ring · loading', type: Progress)
+Widget progressRingLoading(BuildContext context) =>
+    _card(const Center(child: Progress.ringLoading()));
+
 @widgetbook.UseCase(name: 'Track', type: Progress)
 Widget progressTrack(BuildContext context) => _card(
   Progress.track(

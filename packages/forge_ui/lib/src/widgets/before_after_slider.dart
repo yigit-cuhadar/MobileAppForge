@@ -7,43 +7,87 @@ import 'card_frame.dart';
 import 'forge_chip.dart';
 import 'forge_slider.dart';
 import 'photo_tile.dart';
+import 'skeleton.dart';
+import 'tap_band.dart';
 
-/// One view a [BeforeAfterSlider] compares: two photos of it and their
-/// dates, with what changed between them.
+/// One side of a [BeforeAfterView]: a photo, a photo still being fetched
+/// (it shimmers), or a missing photo drawn as a sunken frame with a text
+/// such as "No photo". Every form fades like a photo.
+class ComparedPhoto {
+  const ComparedPhoto(ImageProvider this.image) : missing = null;
+
+  /// No photo to show: [missing] says why.
+  const ComparedPhoto.missing(String this.missing) : image = null;
+
+  /// The photo is being fetched.
+  const ComparedPhoto.loading() : image = null, missing = null;
+
+  final ImageProvider? image;
+  final String? missing;
+}
+
+/// One view a [BeforeAfterSlider] shows: two photos of it and their dates,
+/// with what changed between them, or [BeforeAfterView.single] one photo
+/// and its date, without a slider.
 class BeforeAfterView {
   const BeforeAfterView({
     required this.name,
     required this.before,
-    required this.after,
+    required ComparedPhoto this.after,
     required this.beforeDate,
-    required this.afterDate,
-    required this.change,
+    required String this.afterDate,
+    this.change,
   });
 
+  const BeforeAfterView.single({
+    required this.name,
+    required ComparedPhoto photo,
+    required String date,
+  }) : before = photo,
+       beforeDate = date,
+       after = null,
+       afterDate = null,
+       change = null;
+
   final String name;
-  final ImageProvider before;
-  final ImageProvider after;
+  final ComparedPhoto before;
+  final ComparedPhoto? after;
   final String beforeDate;
-  final String afterDate;
-  final String change;
+  final String? afterDate;
+
+  /// What changed between the days; without it the line holds the dates
+  /// alone.
+  final String? change;
 }
 
 /// A card comparing two photos of the same view, stacked: a slider under
 /// the frame fades from the earlier one to the later one, with the two
-/// dates at its ends and the shown date and blend on a dark tag. Chips
-/// switch between the [views]. It opens on the later photo of the first
-/// view.
+/// dates at its ends and the shown date and blend on a dark tag. A single
+/// view shows its one photo with its date on the tag and no slider. Chips
+/// switch between the [views]; one view has none. It opens on the later
+/// photo of the first view.
 class BeforeAfterSlider extends StatefulWidget {
   const BeforeAfterSlider({
     super.key,
-    required this.views,
-    required this.sliderLabel,
+    required List<BeforeAfterView> this.views,
+    required String this.sliderLabel,
+    this.onLaterDateTap,
   });
 
-  final List<BeforeAfterView> views;
+  /// A shimmering frame and slider while the views load.
+  const BeforeAfterSlider.loading({super.key})
+    : views = null,
+      sliderLabel = null,
+      onLaterDateTap = null;
+
+  final List<BeforeAfterView>? views;
 
   /// The slider's name for screen readers.
-  final String sliderLabel;
+  final String? sliderLabel;
+
+  /// Makes the later date in the title line a link, such as to choose
+  /// another day.
+  final VoidCallback? onLaterDateTap;
 
   static const double photoHeight = 300;
 
@@ -53,6 +97,7 @@ class BeforeAfterSlider extends StatefulWidget {
 
 class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
   int _view = 0;
+  final _laterDate = TapBandLink();
 
   /// The later photo's share, from 0 to 1.
   double _blend = 1;
@@ -63,135 +108,216 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
   @override
   void didUpdateWidget(BeforeAfterSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_view >= widget.views.length) _view = 0;
+    if (_view >= (widget.views?.length ?? 0)) _view = 0;
   }
 
   @override
   Widget build(BuildContext context) {
+    final views = widget.views;
+    return CardFrame(
+      child: TapBandArea(
+        links: [_laterDate],
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: Gap.md,
+            children: views == null ? _loading(context) : _filled(views),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _loading(BuildContext context) => [
+    SkeletonBar(
+      widthFactor: 1,
+      height: BeforeAfterSlider.photoHeight,
+      radius: ForgeStyle.of(context).radii.sm,
+    ),
+    const SkeletonBar(widthFactor: 1, height: 6),
+  ];
+
+  List<Widget> _filled(List<BeforeAfterView> views) {
     final style = ForgeStyle.of(context);
     final colors = style.colors;
     final text = Theme.of(context).textTheme;
-    final view = widget.views[_view];
+    final view = views[_view];
+    final after = view.after;
     final small = style.data.copyWith(fontSize: 11, height: 14 / 11);
     final percent = '${(_blend * 100).round()}%';
-    final shownDate = _blend >= 0.5 ? view.afterDate : view.beforeDate;
-    return CardFrame(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: Gap.md,
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) => Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                spacing: Gap.sm,
-                children: [
-                  Expanded(
-                    child: Text(
-                      view.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.titleMedium,
-                    ),
-                  ),
-                  // In a narrow card the dates take at most half the row.
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: constraints.maxWidth / 2,
-                    ),
-                    child: Text(
-                      '${view.beforeDate} → ${view.afterDate} · ${view.change}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: small.copyWith(color: colors.inkMuted),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: BeforeAfterSlider.photoHeight,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(style.radii.md),
-                child: ColoredBox(
-                  color: colors.surfaceSunken,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image(image: view.before, fit: BoxFit.cover),
-                      Opacity(
-                        opacity: _blend,
-                        child: Image(image: view.after, fit: BoxFit.cover),
-                      ),
-                      Positioned(
-                        top: Gap.sm,
-                        right: Gap.sm,
-                        child: PhotoTag(
-                          label: '$shownDate · $percent',
-                          style: small,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Row(
-              spacing: Gap.sm,
+    final muted = small.copyWith(color: colors.inkMuted);
+    final String tag;
+    final Widget detail;
+    if (after == null) {
+      tag = view.beforeDate;
+      detail = _line(view.beforeDate, muted);
+    } else {
+      tag = '${_blend >= 0.5 ? view.afterDate : view.beforeDate} · $percent';
+      final change = view.change == null ? '' : ' · ${view.change}';
+      final onLaterDateTap = widget.onLaterDateTap;
+      detail = onLaterDateTap == null
+          ? _line('${view.beforeDate} → ${view.afterDate}$change', muted)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  view.beforeDate,
-                  style: small.copyWith(color: colors.inkMuted),
-                ),
-                Expanded(
+                Flexible(child: _line('${view.beforeDate} → ', muted)),
+                TapBandTarget(
+                  link: _laterDate,
                   child: Semantics(
-                    slider: true,
-                    label: widget.sliderLabel,
-                    value: percent,
-                    increasedValue:
-                        '${((_blend + 0.1).clamp(0.0, 1.0) * 100).round()}%',
-                    decreasedValue:
-                        '${((_blend - 0.1).clamp(0.0, 1.0) * 100).round()}%',
-                    onIncrease: () => _setBlend(_blend + 0.1),
-                    onDecrease: () => _setBlend(_blend - 0.1),
-                    child: SliderArea(
-                      onChanged: _setBlend,
-                      builder: (context, dragging) => SizedBox(
-                        height: ForgeTheme.tapMin,
-                        child: Center(
-                          child: SliderTrack(
-                            fraction: _blend,
-                            dragging: dragging,
-                          ),
+                    button: true,
+                    child: GestureDetector(
+                      onTap: onLaterDateTap,
+                      child: Text(
+                        view.afterDate!,
+                        maxLines: 1,
+                        style: small.copyWith(
+                          color: colors.accent,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
                 ),
-                Text(
-                  view.afterDate,
-                  style: small.copyWith(color: colors.inkMuted),
-                ),
+                if (change.isNotEmpty) Flexible(child: _line(change, muted)),
               ],
+            );
+    }
+    return [
+      LayoutBuilder(
+        builder: (context, constraints) => Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          spacing: Gap.sm,
+          children: [
+            Expanded(
+              child: Text(
+                view.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.titleMedium,
+              ),
             ),
-            Wrap(
-              spacing: Gap.sm,
-              runSpacing: Gap.sm,
-              children: [
-                for (var i = 0; i < widget.views.length; i++)
-                  ForgeChip(
-                    label: widget.views[i].name,
-                    selected: i == _view,
-                    onPressed: () => setState(() => _view = i),
-                  ),
-              ],
+            // In a narrow card the dates take at most half the row.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+              child: detail,
             ),
           ],
         ),
       ),
+      SizedBox(
+        height: BeforeAfterSlider.photoHeight,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(style.radii.md),
+          child: ColoredBox(
+            color: colors.surfaceSunken,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _Side(view.before),
+                if (after != null)
+                  Opacity(opacity: _blend, child: _Side(after)),
+                Positioned(
+                  top: Gap.sm,
+                  right: Gap.sm,
+                  child: PhotoTag(label: tag, style: small),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      if (after != null)
+        Row(
+          spacing: Gap.sm,
+          children: [
+            Text(
+              view.beforeDate,
+              style: small.copyWith(color: colors.inkMuted),
+            ),
+            Expanded(
+              child: Semantics(
+                slider: true,
+                label: widget.sliderLabel,
+                value: percent,
+                increasedValue:
+                    '${((_blend + 0.1).clamp(0.0, 1.0) * 100).round()}%',
+                decreasedValue:
+                    '${((_blend - 0.1).clamp(0.0, 1.0) * 100).round()}%',
+                onIncrease: () => _setBlend(_blend + 0.1),
+                onDecrease: () => _setBlend(_blend - 0.1),
+                child: SliderArea(
+                  onChanged: _setBlend,
+                  builder: (context, dragging) => SizedBox(
+                    height: ForgeTheme.tapMin,
+                    child: Center(
+                      child: SliderTrack(fraction: _blend, dragging: dragging),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Text(
+              view.afterDate!,
+              style: small.copyWith(color: colors.inkMuted),
+            ),
+          ],
+        ),
+      if (views.length > 1)
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
+          children: [
+            for (var i = 0; i < views.length; i++)
+              ForgeChip(
+                label: views[i].name,
+                selected: i == _view,
+                onPressed: () => setState(() => _view = i),
+              ),
+          ],
+        ),
+    ];
+  }
+
+  static Widget _line(String text, TextStyle style) =>
+      Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+}
+
+/// One side filling the frame. A missing side is opaque so it fades over
+/// the other like a photo.
+class _Side extends StatelessWidget {
+  const _Side(this.photo);
+
+  final ComparedPhoto photo;
+
+  @override
+  Widget build(BuildContext context) {
+    if (photo.image case final image?) {
+      return Image(image: image, fit: BoxFit.cover);
+    }
+    if (photo.missing case final missing?) {
+      return ColoredBox(
+        color: ForgeStyle.of(context).colors.surfaceSunken,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.md),
+            child: Text(
+              missing,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ),
+      );
+    }
+    return const SkeletonBar(
+      widthFactor: 1,
+      height: BeforeAfterSlider.photoHeight,
+      radius: 0,
     );
   }
 }

@@ -99,6 +99,32 @@ void main() {
       );
     });
 
+    testWidgets('a subtitle sits muted 2px under the title', (tester) async {
+      await pump(
+        tester,
+        (context) => showForgeBottomSheet<void>(
+          context: context,
+          builder: (_) => const ForgeBottomSheet(
+            title: 'Item title',
+            subtitle: '[VALUE] · [DETAIL]',
+            child: Text('Option one'),
+          ),
+        ),
+      );
+      await open(tester);
+
+      expect(
+        tester.getTopLeft(find.text('[VALUE] · [DETAIL]')).dy -
+            tester.getBottomLeft(find.text('Item title')).dy,
+        2,
+      );
+      final context = tester.element(find.text('Item title'));
+      expect(
+        tester.widget<Text>(find.text('[VALUE] · [DETAIL]')).style?.color,
+        ForgeStyle.of(context).colors.inkMuted,
+      );
+    });
+
     testWidgets('opens on the root navigator, over a nested one', (
       tester,
     ) async {

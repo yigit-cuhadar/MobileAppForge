@@ -20,6 +20,15 @@ Widget permissionOffNotice(BuildContext context) => _page(
   ),
 );
 
+@widgetbook.UseCase(name: 'Without action', type: NoticeBanner)
+Widget noActionNotice(BuildContext context) => _page(
+  const NoticeBanner(
+    icon: ForgeIcons.cloudOff,
+    title: 'Item title',
+    message: 'One or two lines on what is off and what happens next.',
+  ),
+);
+
 @widgetbook.UseCase(name: 'Premium ended', type: NoticeBanner)
 Widget premiumEndedNotice(BuildContext context) => _page(
   NoticeBanner(

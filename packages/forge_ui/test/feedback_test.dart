@@ -123,6 +123,14 @@ void main() {
       expect(tester.getSize(find.byType(Progress)), const Size(136, 136));
     });
 
+    testWidgets('the ring loading is a shimmering circle of its size', (
+      tester,
+    ) async {
+      await pump(tester, const Center(child: Progress.ringLoading()));
+      expect(find.byType(SkeletonBar), findsOneWidget);
+      expect(tester.getSize(find.byType(Progress)), const Size(136, 136));
+    });
+
     testWidgets('the indeterminate line runs full width, still with less '
         'motion, and is read out', (tester) async {
       await pump(tester, const Progress.indeterminate(label: 'Saving'));
@@ -303,6 +311,26 @@ void main() {
       expect(
         tester.getSize(find.byType(ElevatedButton)).width,
         card - 2 * Gap.md,
+      );
+    });
+
+    testWidgets('without an action the card ends after the message', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const NoticeBanner(
+          icon: ForgeIcons.cloudOff,
+          title: 'Item title',
+          message: 'One line of message.',
+        ),
+      );
+
+      expect(find.byType(ForgeButton), findsNothing);
+      expect(
+        tester.getBottomLeft(find.byType(NoticeBanner)).dy -
+            tester.getBottomLeft(find.text('One line of message.')).dy,
+        Gap.md,
       );
     });
   });

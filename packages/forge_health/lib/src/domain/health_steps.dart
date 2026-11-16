@@ -2,10 +2,12 @@ import 'package:forge_core/forge_core.dart';
 
 import 'health_models.dart';
 
-/// The longest range [HealthSteps.dailySteps] reads at once.
+/// The longest range [HealthSteps.dailySteps] and [HealthSteps.workouts]
+/// read at once.
 const maxStepDays = 366;
 
-/// Step counts from the platform health store, read only. Failures are
+/// Step counts and workouts from the platform health store, read only.
+/// Steps and workouts have their own access. Failures are
 /// [HealthFailure] (no usable store), [PermissionFailure] (Android: read
 /// access missing), [ValidationFailure] or [UnknownFailure].
 abstract interface class HealthSteps {
@@ -27,6 +29,17 @@ abstract interface class HealthSteps {
   /// At most [maxStepDays] days.
   /// Android reads only 30 days before the permission was first granted.
   Future<Result<List<DailySteps>>> dailySteps(DateTime first, DateTime last);
+
+  /// Read access to workouts, asked for apart from steps.
+  Future<Result<HealthPermission>> workoutsPermission();
+
+  /// Shows the platform's permission sheet for workouts when it still can,
+  /// then returns the outcome, as [requestPermission] does for steps.
+  Future<Result<HealthPermission>> requestWorkoutsPermission();
+
+  /// The workouts that started on the local calendar days from [first] to
+  /// [last] inclusive, oldest first. At most [maxStepDays] days.
+  Future<Result<List<HealthWorkout>>> workouts(DateTime first, DateTime last);
 
   /// Where the user fixes access: the Health Connect settings, the store
   /// page when Health Connect is [HealthAvailability.notInstalled], or the

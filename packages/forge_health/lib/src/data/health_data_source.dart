@@ -1,8 +1,20 @@
 import 'package:android_intent_plus/android_intent.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:health/health.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+/// A workout as the plugin reads it.
+typedef RawWorkout = ({
+  String id,
+  HealthWorkoutActivityType activity,
+  DateTime start,
+  DateTime end,
+  int? distanceMeters,
+  int? energyKcal,
+  String source,
+});
 
 /// Thin wrapper over the `health` plugin, intents and URLs; throws.
 class HealthDataSource {
@@ -12,6 +24,21 @@ class HealthDataSource {
   static const _channel = MethodChannel('flutter_health');
 
   static const _steps = [HealthDataType.STEPS];
+
+  /// What reading a workout needs. On Android the plugin also reads the
+  /// distance, energy and steps recorded during each workout, and a refused
+  /// one of them empties the whole read, so all are asked together.
+  static List<HealthDataType> get _workouts =>
+      defaultTargetPlatform == TargetPlatform.android
+      ? const [
+          HealthDataType.WORKOUT,
+          HealthDataType.DISTANCE_DELTA,
+          HealthDataType.TOTAL_CALORIES_BURNED,
+          HealthDataType.STEPS,
+        ]
+      : const [HealthDataType.WORKOUT];
+
+  static const _heartRate = [HealthDataType.HEART_RATE];
 
   /// iOS: false on devices without HealthKit, e.g. older iPads. Throws
   /// [MissingPluginException] if the plugin drops the method.
@@ -28,6 +55,55 @@ class HealthDataSource {
 
   /// Android: whether it was granted. iOS: whether the sheet was handled.
   Future<bool> requestStepsPermission() => _health.requestAuthorization(_steps);
+
+  /// Null when the platform does not tell (iOS read access). Throws
+  /// [UnsupportedError] on Android without a working Health Connect.
+  Future<bool?> hasWorkoutsPermission() => _health.hasPermissions(_workouts);
+
+  /// As [hasWorkoutsPermission], for heart rate, which a workout's average
+  /// is read from but does not need.
+  Future<bool?> hasHeartRatePermission() => _health.hasPermissions(_heartRate);
+
+  /// Asks for workouts and heart rate in one sheet. Android: whether all
+  /// were granted. iOS: whether the sheet was handled.
+  Future<bool> requestWorkoutsPermission() =>
+      _health.requestAuthorization([..._workouts, ..._heartRate]);
+
+  /// The workouts that started in [start, end). Android returns none, with
+  /// no error, when a read it needs was refused.
+  Future<List<RawWorkout>> workouts(DateTime start, DateTime end) async {
+    final points = await _health.getHealthDataFromTypes(
+      types: const [HealthDataType.WORKOUT],
+      startTime: start,
+      endTime: end,
+    );
+    return [
+      for (final point in points)
+        if (point.value case final WorkoutHealthValue value)
+          (
+            id: point.uuid,
+            activity: value.workoutActivityType,
+            start: point.dateFrom,
+            end: point.dateTo,
+            distanceMeters: value.totalDistance,
+            energyKcal: value.totalEnergyBurned,
+            source: point.sourceName,
+          ),
+    ];
+  }
+
+  /// The heart rate samples, in beats per minute, taken in [start, end].
+  Future<List<num>> heartRates(DateTime start, DateTime end) async {
+    final points = await _health.getHealthDataFromTypes(
+      types: _heartRate,
+      startTime: start,
+      endTime: end,
+    );
+    return [
+      for (final point in points)
+        if (point.value case final NumericHealthValue value) value.numericValue,
+    ];
+  }
 
   /// The platform's aggregate of [start, end). Null when Health Connect
   /// could not read; the plugin does not say why.

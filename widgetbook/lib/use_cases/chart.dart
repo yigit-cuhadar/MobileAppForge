@@ -48,6 +48,64 @@ Widget barChart(BuildContext context) => _page(
   ),
 );
 
+const _bandBars = [
+  ChartBar(label: '24', value: 11, valueLabel: '11'),
+  ChartBar(label: '31', value: 12, valueLabel: '12'),
+  ChartBar(label: '7', value: 13, valueLabel: '13'),
+  ChartBar(label: '14', value: 8, valueLabel: '8'),
+  ChartBar(label: '21', value: 14, valueLabel: '14'),
+  ChartBar(label: '28', value: 16, valueLabel: '16'),
+  ChartBar(label: '5', value: 0, valueLabel: '0'),
+  ChartBar(label: '12', value: 13, valueLabel: '13'),
+  ChartBar(label: '19', value: 15, valueLabel: '15'),
+  ChartBar(label: '26', value: 16, valueLabel: '16'),
+  ChartBar(label: '2', value: 22, valueLabel: '22'),
+  ChartBar(label: '9', value: 14, valueLabel: '14'),
+];
+
+@widgetbook.UseCase(name: 'Bar · band', type: Chart)
+Widget bandBarChart(BuildContext context) => _page(
+  const Chart.bar(
+    title: 'Last 12 weeks',
+    bars: _bandBars,
+    band: (low: 10, high: 20),
+    semanticLabel: 'Count over 12 weeks against a 10 to 20 band',
+  ),
+);
+
+@widgetbook.UseCase(name: 'Bar · band without card', type: Chart)
+Widget bareBandBarChart(BuildContext context) => ColoredBox(
+  color: Theme.of(context).colorScheme.surface,
+  child: _page(
+    const Chart.bar(
+      title: 'Last 12 weeks',
+      bars: _bandBars,
+      band: (low: 10, high: 20),
+      card: false,
+      semanticLabel: 'Count over 12 weeks against a 10 to 20 band',
+    ),
+  ),
+);
+
+@widgetbook.UseCase(name: 'Bar · dense (30 days)', type: Chart)
+Widget denseBarChart(BuildContext context) => _page(
+  Chart.barDense(
+    title: 'Last 30 days',
+    detail: 'goal [VALUE]',
+    bars: [
+      for (var i = 0; i < 30; i++)
+        ChartBar(
+          label: '[DATE ${i + 1}]',
+          value: 6 + (i * 7919 % 60) / 10,
+          valueLabel: '[VALUE] · [DATE ${i + 1}]',
+        ),
+    ],
+    current: 29,
+    target: 10,
+    semanticLabel: 'Count over the last 30 days with a goal line',
+  ),
+);
+
 @widgetbook.UseCase(name: 'Loading', type: Chart)
 Widget loadingChart(BuildContext context) =>
     _page(const Chart.loading(title: 'Value', detail: '12 weeks'));

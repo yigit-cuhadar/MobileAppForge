@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:forge_ui/src/widgets/card_frame.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -115,6 +116,117 @@ void main() {
     expect(tester.getSize(bar.first).height, 0);
   });
 
+  group('Chart.barDense', () {
+    Widget dense() => Chart.barDense(
+      title: 'Last 30 days',
+      detail: 'goal [VALUE]',
+      bars: [
+        for (var i = 0; i < 30; i++)
+          ChartBar(
+            label: 'Day $i',
+            value: 4.0 + i % 7,
+            valueLabel: '[VALUE] · Day $i',
+          ),
+      ],
+      current: 29,
+      target: 10,
+      semanticLabel: 'Count over 30 days',
+    );
+
+    testWidgets('shows no values and labels only the ends', (tester) async {
+      await pump(tester, dense());
+      expect(find.textContaining('[VALUE] ·'), findsNothing);
+      expect(find.text('Day 0'), findsOneWidget);
+      expect(find.text('Day 29'), findsOneWidget);
+      expect(find.text('Day 15'), findsNothing);
+    });
+
+    testWidgets('a tap shows that bar in a tag, in accent', (tester) async {
+      await pump(tester, dense());
+      final box = tester.getRect(find.bySemanticsLabel('Count over 30 days'));
+      await tester.tapAt(
+        Offset(box.left + box.width * 10.5 / 30, box.bottom - 2),
+      );
+      await tester.pump();
+      expect(find.text('[VALUE] · Day 10'), findsOneWidget);
+
+      final bars = find.descendant(
+        of: find.byType(Chart),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).borderRadius ==
+                  const BorderRadius.all(Radius.circular(2)),
+        ),
+      );
+      Color fill(int i) =>
+          (tester.widget<Container>(bars.at(i)).decoration! as BoxDecoration)
+              .color!;
+      final c = colors(tester);
+      expect(fill(10), c.accent);
+      expect(fill(29), c.accent);
+      expect(fill(9), c.accent.withValues(alpha: 0.55));
+      // 2px apart.
+      expect(
+        tester.getRect(bars.at(11)).left - tester.getRect(bars.at(10)).right,
+        closeTo(2, 0.01),
+      );
+    });
+  });
+
+  group('Chart.bar with a band', () {
+    Widget banded({bool card = true}) => Chart.bar(
+      title: 'Last 12 weeks',
+      bars: const [
+        ChartBar(label: '1', value: 8, valueLabel: '8'),
+        ChartBar(label: '2', value: 14, valueLabel: '14'),
+        ChartBar(label: '3', value: 22, valueLabel: '22'),
+      ],
+      band: (low: 10, high: 20),
+      card: card,
+      semanticLabel: 'Count over 12 weeks',
+    );
+
+    Color fillOf(WidgetTester tester, String value) {
+      final bar = find.descendant(
+        of: find.ancestor(of: find.text(value), matching: find.byType(Column)),
+        matching: find.byType(Container),
+      );
+      return (tester.widget<Container>(bar.first).decoration! as BoxDecoration)
+          .color!;
+    }
+
+    testWidgets('colours each bar by where it lands', (tester) async {
+      await pump(tester, banded());
+      final c = colors(tester);
+      expect(fillOf(tester, '8'), Color.lerp(c.surface, c.accent, 0.4));
+      expect(fillOf(tester, '14'), c.accent);
+      expect(fillOf(tester, '22'), c.danger);
+    });
+
+    testWidgets('the band is a sunken stripe from low to high', (tester) async {
+      await pump(tester, banded());
+      final stripe = find.byWidgetPredicate(
+        (w) => w is ColoredBox && w.color == colors(tester).surfaceSunken,
+      );
+      final bar14 = find.descendant(
+        of: find.ancestor(of: find.text('14'), matching: find.byType(Column)),
+        matching: find.byType(Container),
+      );
+      final band = tester.getRect(stripe);
+      final bar = tester.getRect(bar14.first);
+      // 14 is 40% of the way from 10 to 20.
+      expect(bar.top, closeTo(band.bottom - band.height * 0.4, 0.01));
+    });
+
+    testWidgets('without its card it keeps the title only', (tester) async {
+      await pump(tester, banded(card: false));
+      expect(find.byType(CardFrame), findsNothing);
+      expect(find.text('Last 12 weeks'), findsOneWidget);
+    });
+  });
+
   testWidgets('loading keeps the title and shimmers the rest', (tester) async {
     await pump(tester, const Chart.loading(title: 'Value', detail: '12 weeks'));
     expect(find.text('Value'), findsOneWidget);
@@ -162,37 +274,55 @@ void main() {
 
   group('MultiSeriesChart', () {
     String format(double v) => v.toStringAsFixed(1);
+    final from = DateTime(2025, 8, 25);
+    final to = DateTime(2025, 11, 16);
+    ChartPoint at(int day, double value) =>
+        (day: DateTime(2025, 8, 25 + day), value: value);
 
     Widget chart({
       void Function(int)? onSeriesTap,
       VoidCallback? onAdd,
       bool target = false,
+      List<ChartSeries>? series,
+      Widget? range,
+      String? lockedCaption,
+      VoidCallback? onLockedCaptionTap,
     }) => MultiSeriesChart(
       title: 'Series',
       detail: '12 weeks',
-      series: [
-        ChartSeries(
-          label: 'Series A',
-          values: const [3, 2, 1],
-          format: format,
-          look: SeriesLook.accent,
-          target: target ? 1.5 : null,
-          targetLabel: target ? 'Target' : null,
-        ),
-        ChartSeries.bars(
-          label: 'Series B',
-          values: const [10, 20, 30],
-          format: format,
-        ),
-      ],
-      dateLabel: (i) => 'Day $i',
+      series:
+          series ??
+          [
+            ChartSeries(
+              label: 'Series A',
+              points: [at(0, 3), at(40, 2), at(83, 1)],
+              format: format,
+              look: SeriesLook.accent,
+              target: target ? 1.5 : null,
+              targetLabel: target ? 'Target' : null,
+            ),
+            ChartSeries.bars(
+              label: 'Series B',
+              points: [at(0, 10), at(35, 20), at(77, 30)],
+              format: format,
+            ),
+          ],
+      from: from,
+      to: to,
+      dateLabel: (day) => 'Day ${day.month}/${day.day}',
       startLabel: 'Aug 25',
-      endLabel: 'Nov 10',
+      endLabel: 'Nov 16',
       onSeriesTap: onSeriesTap ?? (_) {},
       addLabel: 'Add',
       onAdd: onAdd ?? () {},
+      range: range,
+      lockedCaption: lockedCaption,
+      onLockedCaptionTap: onLockedCaptionTap,
       semanticLabel: 'Series over 12 weeks',
     );
+
+    Rect plot(WidgetTester tester) =>
+        tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
 
     testWidgets('chips report taps', (tester) async {
       final tapped = <int>[];
@@ -206,15 +336,53 @@ void main() {
       expect(adds, 1);
     });
 
-    testWidgets('a tap shows each series on that day', (tester) async {
+    testWidgets('a tap shows each series on the nearest day with an entry', (
+      tester,
+    ) async {
       await pump(tester, chart());
 
-      final box = tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
+      final box = plot(tester);
       await tester.tapAt(Offset(box.right - 4, box.bottom - 4));
       await tester.pump();
-      expect(find.text('Day 2'), findsOneWidget);
+      expect(find.text('Day 11/16'), findsOneWidget);
       expect(find.text('1.0'), findsOneWidget);
-      expect(find.text('30.0'), findsOneWidget);
+      expect(find.text('30.0'), findsNothing);
+
+      // Day 40 of 84 lies just left of the middle; only Series A has it.
+      await tester.tapAt(
+        Offset(box.left + box.width * 40.5 / 84, box.center.dy),
+      );
+      await tester.pump();
+      expect(find.text('Day 10/4'), findsOneWidget);
+      expect(find.text('2.0'), findsOneWidget);
+    });
+
+    testWidgets('a point formatter gets the tapped point with its day', (
+      tester,
+    ) async {
+      final asked = <ChartPoint>[];
+      await pump(
+        tester,
+        chart(
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: [at(0, 3), at(83, 1)],
+              format: format,
+              formatPoint: (point) {
+                asked.add(point);
+                return 'entry ${point.day.month}/${point.day.day}';
+              },
+              look: SeriesLook.accent,
+            ),
+          ],
+        ),
+      );
+      final box = plot(tester);
+      await tester.tapAt(Offset(box.right - 4, box.center.dy));
+      await tester.pump();
+      expect(find.text('entry 11/16'), findsOneWidget);
+      expect(asked.last, at(83, 1));
     });
 
     testWidgets('a target is labelled in its series colour', (tester) async {
@@ -225,36 +393,146 @@ void main() {
       );
     });
 
-    testWidgets('a line with no values yet draws nothing and taps safely', (
+    testWidgets('an averaged series shows its legend and its daily value', (
       tester,
     ) async {
       await pump(
         tester,
-        MultiSeriesChart(
-          title: 'Series',
+        chart(
           series: [
-            ChartSeries(
+            ChartSeries.averaged(
               label: 'Series A',
-              values: const [],
+              points: [at(0, 3), at(83, 1)],
+              average: [at(0, 3), at(83, 2)],
+              dailyLabel: 'daily value',
+              averageLabel: '7-day average',
               format: format,
               look: SeriesLook.accent,
             ),
           ],
-          dateLabel: (i) => 'Day $i',
-          startLabel: 'Aug 25',
-          endLabel: 'Nov 10',
-          onSeriesTap: (_) {},
-          addLabel: 'Add',
-          onAdd: () {},
-          semanticLabel: 'Series over 12 weeks',
+        ),
+      );
+      expect(find.text('daily value'), findsOneWidget);
+      expect(find.text('7-day average'), findsOneWidget);
+
+      final box = plot(tester);
+      await tester.tapAt(Offset(box.right - 4, box.center.dy));
+      await tester.pump();
+      expect(find.text('1.0'), findsOneWidget);
+    });
+
+    testWidgets('a failed series keeps its chip and retries on its line', (
+      tester,
+    ) async {
+      var retries = 0;
+      await pump(
+        tester,
+        chart(
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: [at(0, 3), at(83, 1)],
+              format: format,
+              look: SeriesLook.accent,
+            ),
+            ChartSeries.failed(
+              label: 'Series B',
+              look: SeriesLook.info,
+              error: "Couldn't load Series B.",
+              retryLabel: 'Retry',
+              onRetry: () => retries++,
+            ),
+          ],
+        ),
+      );
+      expect(find.text('Series B'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text("Couldn't load Series B.")).style?.color,
+        colors(tester).danger,
+      );
+      await tester.tap(find.text('Retry'));
+      expect(retries, 1);
+    });
+
+    testWidgets('the range sits under the chart and the locked caption opens', (
+      tester,
+    ) async {
+      var opened = 0;
+      await pump(
+        tester,
+        chart(
+          range: const Text('Range'),
+          lockedCaption: 'See older results',
+          onLockedCaptionTap: () => opened++,
+        ),
+      );
+      expect(
+        tester.getTopLeft(find.text('Range')).dy,
+        greaterThan(plot(tester).bottom),
+      );
+      expect(find.byType(ForgeIcon), findsWidgets);
+      await tester.tap(find.text('See older results'));
+      expect(opened, 1);
+      expect(
+        tester
+            .getSize(
+              find.ancestor(
+                of: find.text('See older results'),
+                matching: find.byType(InkWell),
+              ),
+            )
+            .height,
+        greaterThanOrEqualTo(ForgeTheme.tapMin),
+      );
+    });
+
+    testWidgets('a line with no points yet draws nothing and taps safely', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        chart(
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: const [],
+              format: format,
+              look: SeriesLook.accent,
+            ),
+          ],
         ),
       );
       expect(tester.takeException(), isNull);
 
-      final box = tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
-      await tester.tapAt(box.center);
+      await tester.tapAt(plot(tester).center);
       await tester.pump();
-      expect(find.text('Day 0'), findsNothing);
+      expect(find.textContaining('Day'), findsNothing);
+    });
+
+    testWidgets('empty keeps the range and the locked caption', (tester) async {
+      var opened = 0;
+      await pump(
+        tester,
+        MultiSeriesChart.empty(
+          title: 'Series',
+          emptyTitle: 'Nothing in this range',
+          message: 'Nothing to show in this range yet.',
+          range: const Text('Range'),
+          lockedCaption: 'See older results',
+          onLockedCaptionTap: () => opened++,
+        ),
+      );
+      expect(find.text('Nothing in this range'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Range')).dy,
+        greaterThan(
+          tester
+              .getBottomLeft(find.text('Nothing to show in this range yet.'))
+              .dy,
+        ),
+      );
+      await tester.tap(find.text('See older results'));
+      expect(opened, 1);
     });
 
     testWidgets('loading shimmers chips, chart and end labels', (tester) async {
@@ -414,6 +692,43 @@ void main() {
       // A true minus sign, not a hyphen.
       expect(tester.widget<Text>(find.text('−1.7')).style?.color, c.success);
       expect(tester.widget<Text>(find.text('+1.0')).style?.color, c.danger);
+    });
+
+    testWidgets('a compact change with no good way is ink-muted', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StatTile.compact(label: 'Value A', figure: '1', change: '+1.0'),
+      );
+      expect(
+        tester.widget<Text>(find.text('+1.0')).style?.color,
+        colors(tester).inkMuted,
+      );
+    });
+
+    testWidgets('a compact tile without a change has no change line', (
+      tester,
+    ) async {
+      await pump(tester, const StatTile.compact(label: 'Value A', figure: '—'));
+      final lines = find.descendant(
+        of: find.byType(StatTile),
+        matching: find.byType(Text),
+      );
+      expect(lines, findsNWidgets(2));
+    });
+
+    testWidgets('compact and change loading shimmer two bars each', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const Column(
+          children: [StatTile.compactLoading(), StatTile.changeLoading()],
+        ),
+      );
+      expect(find.byType(SkeletonBar), findsNWidgets(4));
+      expect(find.byType(Text), findsNothing);
     });
 
     testWidgets('the change form writes old to new under it', (tester) async {

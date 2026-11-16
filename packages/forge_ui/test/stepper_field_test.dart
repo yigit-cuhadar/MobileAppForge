@@ -278,4 +278,21 @@ void main() {
       ForgeTheme.light().extension<ForgeStyle>()!.colors.danger,
     );
   });
+
+  testWidgets('loading is a shimmering pill across the width', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(width: 200, child: StepperField.loading()),
+          ),
+        ),
+      ),
+    );
+    expect(
+      tester.getSize(find.byType(SkeletonBar)),
+      const Size(200, StepperField.height),
+    );
+  });
 }

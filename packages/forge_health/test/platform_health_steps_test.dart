@@ -492,4 +492,150 @@ void main() {
       );
     });
   });
+
+  group('workouts', () {
+    RawWorkout raw(
+      String id,
+      DateTime start, {
+      HealthWorkoutActivityType activity = HealthWorkoutActivityType.RUNNING,
+      int? distance,
+      int? energy,
+    }) => (
+      id: id,
+      activity: activity,
+      start: start,
+      end: start.add(const Duration(minutes: 40)),
+      distanceMeters: distance,
+      energyKcal: energy,
+      source: '[SOURCE]',
+    );
+
+    setUp(() {
+      when(source.hasWorkoutsPermission).thenAnswer((_) async => true);
+      when(source.hasHeartRatePermission).thenAnswer((_) async => true);
+      when(() => source.heartRates(any(), any()))
+          .thenAnswer((_) async => const []);
+    });
+
+    test('Android asks once unless already granted', () async {
+      expect(
+        (await repository.requestWorkoutsPermission()).valueOrNull,
+        HealthPermission.granted,
+      );
+      verifyNever(source.requestWorkoutsPermission);
+
+      when(source.hasWorkoutsPermission).thenAnswer((_) async => false);
+      when(source.requestWorkoutsPermission).thenAnswer((_) async => false);
+      expect(
+        (await repository.requestWorkoutsPermission()).valueOrNull,
+        HealthPermission.denied,
+      );
+      expect(
+        (await repository.workoutsPermission()).valueOrNull,
+        HealthPermission.denied,
+      );
+    });
+
+    test('iOS stays undetermined after the sheet', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(source.requestWorkoutsPermission).thenAnswer((_) async => true);
+      expect(
+        (await repository.requestWorkoutsPermission()).valueOrNull,
+        HealthPermission.undetermined,
+      );
+    });
+
+    test(
+      'reads the whole local days, oldest first, with their values',
+      () async {
+        when(() => source.workouts(any(), any())).thenAnswer(
+          (_) async => [
+            raw(
+              'b',
+              DateTime(2026, 5, 11, 18),
+              activity: HealthWorkoutActivityType.BIKING_STATIONARY,
+            ),
+            raw('a', DateTime(2026, 5, 10, 7), distance: 5200, energy: 410),
+          ],
+        );
+        when(() => source.heartRates(DateTime(2026, 5, 10, 7), any()))
+            .thenAnswer((_) async => const [140, 151, 150]);
+
+        final result = await repository.workouts(
+          DateTime(2026, 5, 10, 12),
+          DateTime(2026, 5, 11, 9),
+        );
+
+        verify(
+          () => source.workouts(DateTime(2026, 5, 10), DateTime(2026, 5, 12)),
+        ).called(1);
+        expect(result.valueOrNull, [
+          HealthWorkout(
+            id: 'a',
+            type: HealthWorkoutType.running,
+            start: DateTime(2026, 5, 10, 7),
+            duration: const Duration(minutes: 40),
+            distanceMeters: 5200,
+            energyKcal: 410,
+            averageHeartRate: 147,
+            source: '[SOURCE]',
+          ),
+          HealthWorkout(
+            id: 'b',
+            type: HealthWorkoutType.cycling,
+            start: DateTime(2026, 5, 11, 18),
+            duration: const Duration(minutes: 40),
+            source: '[SOURCE]',
+          ),
+        ]);
+      },
+    );
+
+    test('without heart rate access the average is left out', () async {
+      when(source.hasHeartRatePermission).thenAnswer((_) async => false);
+      when(() => source.workouts(any(), any()))
+          .thenAnswer((_) async => [raw('a', DateTime(2026, 5, 10, 7))]);
+
+      final result = await repository.workouts(
+        DateTime(2026, 5, 10),
+        DateTime(2026, 5, 10),
+      );
+      expect(result.valueOrNull!.single.averageHeartRate, isNull);
+      verifyNever(() => source.heartRates(any(), any()));
+    });
+
+    test('a read without Android access is a permission failure', () async {
+      when(source.hasWorkoutsPermission).thenAnswer((_) async => false);
+      expect(
+        (await repository.workouts(
+          DateTime(2026, 5, 10),
+          DateTime(2026, 5, 10),
+        )).failureOrNull,
+        isA<PermissionFailure>(),
+      );
+      verifyNever(() => source.workouts(any(), any()));
+    });
+
+    test('a reversed range fails without reading', () async {
+      expect(
+        (await repository.workouts(
+          DateTime(2026, 5, 11),
+          DateTime(2026, 5, 10),
+        )).failureOrNull,
+        isA<ValidationFailure>(),
+      );
+      verifyNever(() => source.workouts(any(), any()));
+    });
+
+    test('other platforms are unavailable', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      expect(
+        (await repository.workouts(
+          DateTime(2026, 5, 10),
+          DateTime(2026, 5, 10),
+        )).failureOrNull,
+        isA<HealthFailure>(),
+      );
+    });
+  });
 }

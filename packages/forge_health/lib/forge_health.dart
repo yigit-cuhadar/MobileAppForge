@@ -1,5 +1,5 @@
-/// Daily step counts from Apple Health (iOS) and Health Connect (Android),
-/// read only, or a deterministic fake.
+/// Daily step counts and workouts from Apple Health (iOS) and Health
+/// Connect (Android), read only, or a deterministic fake.
 ///
 /// Register `HealthModule()` for the platform store or
 /// `HealthModule.fake(FakeHealthSteps(...))` for tests and simulators.
@@ -20,8 +20,16 @@
 ///    `PermissionFailure`. Re-read on app resume: the user can change access
 ///    in settings at any time.
 ///
+/// 4. Workouts have their own access: `GetWorkoutsPermission`,
+///    `RequestWorkoutsPermission` (one sheet for workouts and heart rate),
+///    then `GetHealthWorkouts` by local calendar day. The same answers as
+///    for steps apply; on iOS a refusal reads as no workouts. Heart rate is
+///    optional: without it a workout has no average.
+///
 /// Health Connect reads only 30 days before the permission was first
-/// granted, and only while the app is in the foreground.
+/// granted, and only while the app is in the foreground. It names a
+/// workout's source by package name only, and has no stationary bike kind
+/// the plugin maps (it reads as [HealthWorkoutType.other]).
 ///
 /// ## App setup (health 13.3)
 ///
@@ -33,7 +41,8 @@
 /// <key>NSHealthShareUsageDescription</key>
 /// <string>...</string>
 /// ```
-/// Reading only needs no `NSHealthUpdateUsageDescription`.
+/// Reading only needs no `NSHealthUpdateUsageDescription`. Workouts add no
+/// iOS setup; the same reason covers them.
 ///
 /// Android: `minSdk = 26` (Health Connect itself needs Android 9+; older
 /// devices report [HealthAvailability.unsupported]) and `MainActivity`
@@ -45,6 +54,11 @@
 /// ```xml
 /// <manifest>
 ///   <uses-permission android:name="android.permission.health.READ_STEPS"/>
+///   <!-- Workouts: -->
+///   <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+///   <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
+///   <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
+///   <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
 ///   <queries>
 ///     <package android:name="com.google.android.apps.healthdata"/>
 ///     <intent>
@@ -74,7 +88,10 @@
 /// ```
 /// Both links open `MainActivity`, which should then show the app's privacy
 /// policy. Google Play also requires the Health apps declaration in Play
-/// Console before release.
+/// Console before release, listing every type read (steps, and for
+/// workouts exercise, distance, total calories and heart rate). Workouts
+/// on Android also need READ_STEPS: the plugin reads steps during each
+/// workout, so they ask for it too.
 library;
 
 export 'src/data/fake_health_steps.dart';

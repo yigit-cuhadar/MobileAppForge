@@ -6,6 +6,7 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'numbers.dart';
 import 'pressable.dart';
+import 'skeleton.dart';
 import 'bare_decoration.dart';
 
 /// A sunken 50px pill with round minus and plus buttons at its ends and the
@@ -65,6 +66,10 @@ class StepperField extends StatefulWidget {
   static const double buttonSize = 36;
   static const double compactHeight = 40;
   static const double compactButtonSize = 30;
+
+  /// The field while its value loads: a shimmering full-width pill.
+  static Widget loading({Key? key}) =>
+      SkeletonBar(key: key, widthFactor: 1, height: height);
 
   @override
   State<StepperField> createState() => _StepperFieldState();

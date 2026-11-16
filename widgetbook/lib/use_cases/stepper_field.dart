@@ -86,6 +86,10 @@ class _LiveState extends State<_Live> {
 Widget stepperFieldHint(BuildContext context) =>
     _panel(const [_Live(value: null, unit: '[UNIT]', step: 2.5, hint: 62.5)]);
 
+@widgetbook.UseCase(name: 'Loading', type: StepperField)
+Widget stepperFieldLoading(BuildContext context) =>
+    _panel([StepperField.loading()]);
+
 @widgetbook.UseCase(name: 'Filled', type: StepperField)
 Widget stepperFieldFilled(BuildContext context) =>
     _panel(const [_Live(value: 60, unit: '[UNIT]', step: 1)]);
