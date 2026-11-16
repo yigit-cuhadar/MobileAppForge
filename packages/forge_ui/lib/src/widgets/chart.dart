@@ -76,6 +76,32 @@ class Chart extends StatelessWidget {
        onRetry = null,
        retryLabel = null;
 
+  /// Many bars (such as 30 days) 2px apart, with no values above them: the
+  /// first and last bar's [ChartBar.label] sit under the ends, and a tap
+  /// shows that bar in accent with its [ChartBar.valueLabel] in a dark tag
+  /// ("10,500 · Nov 3"). The [current] bar and a [target] as in
+  /// [Chart.bar].
+  const Chart.barDense({
+    super.key,
+    required this.title,
+    this.detail,
+    required List<ChartBar> this.bars,
+    this.current,
+    this.target,
+    required String this.semanticLabel,
+  }) : _state = _State.barDense,
+       band = null,
+       card = true,
+       values = null,
+       pointLabel = null,
+       startLabel = null,
+       endLabel = null,
+       _messageTitle = null,
+       message = null,
+       actions = const [],
+       onRetry = null,
+       retryLabel = null;
+
   /// The title row stays; the chart and its end labels shimmer.
   const Chart.loading({super.key, required this.title, this.detail})
     : _state = _State.loading,
@@ -189,6 +215,20 @@ class Chart extends StatelessWidget {
           semanticLabel: semanticLabel!,
         ),
       ],
+      _State.barDense => [
+        _DenseBarChart(
+          bars: bars!,
+          current: current,
+          target: target,
+          semanticLabel: semanticLabel!,
+        ),
+        if (bars!.isNotEmpty)
+          ChartEndLabels(
+            start: bars!.first.label,
+            end: bars!.last.label,
+            size: 10,
+          ),
+      ],
       _State.loading => [
         SkeletonBar(
           widthFactor: 1,
@@ -232,7 +272,7 @@ class Chart extends StatelessWidget {
   }
 }
 
-enum _State { line, bar, loading, empty, error }
+enum _State { line, bar, barDense, loading, empty, error }
 
 class _LineChart extends StatefulWidget {
   const _LineChart({
@@ -623,6 +663,132 @@ class _BarChart extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DenseBarChart extends StatefulWidget {
+  const _DenseBarChart({
+    required this.bars,
+    required this.current,
+    required this.target,
+    required this.semanticLabel,
+  });
+
+  final List<ChartBar> bars;
+  final int? current;
+  final double? target;
+  final String semanticLabel;
+
+  static const height = 120.0;
+  static const gap = 2.0;
+
+  /// Room above the tallest bar for the tag.
+  static const top = 28.0;
+  static const radius = BorderRadius.all(Radius.circular(2));
+
+  @override
+  State<_DenseBarChart> createState() => _DenseBarChartState();
+}
+
+class _DenseBarChartState extends State<_DenseBarChart> {
+  int? _selected;
+
+  @override
+  void didUpdateWidget(_DenseBarChart old) {
+    super.didUpdateWidget(old);
+    final selected = _selected;
+    if (selected != null &&
+        (selected >= widget.bars.length ||
+            widget.bars[selected].value == null)) {
+      _selected = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ForgeStyle.of(context).colors;
+    final bars = widget.bars;
+    final target = widget.target;
+    const area = _DenseBarChart.height - _DenseBarChart.top;
+    final peak = [
+      for (final bar in bars) ?bar.value,
+      ?target,
+    ].fold<double>(0, math.max);
+    double height(double value) =>
+        peak <= 0 ? 0 : math.max(0.0, value) / peak * area;
+    return Semantics(
+      container: true,
+      label: widget.semanticLabel,
+      child: SizedBox(
+        height: _DenseBarChart.height,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final slot = bars.isEmpty ? 0.0 : width / bars.length;
+            final selected = _selected;
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (details) {
+                if (bars.isEmpty) return;
+                final i = (details.localPosition.dx / slot).floor().clamp(
+                  0,
+                  bars.length - 1,
+                );
+                if (bars[i].value != null) setState(() => _selected = i);
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    spacing: _DenseBarChart.gap,
+                    children: [
+                      for (final (i, bar) in bars.indexed)
+                        Expanded(
+                          child: Container(
+                            height: bar.value == null
+                                ? area * _BarChart.stub
+                                : height(bar.value!),
+                            decoration: BoxDecoration(
+                              color: bar.value == null
+                                  ? colors.surfaceSunken
+                                  : i == widget.current || i == selected
+                                  ? colors.accent
+                                  : colors.accent.withValues(alpha: 0.55),
+                              borderRadius: _DenseBarChart.radius,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (target != null)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: height(target) - 0.75,
+                      height: 1.5,
+                      child: CustomPaint(painter: _GoalPainter(colors.success)),
+                    ),
+                  if (selected != null)
+                    Positioned.fill(
+                      child: CustomSingleChildLayout(
+                        delegate: _TagLayout(
+                          Offset(
+                            slot * (selected + 0.5),
+                            _DenseBarChart.height -
+                                height(bars[selected].value!),
+                          ),
+                        ),
+                        child: _Tag(bars[selected].valueLabel!),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

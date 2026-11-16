@@ -87,6 +87,25 @@ Widget bareBandBarChart(BuildContext context) => ColoredBox(
   ),
 );
 
+@widgetbook.UseCase(name: 'Bar · dense (30 days)', type: Chart)
+Widget denseBarChart(BuildContext context) => _page(
+  Chart.barDense(
+    title: 'Last 30 days',
+    detail: 'goal [VALUE]',
+    bars: [
+      for (var i = 0; i < 30; i++)
+        ChartBar(
+          label: '[DATE ${i + 1}]',
+          value: 6 + (i * 7919 % 60) / 10,
+          valueLabel: '[VALUE] · [DATE ${i + 1}]',
+        ),
+    ],
+    current: 29,
+    target: 10,
+    semanticLabel: 'Count over the last 30 days with a goal line',
+  ),
+);
+
 @widgetbook.UseCase(name: 'Loading', type: Chart)
 Widget loadingChart(BuildContext context) =>
     _page(const Chart.loading(title: 'Value', detail: '12 weeks'));

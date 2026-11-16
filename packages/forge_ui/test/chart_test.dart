@@ -116,6 +116,65 @@ void main() {
     expect(tester.getSize(bar.first).height, 0);
   });
 
+  group('Chart.barDense', () {
+    Widget dense() => Chart.barDense(
+      title: 'Last 30 days',
+      detail: 'goal [VALUE]',
+      bars: [
+        for (var i = 0; i < 30; i++)
+          ChartBar(
+            label: 'Day $i',
+            value: 4.0 + i % 7,
+            valueLabel: '[VALUE] · Day $i',
+          ),
+      ],
+      current: 29,
+      target: 10,
+      semanticLabel: 'Count over 30 days',
+    );
+
+    testWidgets('shows no values and labels only the ends', (tester) async {
+      await pump(tester, dense());
+      expect(find.textContaining('[VALUE] ·'), findsNothing);
+      expect(find.text('Day 0'), findsOneWidget);
+      expect(find.text('Day 29'), findsOneWidget);
+      expect(find.text('Day 15'), findsNothing);
+    });
+
+    testWidgets('a tap shows that bar in a tag, in accent', (tester) async {
+      await pump(tester, dense());
+      final box = tester.getRect(find.bySemanticsLabel('Count over 30 days'));
+      await tester.tapAt(
+        Offset(box.left + box.width * 10.5 / 30, box.bottom - 2),
+      );
+      await tester.pump();
+      expect(find.text('[VALUE] · Day 10'), findsOneWidget);
+
+      final bars = find.descendant(
+        of: find.byType(Chart),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).borderRadius ==
+                  const BorderRadius.all(Radius.circular(2)),
+        ),
+      );
+      Color fill(int i) =>
+          (tester.widget<Container>(bars.at(i)).decoration! as BoxDecoration)
+              .color!;
+      final c = colors(tester);
+      expect(fill(10), c.accent);
+      expect(fill(29), c.accent);
+      expect(fill(9), c.accent.withValues(alpha: 0.55));
+      // 2px apart.
+      expect(
+        tester.getRect(bars.at(11)).left - tester.getRect(bars.at(10)).right,
+        closeTo(2, 0.01),
+      );
+    });
+  });
+
   group('Chart.bar with a band', () {
     Widget banded({bool card = true}) => Chart.bar(
       title: 'Last 12 weeks',
@@ -420,6 +479,32 @@ void main() {
       await tester.tapAt(plot(tester).center);
       await tester.pump();
       expect(find.textContaining('Day'), findsNothing);
+    });
+
+    testWidgets('empty keeps the range and the locked caption', (tester) async {
+      var opened = 0;
+      await pump(
+        tester,
+        MultiSeriesChart.empty(
+          title: 'Series',
+          emptyTitle: 'Nothing in this range',
+          message: 'Nothing to show in this range yet.',
+          range: const Text('Range'),
+          lockedCaption: 'See older results',
+          onLockedCaptionTap: () => opened++,
+        ),
+      );
+      expect(find.text('Nothing in this range'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Range')).dy,
+        greaterThan(
+          tester
+              .getBottomLeft(find.text('Nothing to show in this range yet.'))
+              .dy,
+        ),
+      );
+      await tester.tap(find.text('See older results'));
+      expect(opened, 1);
     });
 
     testWidgets('loading shimmers chips, chart and end labels', (tester) async {
