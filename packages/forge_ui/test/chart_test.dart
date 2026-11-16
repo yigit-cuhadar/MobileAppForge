@@ -162,37 +162,55 @@ void main() {
 
   group('MultiSeriesChart', () {
     String format(double v) => v.toStringAsFixed(1);
+    final from = DateTime(2025, 8, 25);
+    final to = DateTime(2025, 11, 16);
+    ChartPoint at(int day, double value) =>
+        (day: DateTime(2025, 8, 25 + day), value: value);
 
     Widget chart({
       void Function(int)? onSeriesTap,
       VoidCallback? onAdd,
       bool target = false,
+      List<ChartSeries>? series,
+      Widget? range,
+      String? lockedCaption,
+      VoidCallback? onLockedCaptionTap,
     }) => MultiSeriesChart(
       title: 'Series',
       detail: '12 weeks',
-      series: [
-        ChartSeries(
-          label: 'Series A',
-          values: const [3, 2, 1],
-          format: format,
-          look: SeriesLook.accent,
-          target: target ? 1.5 : null,
-          targetLabel: target ? 'Target' : null,
-        ),
-        ChartSeries.bars(
-          label: 'Series B',
-          values: const [10, 20, 30],
-          format: format,
-        ),
-      ],
-      dateLabel: (i) => 'Day $i',
+      series:
+          series ??
+          [
+            ChartSeries(
+              label: 'Series A',
+              points: [at(0, 3), at(40, 2), at(83, 1)],
+              format: format,
+              look: SeriesLook.accent,
+              target: target ? 1.5 : null,
+              targetLabel: target ? 'Target' : null,
+            ),
+            ChartSeries.bars(
+              label: 'Series B',
+              points: [at(0, 10), at(35, 20), at(77, 30)],
+              format: format,
+            ),
+          ],
+      from: from,
+      to: to,
+      dateLabel: (day) => 'Day ${day.month}/${day.day}',
       startLabel: 'Aug 25',
-      endLabel: 'Nov 10',
+      endLabel: 'Nov 16',
       onSeriesTap: onSeriesTap ?? (_) {},
       addLabel: 'Add',
       onAdd: onAdd ?? () {},
+      range: range,
+      lockedCaption: lockedCaption,
+      onLockedCaptionTap: onLockedCaptionTap,
       semanticLabel: 'Series over 12 weeks',
     );
+
+    Rect plot(WidgetTester tester) =>
+        tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
 
     testWidgets('chips report taps', (tester) async {
       final tapped = <int>[];
@@ -206,15 +224,25 @@ void main() {
       expect(adds, 1);
     });
 
-    testWidgets('a tap shows each series on that day', (tester) async {
+    testWidgets('a tap shows each series on the nearest day with an entry', (
+      tester,
+    ) async {
       await pump(tester, chart());
 
-      final box = tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
+      final box = plot(tester);
       await tester.tapAt(Offset(box.right - 4, box.bottom - 4));
       await tester.pump();
-      expect(find.text('Day 2'), findsOneWidget);
+      expect(find.text('Day 11/16'), findsOneWidget);
       expect(find.text('1.0'), findsOneWidget);
-      expect(find.text('30.0'), findsOneWidget);
+      expect(find.text('30.0'), findsNothing);
+
+      // Day 40 of 84 lies just left of the middle; only Series A has it.
+      await tester.tapAt(
+        Offset(box.left + box.width * 40.5 / 84, box.center.dy),
+      );
+      await tester.pump();
+      expect(find.text('Day 10/4'), findsOneWidget);
+      expect(find.text('2.0'), findsOneWidget);
     });
 
     testWidgets('a target is labelled in its series colour', (tester) async {
@@ -225,36 +253,120 @@ void main() {
       );
     });
 
-    testWidgets('a line with no values yet draws nothing and taps safely', (
+    testWidgets('an averaged series shows its legend and its daily value', (
       tester,
     ) async {
       await pump(
         tester,
-        MultiSeriesChart(
-          title: 'Series',
+        chart(
           series: [
-            ChartSeries(
+            ChartSeries.averaged(
               label: 'Series A',
-              values: const [],
+              points: [at(0, 3), at(83, 1)],
+              average: [at(0, 3), at(83, 2)],
+              dailyLabel: 'daily value',
+              averageLabel: '7-day average',
               format: format,
               look: SeriesLook.accent,
             ),
           ],
-          dateLabel: (i) => 'Day $i',
-          startLabel: 'Aug 25',
-          endLabel: 'Nov 10',
-          onSeriesTap: (_) {},
-          addLabel: 'Add',
-          onAdd: () {},
-          semanticLabel: 'Series over 12 weeks',
+        ),
+      );
+      expect(find.text('daily value'), findsOneWidget);
+      expect(find.text('7-day average'), findsOneWidget);
+
+      final box = plot(tester);
+      await tester.tapAt(Offset(box.right - 4, box.center.dy));
+      await tester.pump();
+      expect(find.text('1.0'), findsOneWidget);
+    });
+
+    testWidgets('a failed series keeps its chip and retries on its line', (
+      tester,
+    ) async {
+      var retries = 0;
+      await pump(
+        tester,
+        chart(
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: [at(0, 3), at(83, 1)],
+              format: format,
+              look: SeriesLook.accent,
+            ),
+            ChartSeries.failed(
+              label: 'Series B',
+              look: SeriesLook.info,
+              error: "Couldn't load Series B.",
+              retryLabel: 'Retry',
+              onRetry: () => retries++,
+            ),
+          ],
+        ),
+      );
+      expect(find.text('Series B'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text("Couldn't load Series B.")).style?.color,
+        colors(tester).danger,
+      );
+      await tester.tap(find.text('Retry'));
+      expect(retries, 1);
+    });
+
+    testWidgets('the range sits under the chart and the locked caption opens', (
+      tester,
+    ) async {
+      var opened = 0;
+      await pump(
+        tester,
+        chart(
+          range: const Text('Range'),
+          lockedCaption: 'See older results',
+          onLockedCaptionTap: () => opened++,
+        ),
+      );
+      expect(
+        tester.getTopLeft(find.text('Range')).dy,
+        greaterThan(plot(tester).bottom),
+      );
+      expect(find.byType(ForgeIcon), findsWidgets);
+      await tester.tap(find.text('See older results'));
+      expect(opened, 1);
+      expect(
+        tester
+            .getSize(
+              find.ancestor(
+                of: find.text('See older results'),
+                matching: find.byType(InkWell),
+              ),
+            )
+            .height,
+        greaterThanOrEqualTo(ForgeTheme.tapMin),
+      );
+    });
+
+    testWidgets('a line with no points yet draws nothing and taps safely', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        chart(
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: const [],
+              format: format,
+              look: SeriesLook.accent,
+            ),
+          ],
         ),
       );
       expect(tester.takeException(), isNull);
 
-      final box = tester.getRect(find.bySemanticsLabel('Series over 12 weeks'));
-      await tester.tapAt(box.center);
+      await tester.tapAt(plot(tester).center);
       await tester.pump();
-      expect(find.text('Day 0'), findsNothing);
+      expect(find.textContaining('Day'), findsNothing);
     });
 
     testWidgets('loading shimmers chips, chart and end labels', (tester) async {

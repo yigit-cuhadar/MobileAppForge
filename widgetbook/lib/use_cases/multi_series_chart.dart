@@ -15,62 +15,80 @@ Widget _page(List<Widget> children) => ListView(
 
 String _format(double value) => '[VALUE]';
 
-const _a = ChartSeries(
+final _from = DateTime(2025, 8, 25);
+final _to = DateTime(2025, 11, 16);
+
+/// One point a week from [_from], skipping the weeks in [gaps].
+List<ChartPoint> _weekly(List<double> values, {Set<int> gaps = const {}}) => [
+  for (final (i, v) in values.indexed)
+    if (!gaps.contains(i)) (day: DateTime(2025, 8, 25 + i * 7), value: v),
+];
+
+final _a = ChartSeries(
   label: 'Series A',
-  values: [92, 91, 89, 90, 86, 85, 82, 83, 80, 77, 78, 75],
+  points: _weekly(const [92, 91, 89, 90, 86, 85, 82, 83, 80, 77, 78, 75]),
   format: _format,
   look: SeriesLook.accent,
 );
-const _b = ChartSeries(
+final _b = ChartSeries(
   label: 'Series B',
-  values: [30, 29, 28, 28, 25, 24, 22, 22, 19, 18, 17, 15],
+  points: _weekly(
+    const [
+      30, 29, 28, 28, 25, 24, 22, 22, 19, 18, 17, 15, //
+    ],
+    gaps: {2, 5, 6, 9},
+  ),
   format: _format,
   look: SeriesLook.info,
 );
-const _c = ChartSeries(
+final _c = ChartSeries(
   label: 'Series C',
-  values: [60, 60, 58, 58, 56, 54, 54, 52, 50, 50, 48, 46],
+  points: _weekly(const [60, 60, 58, 58, 56, 54, 54, 52, 50, 50, 48, 46]),
   format: _format,
   look: SeriesLook.success,
 );
-const _bars = ChartSeries.bars(
+final _bars = ChartSeries.bars(
   label: 'Series B',
-  values: [52, 60, 44, 70, 66, 78, 58, 84, 74, 90, 80, 72],
+  points: _weekly(const [52, 60, 44, 70, 66, 78, 58, 84, 74, 90, 80, 72]),
   format: _format,
 );
 
-Widget _chart(List<ChartSeries> series, {bool adding = false}) =>
-    MultiSeriesChart(
-      title: 'Series',
-      detail: '12 weeks',
-      series: series,
-      dateLabel: (i) => 'Week ${i + 1}',
-      startLabel: 'Aug 25',
-      endLabel: 'Nov 10',
-      onSeriesTap: (_) {},
-      addLabel: 'Add',
-      onAdd: () {},
-      adding: adding,
-      semanticLabel: 'Series over 12 weeks',
-    );
+String _date(DateTime day) => '[DATE]';
+
+Widget _chart(
+  List<ChartSeries> series, {
+  bool adding = false,
+  Widget? range,
+  String? caption,
+  String? lockedCaption,
+}) => MultiSeriesChart(
+  title: 'Series',
+  detail: '12 weeks',
+  series: series,
+  from: _from,
+  to: _to,
+  dateLabel: _date,
+  startLabel: 'Aug 25',
+  endLabel: 'Nov 16',
+  onSeriesTap: (_) {},
+  addLabel: 'Add',
+  onAdd: () {},
+  adding: adding,
+  range: range,
+  caption: caption,
+  lockedCaption: lockedCaption,
+  onLockedCaptionTap: lockedCaption == null ? null : () {},
+  semanticLabel: 'Series over 12 weeks',
+);
 
 @widgetbook.UseCase(name: 'Three series', type: MultiSeriesChart)
 Widget threeSeries(BuildContext context) => _page([
-  MultiSeriesChart(
-    title: 'Series',
-    detail: '12 weeks',
-    series: [_a, _b, _c],
-    dateLabel: (i) => 'Week ${i + 1}',
-    startLabel: 'Aug 25',
-    endLabel: 'Nov 10',
-    onSeriesTap: (_) {},
-    addLabel: 'Add',
-    onAdd: () {},
+  _chart(
+    [_a, _b, _c],
     caption: context.knobs.boolean(label: 'Caption', initialValue: true)
         ? 'Each series keeps its own scale; tap the chart for the values '
               'on a day.'
         : null,
-    semanticLabel: 'Three series over 12 weeks',
   ),
 ]);
 
@@ -84,13 +102,82 @@ Widget targetSeries(BuildContext context) => _page([
   _chart([
     ChartSeries(
       label: 'Series A',
-      values: _a.values,
+      points: _a.points,
       format: _format,
       look: SeriesLook.accent,
-      target: 78,
+      target: 74,
       targetLabel: 'Target',
     ),
     _c,
+  ]),
+]);
+
+/// Daily values every second or third day with their rolling mean.
+final _daily = [
+  for (var i = 0; i < 84; i += i % 3 == 0 ? 2 : 3)
+    (day: DateTime(2025, 8, 25 + i), value: 92 - i * 0.2 + (i % 4 - 1.5)),
+];
+
+/// The mean of the daily values in the 7 days ending [day].
+ChartPoint _mean(DateTime day) {
+  final week = [
+    for (final p in _daily)
+      if (!p.day.isAfter(day) && day.difference(p.day).inDays < 7) p.value,
+  ];
+  return (day: day, value: week.reduce((a, b) => a + b) / week.length);
+}
+
+@widgetbook.UseCase(name: 'Daily and average', type: MultiSeriesChart)
+Widget averagedSeries(BuildContext context) => _page([
+  _chart([
+    ChartSeries.averaged(
+      label: 'Series A',
+      points: _daily,
+      average: [for (final p in _daily) _mean(p.day)],
+      dailyLabel: 'daily value',
+      averageLabel: '7-day average',
+      format: _format,
+      look: SeriesLook.accent,
+      target: 74,
+      targetLabel: 'Target',
+    ),
+    _b,
+  ]),
+]);
+
+@widgetbook.UseCase(name: 'Range and locked caption', type: MultiSeriesChart)
+Widget rangeSeries(BuildContext context) => _page([
+  _chart(
+    [_a, _b],
+    range: ForgeSegmentedControl<int>(
+      segments: const [
+        ForgeSegment(value: 0, label: '12 weeks'),
+        ForgeSegment(value: 1, label: '6 months', locked: true),
+        ForgeSegment(value: 2, label: '1 year', locked: true),
+        ForgeSegment(value: 3, label: 'All', locked: true),
+      ],
+      selected: 0,
+      onChanged: (_) {},
+      onLocked: (_) {},
+    ),
+    lockedCaption:
+        context.knobs.boolean(label: 'Locked caption', initialValue: true)
+        ? 'See older results with Premium'
+        : null,
+  ),
+]);
+
+@widgetbook.UseCase(name: 'Series error', type: MultiSeriesChart)
+Widget seriesError(BuildContext context) => _page([
+  _chart([
+    _a,
+    ChartSeries.failed(
+      label: 'Series B',
+      look: SeriesLook.info,
+      error: "Couldn't load Series B.",
+      retryLabel: 'Retry',
+      onRetry: () {},
+    ),
   ]),
 ]);
 

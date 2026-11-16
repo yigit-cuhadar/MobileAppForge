@@ -8,7 +8,9 @@ import '../spacing.dart';
 import '../theme/forge_palette.dart';
 import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
+import '../theme/forge_theme.dart';
 import 'card_frame.dart';
+import 'error_line.dart';
 import 'chart_paint.dart';
 import 'forge_chip.dart';
 import 'skeleton.dart';
@@ -26,38 +28,98 @@ enum SeriesLook {
   success,
 }
 
-/// One series of a [MultiSeriesChart]: a value per day, written by
-/// [format]. A [target] is a thin dashed line in the series' colour with
-/// its [targetLabel] at the right end.
+/// A value on a day.
+typedef ChartPoint = ({DateTime day, double value});
+
+/// One series of a [MultiSeriesChart]: dated [points], as sparse as the
+/// entries are, written by [format]. A [target] is a thin dashed line in
+/// the series' colour with its [targetLabel] at the right end.
 class ChartSeries {
   const ChartSeries({
     required this.label,
-    required this.values,
+    required this.points,
     required this.format,
     required this.look,
     this.target,
     this.targetLabel,
   }) : bars = false,
+       average = null,
+       dailyLabel = null,
+       averageLabel = null,
+       error = null,
+       retryLabel = null,
+       onRetry = null,
        assert((target == null) == (targetLabel == null));
 
-  /// A weekly series: info bars at 40% behind the lines.
+  /// The daily [points] as a thin line-strong line under their [average]
+  /// (such as a rolling 7-day mean) drawn thick in the series' look; a
+  /// legend under the chart names both. One series of a chart at most.
+  const ChartSeries.averaged({
+    required this.label,
+    required this.points,
+    required List<ChartPoint> this.average,
+    required String this.dailyLabel,
+    required String this.averageLabel,
+    required this.format,
+    required this.look,
+    this.target,
+    this.targetLabel,
+  }) : bars = false,
+       error = null,
+       retryLabel = null,
+       onRetry = null,
+       assert((target == null) == (targetLabel == null));
+
+  /// A weekly series: each point is a week's first day, drawn as an info
+  /// bar at 40% across that week behind the lines.
   const ChartSeries.bars({
     required this.label,
-    required this.values,
+    required this.points,
     required this.format,
   }) : look = SeriesLook.info,
        bars = true,
        target = null,
-       targetLabel = null;
+       targetLabel = null,
+       average = null,
+       dailyLabel = null,
+       averageLabel = null,
+       error = null,
+       retryLabel = null,
+       onRetry = null;
+
+  /// The series could not load: its chip stays, nothing is drawn, and
+  /// its [error] shows under the chips with an outline Retry.
+  const ChartSeries.failed({
+    required this.label,
+    required this.look,
+    required String this.error,
+    required String this.retryLabel,
+    required VoidCallback this.onRetry,
+  }) : points = const [],
+       format = _none,
+       bars = false,
+       target = null,
+       targetLabel = null,
+       average = null,
+       dailyLabel = null,
+       averageLabel = null;
 
   final String label;
-  final List<double> values;
+  final List<ChartPoint> points;
   final String Function(double value) format;
   final SeriesLook look;
   final bool bars;
   final double? target;
   final String? targetLabel;
+  final List<ChartPoint>? average;
+  final String? dailyLabel;
+  final String? averageLabel;
+  final String? error;
+  final String? retryLabel;
+  final VoidCallback? onRetry;
 }
+
+String _none(double value) => '';
 
 /// The sample of a series' line (or bars) on its chip and in its tag row;
 /// [SeriesSample.neutral] is the plain line of a series not on the chart
@@ -150,26 +212,35 @@ Paint _linePaint(Color color) => Paint()
   ..strokeCap = StrokeCap.round
   ..strokeJoin = StrokeJoin.round;
 
-/// Up to three [series] on one chart in a card, each on its own scale. The
-/// chosen series sit as chips above it with a sample of their line, and an
-/// Add chip after them opens the app's list of more. A tap on the chart
-/// shows every series' value on that day.
+/// Up to three [series] on one chart in a card, each on its own scale,
+/// across the days [from] to [to]. The chosen series sit as chips above it
+/// with a sample of their line, and an Add chip after them opens the app's
+/// list of more. A tap on the chart shows every series' value on the
+/// nearest day with an entry. Under the chart: the legend of an averaged
+/// series, a [range] control (a SegmentedControl), a muted [caption] and a
+/// [lockedCaption] with a lock and a chevron that the app opens.
 class MultiSeriesChart extends StatelessWidget {
   const MultiSeriesChart({
     super.key,
     required this.title,
     this.detail,
     required List<ChartSeries> this.series,
-    required String Function(int index) this.dateLabel,
+    required DateTime this.from,
+    required DateTime this.to,
+    required String Function(DateTime day) this.dateLabel,
     required String this.startLabel,
     required String this.endLabel,
     required void Function(int index) this.onSeriesTap,
     required String this.addLabel,
     required VoidCallback this.onAdd,
     this.adding = false,
+    this.range,
     this.caption,
+    this.lockedCaption,
+    this.onLockedCaptionTap,
     required String this.semanticLabel,
   }) : assert(series.length <= 3),
+       assert((lockedCaption == null) == (onLockedCaptionTap == null)),
        _state = _State.filled,
        _messageTitle = null,
        message = null,
@@ -181,6 +252,8 @@ class MultiSeriesChart extends StatelessWidget {
   const MultiSeriesChart.loading({super.key, required this.title, this.detail})
     : _state = _State.loading,
       series = null,
+      from = null,
+      to = null,
       dateLabel = null,
       startLabel = null,
       endLabel = null,
@@ -188,7 +261,10 @@ class MultiSeriesChart extends StatelessWidget {
       addLabel = null,
       onAdd = null,
       adding = false,
+      range = null,
       caption = null,
+      lockedCaption = null,
+      onLockedCaptionTap = null,
       semanticLabel = null,
       _messageTitle = null,
       message = null,
@@ -208,6 +284,8 @@ class MultiSeriesChart extends StatelessWidget {
   }) : _state = _State.empty,
        _messageTitle = emptyTitle,
        series = null,
+       from = null,
+       to = null,
        dateLabel = null,
        startLabel = null,
        endLabel = null,
@@ -215,7 +293,10 @@ class MultiSeriesChart extends StatelessWidget {
        addLabel = null,
        onAdd = null,
        adding = false,
+       range = null,
        caption = null,
+       lockedCaption = null,
+       onLockedCaptionTap = null,
        semanticLabel = null,
        onRetry = null,
        retryLabel = null;
@@ -232,6 +313,8 @@ class MultiSeriesChart extends StatelessWidget {
   }) : _state = _State.error,
        _messageTitle = errorTitle,
        series = null,
+       from = null,
+       to = null,
        dateLabel = null,
        startLabel = null,
        endLabel = null,
@@ -239,7 +322,10 @@ class MultiSeriesChart extends StatelessWidget {
        addLabel = null,
        onAdd = null,
        adding = false,
+       range = null,
        caption = null,
+       lockedCaption = null,
+       onLockedCaptionTap = null,
        semanticLabel = null,
        actions = const [];
 
@@ -247,8 +333,12 @@ class MultiSeriesChart extends StatelessWidget {
   final String? detail;
   final List<ChartSeries>? series;
 
-  /// The day of an index, for the tap tag.
-  final String Function(int index)? dateLabel;
+  /// The first and last day the chart spans.
+  final DateTime? from;
+  final DateTime? to;
+
+  /// A day, for the tap tag.
+  final String Function(DateTime day)? dateLabel;
   final String? startLabel;
   final String? endLabel;
 
@@ -260,8 +350,16 @@ class MultiSeriesChart extends StatelessWidget {
   /// The list of more series is open: the Add chip shows chosen.
   final bool adding;
 
+  /// The range control under the chart.
+  final Widget? range;
+
   /// A muted line under the chart.
   final String? caption;
+
+  /// A muted line with a lock and a chevron, such as older results behind
+  /// a paywall; [onLockedCaptionTap] opens it.
+  final String? lockedCaption;
+  final VoidCallback? onLockedCaptionTap;
 
   /// What the chart shows, for screen readers.
   final String? semanticLabel;
@@ -276,40 +374,7 @@ class MultiSeriesChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final children = switch (_state) {
-      _State.filled => [
-        Wrap(
-          spacing: Gap.sm,
-          children: [
-            for (final (i, s) in series!.indexed)
-              ForgeChip.series(
-                label: s.label,
-                sample: SeriesSample(s.look, bars: s.bars),
-                selected: true,
-                onPressed: () => onSeriesTap!(i),
-              ),
-            ForgeChip.series(
-              label: addLabel!,
-              sample: const ForgeIcon(ForgeIcons.add, size: 14),
-              selected: adding,
-              onPressed: onAdd!,
-            ),
-          ],
-        ),
-        _Plot(
-          series: series!,
-          dateLabel: dateLabel!,
-          semanticLabel: semanticLabel!,
-        ),
-        ChartEndLabels(start: startLabel!, end: endLabel!, size: 11),
-        if (caption != null)
-          Text(
-            caption!,
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: style.colors.inkMuted,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-      ],
+      _State.filled => _filled(context, style),
       _State.loading => [
         const Wrap(
           spacing: Gap.sm,
@@ -372,19 +437,152 @@ class MultiSeriesChart extends StatelessWidget {
       ),
     );
   }
+
+  List<Widget> _filled(BuildContext context, ForgeStyle style) {
+    final series = this.series!;
+    final averaged = series.where((s) => s.average != null).toList();
+    assert(averaged.length <= 1);
+    final muted = Theme.of(context).textTheme.labelSmall!
+        .copyWith(color: style.colors.inkMuted, fontWeight: FontWeight.w400);
+    return [
+      Wrap(
+        spacing: Gap.sm,
+        children: [
+          for (final (i, s) in series.indexed)
+            ForgeChip.series(
+              label: s.label,
+              sample: SeriesSample(s.look, bars: s.bars),
+              selected: true,
+              onPressed: () => onSeriesTap!(i),
+            ),
+          ForgeChip.series(
+            label: addLabel!,
+            sample: const ForgeIcon(ForgeIcons.add, size: 14),
+            selected: adding,
+            onPressed: onAdd!,
+          ),
+        ],
+      ),
+      for (final s in series)
+        if (s.error case final error?)
+          ErrorLine(
+            message: error,
+            retryLabel: s.retryLabel!,
+            onRetry: s.onRetry!,
+          ),
+      _Plot(
+        series: [
+          for (final s in series)
+            if (s.error == null) s,
+        ],
+        from: from!,
+        to: to!,
+        dateLabel: dateLabel!,
+        semanticLabel: semanticLabel!,
+      ),
+      ChartEndLabels(start: startLabel!, end: endLabel!, size: 11),
+      for (final s in averaged) _Legend(series: s, style: muted),
+      ?range,
+      if (caption != null) Text(caption!, style: muted),
+      if (lockedCaption != null)
+        _LockedCaption(text: lockedCaption!, onTap: onLockedCaptionTap!),
+    ];
+  }
 }
 
 enum _State { filled, loading, empty, error }
 
+/// The legend of an averaged series: a thin line-strong sample for the
+/// daily points and a thick one in the series' colour for the average.
+class _Legend extends StatelessWidget {
+  const _Legend({required this.series, required this.style});
+
+  final ChartSeries series;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = ForgeStyle.of(context).colors;
+    Widget item(Color color, double height, String label) => Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: Gap.xs,
+      children: [
+        SizedBox(
+          width: 14,
+          height: height,
+          child: ColoredBox(color: color),
+        ),
+        Text(label, style: style),
+      ],
+    );
+    return Wrap(
+      spacing: 12,
+      runSpacing: Gap.xs,
+      children: [
+        item(p.lineStrong, 2, series.dailyLabel!),
+        item(_color(series.look, p), 3, series.averageLabel!),
+      ],
+    );
+  }
+}
+
+/// A muted line between a lock and a chevron; the whole line is the tap
+/// target.
+class _LockedCaption extends StatelessWidget {
+  const _LockedCaption({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = ForgeStyle.of(context).colors.inkMuted;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: ForgeTheme.tapMin),
+          child: Row(
+            spacing: 6,
+            children: [
+              ForgeIcon(ForgeIcons.lock, size: 14, color: muted),
+              Expanded(
+                child: Text(
+                  text,
+                  style: Theme.of(context).textTheme.labelMedium!
+                      .copyWith(color: muted, fontWeight: FontWeight.w400),
+                ),
+              ),
+              ForgeIcon(ForgeIcons.chevronRight, size: 16, color: muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A day as a whole number of days after [from], free of daylight saving.
+int _dayOf(DateTime day, DateTime from) => DateTime.utc(
+  day.year,
+  day.month,
+  day.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
+
 class _Plot extends StatefulWidget {
   const _Plot({
     required this.series,
+    required this.from,
+    required this.to,
     required this.dateLabel,
     required this.semanticLabel,
   });
 
   final List<ChartSeries> series;
-  final String Function(int index) dateLabel;
+  final DateTime from;
+  final DateTime to;
+  final String Function(DateTime day) dateLabel;
   final String semanticLabel;
 
   static const double height = 150;
@@ -399,10 +597,7 @@ class _Plot extends StatefulWidget {
   /// The top of the tallest bar.
   static const double barTop = 30;
 
-  /// Room at the sides when there are no bars.
-  static const double side = 6;
-
-  /// The share of its day a bar is wide.
+  /// The share of its week a bar is wide.
   static const double barShare = 0.52;
 
   @override
@@ -410,24 +605,21 @@ class _Plot extends StatefulWidget {
 }
 
 class _PlotState extends State<_Plot> {
+  /// The tapped day, in days after `from`.
   int? _selected;
 
-  int get _count =>
-      widget.series.fold(0, (n, s) => math.max(n, s.values.length));
+  int get _days => _dayOf(widget.to, widget.from) + 1;
+
+  /// Every day with an entry, in order.
+  List<int> get _entryDays => {
+    for (final s in widget.series)
+      for (final p in s.points) _dayOf(p.day, widget.from),
+  }.toList()..sort();
 
   @override
   void didUpdateWidget(_Plot old) {
     super.didUpdateWidget(old);
-    if (_selected != null && _selected! >= _count) _selected = null;
-  }
-
-  List<double> _xs(double width) {
-    final count = _count;
-    if (widget.series.any((s) => s.bars)) {
-      final slot = width / count;
-      return [for (var i = 0; i < count; i++) slot * (i + 0.5)];
-    }
-    return spreadX(count, _Plot.side, width - _Plot.side);
+    if (!_entryDays.contains(_selected)) _selected = null;
   }
 
   @override
@@ -442,7 +634,10 @@ class _PlotState extends State<_Plot> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            final xs = _xs(width);
+            final dayWidth = width / _days;
+            // A day's centre.
+            double x(int day) => dayWidth * (day + 0.5);
+            final entryDays = _entryDays;
             final selected = _selected;
             final targets = [
               for (final s in widget.series)
@@ -450,10 +645,13 @@ class _PlotState extends State<_Plot> {
             ];
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapDown: xs.isEmpty
+              onTapDown: entryDays.isEmpty
                   ? null
                   : (details) => setState(
-                      () => _selected = nearest(xs, details.localPosition.dx),
+                      () => _selected =
+                          entryDays[nearest([
+                            for (final d in entryDays) x(d),
+                          ], details.localPosition.dx)],
                     ),
               child: Stack(
                 clipBehavior: Clip.none,
@@ -462,7 +660,8 @@ class _PlotState extends State<_Plot> {
                     child: CustomPaint(
                       painter: _PlotPainter(
                         series: widget.series,
-                        xs: xs,
+                        from: widget.from,
+                        dayWidth: dayWidth,
                         scales: [for (final s in widget.series) _scale(s)],
                         selected: selected,
                         colors: p,
@@ -490,13 +689,20 @@ class _PlotState extends State<_Plot> {
                   if (selected != null)
                     Positioned.fill(
                       child: CustomSingleChildLayout(
-                        delegate: _TagLayout(xs[selected]),
+                        delegate: _TagLayout(x(selected)),
                         child: _Tag(
-                          date: widget.dateLabel(selected),
+                          date: widget.dateLabel(
+                            DateTime(
+                              widget.from.year,
+                              widget.from.month,
+                              widget.from.day + selected,
+                            ),
+                          ),
                           rows: [
                             for (final s in widget.series)
-                              if (selected < s.values.length)
-                                (s, s.format(s.values[selected])),
+                              for (final point in s.points)
+                                if (_dayOf(point.day, widget.from) == selected)
+                                  (s, s.format(point.value)),
                           ],
                         ),
                       ),
@@ -513,10 +719,14 @@ class _PlotState extends State<_Plot> {
   /// A series' own scale: lines across their range, bars up from zero.
   double Function(double) _scale(ChartSeries s) {
     if (s.bars) {
-      final max = s.values.fold(0.0, math.max);
+      final max = s.points.fold(0.0, (m, p) => math.max(m, p.value));
       return (v) => scaleY(v, 0, max, _Plot.barTop, _Plot.baseline);
     }
-    final all = [...s.values, ?s.target];
+    final all = [
+      for (final p in s.points) p.value,
+      for (final p in s.average ?? const <ChartPoint>[]) p.value,
+      ?s.target,
+    ];
     // A line with nothing to draw yet.
     if (all.isEmpty) return (_) => _Plot.lineBottom;
     final min = all.reduce(math.min);
@@ -528,20 +738,25 @@ class _PlotState extends State<_Plot> {
 class _PlotPainter extends CustomPainter {
   const _PlotPainter({
     required this.series,
-    required this.xs,
+    required this.from,
+    required this.dayWidth,
     required this.scales,
     required this.selected,
     required this.colors,
   });
 
   final List<ChartSeries> series;
-  final List<double> xs;
+  final DateTime from;
+  final double dayWidth;
   final List<double Function(double)> scales;
   final int? selected;
   final ForgePalette colors;
 
   static const double _endDot = 3;
   static const double _ring = 4.5;
+  static const double _averageWidth = 2.5;
+
+  double _x(DateTime day) => dayWidth * (_dayOf(day, from) + 0.5);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -550,17 +765,17 @@ class _PlotPainter extends CustomPainter {
       Offset(size.width, _Plot.baseline),
       Paint()..color = colors.line,
     );
-    final slot = xs.isEmpty ? 0.0 : size.width / xs.length;
     for (final (i, s) in series.indexed) {
       if (!s.bars) continue;
       final paint = Paint()..color = colors.info.withValues(alpha: 0.4);
-      final width = slot * _Plot.barShare;
-      for (final (j, v) in s.values.indexed) {
+      final width = dayWidth * 7 * _Plot.barShare;
+      for (final p in s.points) {
+        final centre = _x(p.day) + dayWidth * 3;
         canvas.drawRRect(
           RRect.fromLTRBR(
-            xs[j] - width / 2,
-            scales[i](v),
-            xs[j] + width / 2,
+            centre - width / 2,
+            scales[i](p.value),
+            centre + width / 2,
             _Plot.baseline,
             const Radius.circular(2),
           ),
@@ -568,18 +783,35 @@ class _PlotPainter extends CustomPainter {
         );
       }
     }
+    List<Offset> line(List<ChartPoint> points, int i) => [
+      for (final p in [...points]..sort((a, b) => a.day.compareTo(b.day)))
+        Offset(_x(p.day), scales[i](p.value)),
+    ];
     for (final (i, s) in series.indexed) {
-      if (s.bars || s.values.isEmpty) continue;
+      if (s.bars || s.points.isEmpty) continue;
       final color = _color(s.look, colors);
-      final points = [
-        for (final (j, v) in s.values.indexed) Offset(xs[j], scales[i](v)),
-      ];
-      canvas.drawPath(
-        _stroke(Path()..addPolygon(points, false), s.look),
-        _linePaint(color),
-      );
-      if (this.selected == null) {
-        canvas.drawCircle(points.last, _endDot, Paint()..color = color);
+      final daily = line(s.points, i);
+      final average = s.average;
+      final List<Offset> main;
+      if (average == null) {
+        main = daily;
+        canvas.drawPath(
+          _stroke(Path()..addPolygon(daily, false), s.look),
+          _linePaint(color),
+        );
+      } else {
+        canvas.drawPath(
+          Path()..addPolygon(daily, false),
+          _linePaint(colors.lineStrong)..strokeWidth = 1,
+        );
+        main = line(average, i);
+        canvas.drawPath(
+          _stroke(Path()..addPolygon(main, false), s.look),
+          _linePaint(color)..strokeWidth = _averageWidth,
+        );
+      }
+      if (this.selected == null && main.isNotEmpty) {
+        canvas.drawCircle(main.last, _endDot, Paint()..color = color);
       }
       final target = s.target;
       if (target != null) {
@@ -601,24 +833,27 @@ class _PlotPainter extends CustomPainter {
     }
     final selected = this.selected;
     if (selected == null) return;
-    final x = xs[selected];
+    final x = dayWidth * (selected + 0.5);
     canvas.drawLine(
       Offset(x, 0),
       Offset(x, _Plot.baseline),
       Paint()..color = colors.lineStrong,
     );
     for (final (i, s) in series.indexed) {
-      if (s.bars || selected >= s.values.length) continue;
-      final at = Offset(x, scales[i](s.values[selected]));
-      canvas.drawCircle(at, _ring, Paint()..color = colors.surface);
-      canvas.drawCircle(
-        at,
-        _ring,
-        Paint()
-          ..color = _color(s.look, colors)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
+      if (s.bars) continue;
+      for (final p in s.points) {
+        if (_dayOf(p.day, from) != selected) continue;
+        final at = Offset(x, scales[i](p.value));
+        canvas.drawCircle(at, _ring, Paint()..color = colors.surface);
+        canvas.drawCircle(
+          at,
+          _ring,
+          Paint()
+            ..color = _color(s.look, colors)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+      }
     }
   }
 
