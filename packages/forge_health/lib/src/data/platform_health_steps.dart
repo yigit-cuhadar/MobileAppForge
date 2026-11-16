@@ -53,6 +53,114 @@ class PlatformHealthSteps implements HealthSteps {
   });
 
   @override
+  Future<Result<HealthPermission>> workoutsPermission() => _guard(() async {
+    await _requireIosStore();
+    return _permission(await _source.hasWorkoutsPermission());
+  });
+
+  @override
+  Future<Result<HealthPermission>> requestWorkoutsPermission() =>
+      _guard(() async {
+        switch (_platform) {
+          case _Platform.android:
+            // As for steps: the request can hang when access is granted.
+            if (await _source.hasWorkoutsPermission() ?? false) {
+              return HealthPermission.granted;
+            }
+            return await _source.requestWorkoutsPermission()
+                ? HealthPermission.granted
+                : HealthPermission.denied;
+          case _Platform.ios:
+            await _requireIosStore();
+            if (!await _source.requestWorkoutsPermission()) {
+              throw const UnknownFailure('HealthKit authorization failed');
+            }
+            return HealthPermission.undetermined;
+          case _Platform.other:
+            throw const HealthFailure();
+        }
+      });
+
+  @override
+  Future<Result<List<HealthWorkout>>> workouts(DateTime first, DateTime last) =>
+      _guard(() async {
+        final days = readDays(first, last);
+        switch (_platform) {
+          case _Platform.android:
+            // A refused read comes back as no workouts; ask first.
+            if (await _source.hasWorkoutsPermission() == false) {
+              throw const PermissionFailure('Workouts read access not granted');
+            }
+          case _Platform.ios:
+            await _requireIosStore();
+          case _Platform.other:
+            throw const HealthFailure();
+        }
+        final raw = await _source.workouts(days.first.start, days.last.end)
+          ..sort((a, b) => a.start.compareTo(b.start));
+        // Heart rate is optional: without it the average is left out.
+        final heartRate = await _source.hasHeartRatePermission() != false;
+        final averages = <int?>[];
+        for (var i = 0; i < raw.length; i += _parallelReads) {
+          averages.addAll(
+            await Future.wait([
+              for (final w in raw.skip(i).take(_parallelReads))
+                heartRate ? _averageHeartRate(w.start, w.end) : Future.value(),
+            ]),
+          );
+        }
+        return [
+          for (final (i, w) in raw.indexed)
+            HealthWorkout(
+              id: w.id,
+              type: _type(w.activity),
+              start: w.start,
+              duration: w.end.difference(w.start),
+              distanceMeters: w.distanceMeters?.toDouble(),
+              energyKcal: w.energyKcal?.toDouble(),
+              averageHeartRate: averages[i],
+              source: w.source,
+            ),
+        ];
+      });
+
+  Future<int?> _averageHeartRate(DateTime start, DateTime end) async {
+    final rates = await _source.heartRates(start, end);
+    if (rates.isEmpty) return null;
+    return (rates.reduce((a, b) => a + b) / rates.length).round();
+  }
+
+  static HealthWorkoutType _type(
+    HealthWorkoutActivityType activity,
+  ) => switch (activity) {
+    HealthWorkoutActivityType.RUNNING => HealthWorkoutType.running,
+    HealthWorkoutActivityType.RUNNING_TREADMILL =>
+      HealthWorkoutType.treadmillRunning,
+    HealthWorkoutActivityType.WALKING ||
+    HealthWorkoutActivityType.WALKING_TREADMILL => HealthWorkoutType.walking,
+    HealthWorkoutActivityType.HIKING => HealthWorkoutType.hiking,
+    HealthWorkoutActivityType.BIKING ||
+    HealthWorkoutActivityType.BIKING_STATIONARY => HealthWorkoutType.cycling,
+    HealthWorkoutActivityType.ELLIPTICAL => HealthWorkoutType.elliptical,
+    HealthWorkoutActivityType.ROWING ||
+    HealthWorkoutActivityType.ROWING_MACHINE => HealthWorkoutType.rowing,
+    HealthWorkoutActivityType.STAIR_CLIMBING ||
+    HealthWorkoutActivityType.STAIR_CLIMBING_MACHINE ||
+    HealthWorkoutActivityType.STAIRS => HealthWorkoutType.stairClimbing,
+    HealthWorkoutActivityType.SWIMMING ||
+    HealthWorkoutActivityType.SWIMMING_POOL ||
+    HealthWorkoutActivityType.SWIMMING_OPEN_WATER => HealthWorkoutType.swimming,
+    HealthWorkoutActivityType.JUMP_ROPE => HealthWorkoutType.jumpRope,
+    HealthWorkoutActivityType.HIGH_INTENSITY_INTERVAL_TRAINING =>
+      HealthWorkoutType.hiit,
+    HealthWorkoutActivityType.STRENGTH_TRAINING ||
+    HealthWorkoutActivityType.TRADITIONAL_STRENGTH_TRAINING ||
+    HealthWorkoutActivityType.FUNCTIONAL_STRENGTH_TRAINING ||
+    HealthWorkoutActivityType.WEIGHTLIFTING => HealthWorkoutType.strength,
+    _ => HealthWorkoutType.other,
+  };
+
+  @override
   Future<Result<int>> stepsOn(DateTime day) => _guard(() async {
     final days = await _read(day, day);
     return days.single.count;
@@ -103,15 +211,7 @@ class PlatformHealthSteps implements HealthSteps {
   }
 
   Future<List<DailySteps>> _read(DateTime first, DateTime last) async {
-    if (startOfDay(last).isBefore(startOfDay(first))) {
-      throw ValidationFailure('$last is before $first');
-    }
-    final days = localDays(first, last);
-    if (days.length > maxStepDays) {
-      throw ValidationFailure(
-        '${days.length} days requested, at most $maxStepDays',
-      );
-    }
+    final days = readDays(first, last);
     switch (_platform) {
       case _Platform.android:
         // The plugin's step total skips its Health Connect check, and a

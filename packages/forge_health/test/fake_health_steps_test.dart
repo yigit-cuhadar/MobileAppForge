@@ -133,4 +133,60 @@ void main() {
     final days = result.valueOrNull!.map((d) => d.day).toList();
     expect(days, [for (var d = 1; d <= 31; d++) DateTime(2026, 3, d)]);
   });
+
+  group('workouts', () {
+    HealthWorkout workout(String id, DateTime start) => HealthWorkout(
+      id: id,
+      type: HealthWorkoutType.running,
+      start: start,
+      duration: const Duration(minutes: 30),
+      source: '[SOURCE]',
+    );
+
+    test('have their own access, granted on request', () async {
+      expect(
+        (await fake.workouts(
+          DateTime(2026, 5, 1),
+          DateTime(2026, 5, 2),
+        )).failureOrNull,
+        isA<PermissionFailure>(),
+      );
+      expect(
+        (await fake.requestWorkoutsPermission()).valueOrNull,
+        HealthPermission.granted,
+      );
+      expect(
+        (await fake.workoutsPermission()).valueOrNull,
+        HealthPermission.granted,
+      );
+      expect(fake.permissionStatus, HealthPermission.granted);
+    });
+
+    test('are the ones started on the days asked, oldest first', () async {
+      fake
+        ..workoutsPermissionStatus = HealthPermission.granted
+        ..workoutList = [
+          workout('late', DateTime(2026, 5, 11, 23, 30)),
+          workout('early', DateTime(2026, 5, 10, 7)),
+          workout('before', DateTime(2026, 5, 9, 23, 59)),
+          workout('after', DateTime(2026, 5, 12)),
+        ];
+      final result = await fake.workouts(
+        DateTime(2026, 5, 10, 12),
+        DateTime(2026, 5, 11),
+      );
+      expect([for (final w in result.valueOrNull!) w.id], ['early', 'late']);
+    });
+
+    test('a reversed range fails', () async {
+      fake.workoutsPermissionStatus = HealthPermission.granted;
+      expect(
+        (await fake.workouts(
+          DateTime(2026, 5, 2),
+          DateTime(2026, 5, 1),
+        )).failureOrNull,
+        isA<ValidationFailure>(),
+      );
+    });
+  });
 }

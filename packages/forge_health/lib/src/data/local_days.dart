@@ -1,3 +1,7 @@
+import 'package:forge_core/forge_core.dart';
+
+import '../domain/health_steps.dart';
+
 /// Local midnight starting the day of [time].
 DateTime startOfDay(DateTime time) {
   final local = time.toLocal();
@@ -20,3 +24,18 @@ List<({DateTime start, DateTime end})> localDays(
 }
 
 DateTime _next(DateTime day) => DateTime(day.year, day.month, day.day + 1);
+
+/// [localDays] of a read: [last] not before [first], at most [maxStepDays]
+/// days; a [ValidationFailure] otherwise.
+List<({DateTime start, DateTime end})> readDays(DateTime first, DateTime last) {
+  if (startOfDay(last).isBefore(startOfDay(first))) {
+    throw ValidationFailure('$last is before $first');
+  }
+  final days = localDays(first, last);
+  if (days.length > maxStepDays) {
+    throw ValidationFailure(
+      '${days.length} days requested, at most $maxStepDays',
+    );
+  }
+  return days;
+}

@@ -58,3 +58,32 @@ class OpenHealthSettings implements UseCase<void, NoParams> {
   Future<Result<void>> call([NoParams params = const NoParams()]) =>
       _repository.openSettings();
 }
+
+class GetWorkoutsPermission implements UseCase<HealthPermission, NoParams> {
+  const GetWorkoutsPermission(this._repository);
+  final HealthSteps _repository;
+
+  @override
+  Future<Result<HealthPermission>> call([NoParams params = const NoParams()]) =>
+      _repository.workoutsPermission();
+}
+
+class RequestWorkoutsPermission implements UseCase<HealthPermission, NoParams> {
+  const RequestWorkoutsPermission(this._repository);
+  final HealthSteps _repository;
+
+  @override
+  Future<Result<HealthPermission>> call([NoParams params = const NoParams()]) =>
+      _repository.requestWorkoutsPermission();
+}
+
+class GetHealthWorkouts
+    implements UseCase<List<HealthWorkout>, ({DateTime first, DateTime last})> {
+  const GetHealthWorkouts(this._repository);
+  final HealthSteps _repository;
+
+  @override
+  Future<Result<List<HealthWorkout>>> call(
+    ({DateTime first, DateTime last}) params,
+  ) => _repository.workouts(params.first, params.last);
+}
