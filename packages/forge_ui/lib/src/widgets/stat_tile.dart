@@ -48,15 +48,15 @@ class StatTile extends StatelessWidget {
        onRetry = null,
        retryLabel = null;
 
-  /// A small tile: the [label], the [figure] and a [change] line in data,
-  /// success when it goes the way the app calls good ([changeIsGood]),
-  /// danger when not.
+  /// A small tile: the [label], the [figure] and an optional [change] line
+  /// in data, success when it goes the way the app calls good
+  /// ([changeIsGood]), danger when not.
   const StatTile.compact({
     super.key,
     required String label,
     required String this.figure,
-    required String this.change,
-    required this.changeIsGood,
+    this.change,
+    this.changeIsGood = false,
   }) : _form = _Form.compact,
        title = label,
        detail = null,
@@ -87,6 +87,38 @@ class StatTile extends StatelessWidget {
        message = null,
        onRetry = null,
        retryLabel = null;
+
+  /// A [StatTile.compact] loading: two shimmering bars.
+  const StatTile.compactLoading({super.key})
+    : _form = _Form.compactLoading,
+      title = null,
+      detail = null,
+      onTap = null,
+      figure = null,
+      unit = null,
+      caption = null,
+      progress = null,
+      change = null,
+      changeIsGood = false,
+      message = null,
+      onRetry = null,
+      retryLabel = null;
+
+  /// A [StatTile.change] loading: two shimmering bars.
+  const StatTile.changeLoading({super.key})
+    : _form = _Form.changeLoading,
+      title = null,
+      detail = null,
+      onTap = null,
+      figure = null,
+      unit = null,
+      caption = null,
+      progress = null,
+      change = null,
+      changeIsGood = false,
+      message = null,
+      onRetry = null,
+      retryLabel = null;
 
   /// The title row stays; the figure and caption shimmer.
   const StatTile.loading({
@@ -170,32 +202,36 @@ class StatTile extends StatelessWidget {
     final dash = Text('—', style: _figureStyle(text, colors.inkSubtle));
 
     switch (_form) {
-      case _Form.compact || _Form.change:
-        final compact = _form == _Form.compact;
-        final value = compact ? figure! : _minus(change!);
-        final column = Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md,
-            vertical: Gap.sm,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 2,
-            children: [
-              Text(
-                title!,
-                style: text.labelSmall!.copyWith(
-                  color: colors.inkMuted,
-                  fontWeight: FontWeight.w400,
-                ),
+      case _Form.compact ||
+          _Form.change ||
+          _Form.compactLoading ||
+          _Form.changeLoading:
+        final compact = _form == _Form.compact || _form == _Form.compactLoading;
+        final List<Widget> lines;
+        if (_form == _Form.compactLoading || _form == _Form.changeLoading) {
+          lines = [
+            SkeletonBar(widthFactor: compact ? 0.55 : 0.5, height: 8),
+            // 7px between the bars, as drawn.
+            const SizedBox(height: 3),
+            SkeletonBar(widthFactor: compact ? 0.8 : 0.7, height: 14),
+          ];
+        } else {
+          final line = compact ? change : caption;
+          lines = [
+            Text(
+              title!,
+              style: text.labelSmall!.copyWith(
+                color: colors.inkMuted,
+                fontWeight: FontWeight.w400,
               ),
+            ),
+            Text(
+              compact ? figure! : _minus(change!),
+              style: text.titleLarge!.copyWith(letterSpacing: -0.34),
+            ),
+            if (line != null)
               Text(
-                value,
-                style: text.titleLarge!.copyWith(letterSpacing: -0.34),
-              ),
-              Text(
-                compact ? _minus(change!) : caption!,
+                compact ? _minus(line) : line,
                 style: style.data.copyWith(
                   fontSize: 11,
                   color: !compact
@@ -205,7 +241,18 @@ class StatTile extends StatelessWidget {
                       : colors.danger,
                 ),
               ),
-            ],
+          ];
+        }
+        final column = Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md,
+            vertical: Gap.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 2,
+            children: lines,
           ),
         );
         if (compact) return CardFrame(child: column);
@@ -330,4 +377,14 @@ class StatTile extends StatelessWidget {
   );
 }
 
-enum _Form { tile, figure, compact, change, loading, empty, error }
+enum _Form {
+  tile,
+  figure,
+  compact,
+  change,
+  compactLoading,
+  changeLoading,
+  loading,
+  empty,
+  error,
+}

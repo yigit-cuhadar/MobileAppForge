@@ -528,6 +528,30 @@ void main() {
       expect(tester.widget<Text>(find.text('+1.0')).style?.color, c.danger);
     });
 
+    testWidgets('a compact tile without a change has no change line', (
+      tester,
+    ) async {
+      await pump(tester, const StatTile.compact(label: 'Value A', figure: '—'));
+      final lines = find.descendant(
+        of: find.byType(StatTile),
+        matching: find.byType(Text),
+      );
+      expect(lines, findsNWidgets(2));
+    });
+
+    testWidgets('compact and change loading shimmer two bars each', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const Column(
+          children: [StatTile.compactLoading(), StatTile.changeLoading()],
+        ),
+      );
+      expect(find.byType(SkeletonBar), findsNWidgets(4));
+      expect(find.byType(Text), findsNothing);
+    });
+
     testWidgets('the change form writes old to new under it', (tester) async {
       await pump(
         tester,

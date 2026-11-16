@@ -75,6 +75,20 @@ Widget compactStatTile(BuildContext context) => _grid(const [
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Compact without change', type: StatTile)
+Widget compactPlainStatTile(BuildContext context) => _grid(const [
+  StatTile.compact(label: 'Value A', figure: '82.4 [UNIT]'),
+  StatTile.compact(label: 'Value B', figure: '—'),
+]);
+
+@widgetbook.UseCase(name: 'Compact and change loading', type: StatTile)
+Widget compactLoadingStatTile(BuildContext context) => _grid(const [
+  StatTile.compactLoading(),
+  StatTile.compactLoading(),
+  StatTile.changeLoading(),
+  StatTile.changeLoading(),
+]);
+
 @widgetbook.UseCase(name: 'Change', type: StatTile)
 Widget changeStatTile(BuildContext context) => _grid(const [
   StatTile.change(
