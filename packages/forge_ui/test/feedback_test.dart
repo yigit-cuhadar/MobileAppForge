@@ -305,6 +305,26 @@ void main() {
         card - 2 * Gap.md,
       );
     });
+
+    testWidgets('without an action the card ends after the message', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const NoticeBanner(
+          icon: ForgeIcons.cloudOff,
+          title: 'Item title',
+          message: 'One line of message.',
+        ),
+      );
+
+      expect(find.byType(ForgeButton), findsNothing);
+      expect(
+        tester.getBottomLeft(find.byType(NoticeBanner)).dy -
+            tester.getBottomLeft(find.text('One line of message.')).dy,
+        Gap.md,
+      );
+    });
   });
 
   group('TipBanner', () {
