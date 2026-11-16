@@ -24,6 +24,10 @@ enum ForgeButtonVariant {
   /// A destructive action: a danger outline.
   danger,
 
+  /// A destructive text action, such as a sheet's "Remove": a danger label
+  /// with no fill and no border.
+  dangerText,
+
   /// Retry and other recover actions: an ink label in a line-strong outline.
   outline,
 
@@ -204,6 +208,10 @@ class _Look {
               border: p.danger,
             )
           : _Look(_clear, p.lineStrong, border: p.line),
+    ForgeButtonVariant.dangerText => _Look(
+      pressed ? p.danger.withValues(alpha: 0.08) : _clear,
+      enabled ? p.danger : p.lineStrong,
+    ),
     ForgeButtonVariant.outline =>
       enabled
           ? _Look(

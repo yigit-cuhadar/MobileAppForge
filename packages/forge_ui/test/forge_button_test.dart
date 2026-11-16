@@ -193,6 +193,49 @@ void main() {
     });
   });
 
+  group('ForgeButton dangerText', () {
+    testWidgets('is a danger label with no fill and no border, tinted '
+        'while pressed, line-strong when off', (tester) async {
+      var taps = 0;
+      await pump(
+        tester,
+        ForgeButton(
+          label: 'Remove',
+          variant: ForgeButtonVariant.dangerText,
+          onPressed: () => taps++,
+        ),
+      );
+      final p = ForgeStyle.of(tester.element(find.text('Remove'))).colors;
+      BoxDecoration box() =>
+          tester.widget<Container>(find.byType(Container).first).decoration!
+              as BoxDecoration;
+
+      expect(tester.widget<Text>(find.text('Remove')).style?.color, p.danger);
+      expect(box().border, isNull);
+      expect(box().color, isNot(p.danger));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('Remove')),
+      );
+      await tester.pump();
+      expect(box().color, p.danger.withValues(alpha: 0.08));
+      await gesture.up();
+      expect(taps, 1);
+
+      await pump(
+        tester,
+        const ForgeButton(
+          label: 'Remove',
+          variant: ForgeButtonVariant.dangerText,
+          onPressed: null,
+        ),
+      );
+      expect(
+        tester.widget<Text>(find.text('Remove')).style?.color,
+        p.lineStrong,
+      );
+    });
+  });
+
   group('ForgeAddButton', () {
     testWidgets('is full width and calls onPressed', (tester) async {
       var taps = 0;

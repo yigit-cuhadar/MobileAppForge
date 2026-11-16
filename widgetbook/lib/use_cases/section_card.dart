@@ -98,3 +98,15 @@ Widget plainEmptySectionCard(BuildContext context) => _page(
     onAction: () {},
   ),
 );
+
+@widgetbook.UseCase(name: 'Plain, with a note', type: SectionCard)
+Widget plainNoteSectionCard(BuildContext context) => _page(
+  SectionCard.plain(
+    title: 'Section title',
+    note: context.knobs.string(
+      label: 'Note',
+      initialValue: '[DETAIL] of [DETAIL] · [VALUE]',
+    ),
+    child: const Text('[CONTENT]'),
+  ),
+);

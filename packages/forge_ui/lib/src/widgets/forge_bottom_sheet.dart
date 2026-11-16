@@ -34,7 +34,8 @@ class ForgeBottomSheet extends StatelessWidget {
   final String title;
   final String? subtitle;
 
-  /// A text action such as "Clear all".
+  /// A text action such as "Clear all", or a danger one such as "Remove"
+  /// ([ForgeButtonVariant.dangerText]).
   final Widget? headerAction;
   final Widget child;
 

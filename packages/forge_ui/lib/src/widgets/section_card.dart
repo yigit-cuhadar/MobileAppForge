@@ -25,6 +25,7 @@ class SectionCard extends StatelessWidget {
        onRetry = null,
        retryLabel = null,
        tag = null,
+       note = null,
        actionLabel = null,
        onAction = null;
 
@@ -40,6 +41,7 @@ class SectionCard extends StatelessWidget {
        onRetry = null,
        retryLabel = null,
        tag = null,
+       note = null,
        actionLabel = null,
        onAction = null;
 
@@ -55,6 +57,7 @@ class SectionCard extends StatelessWidget {
        detail = null,
        child = null,
        tag = null,
+       note = null,
        actionLabel = null,
        onAction = null;
 
@@ -70,6 +73,7 @@ class SectionCard extends StatelessWidget {
        onRetry = null,
        retryLabel = null,
        tag = null,
+       note = null,
        actionLabel = null,
        onAction = null;
 
@@ -86,15 +90,19 @@ class SectionCard extends StatelessWidget {
        child = null,
        onRetry = null,
        retryLabel = null,
+       note = null,
        actionLabel = null,
        onAction = null;
 
   /// The [title] over [child], no chevron and no tap; an optional text
   /// action in accent ([actionLabel], such as "Edit") ends the header.
-  /// Without [child] the card is the header alone.
+  /// Without [child] the card is the header alone. A [note] after the
+  /// title says how to read the content; it is drawn whole, wrapping
+  /// rather than cut.
   const SectionCard.plain({
     super.key,
     required this.title,
+    this.note,
     this.child,
     this.actionLabel,
     this.onAction,
@@ -109,6 +117,7 @@ class SectionCard extends StatelessWidget {
 
   final String title;
   final String? detail;
+  final String? note;
   final VoidCallback? onTap;
   final Widget? child;
   final String? message;
@@ -154,7 +163,27 @@ class SectionCard extends StatelessWidget {
             builder: (context, constraints) => Row(
               spacing: Gap.sm,
               children: [
-                Expanded(child: Text(title, style: text.titleMedium)),
+                if (note case final note?) ...[
+                  // The title takes what it needs, up to half; the note
+                  // the rest, whole.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth / 2,
+                    ),
+                    child: Text(title, style: text.titleMedium),
+                  ),
+                  Expanded(
+                    child: Text(
+                      note,
+                      textAlign: TextAlign.end,
+                      style: text.labelMedium!.copyWith(
+                        fontWeight: FontWeight.w400,
+                        color: colors.inkMuted,
+                      ),
+                    ),
+                  ),
+                ] else
+                  Expanded(child: Text(title, style: text.titleMedium)),
                 if (detail != null)
                   // A long detail ends in an ellipsis at half the header.
                   ConstrainedBox(
