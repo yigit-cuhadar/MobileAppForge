@@ -363,9 +363,8 @@ void main() {
       );
     });
 
-    testWidgets('the compact form is a unit-free 34px box of its width', (
-      tester,
-    ) async {
+    testWidgets('the compact form is a unit-free 40px box of its width, the '
+        'value at its start', (tester) async {
       final changes = <String>[];
       await pump(
         tester,
@@ -394,12 +393,58 @@ void main() {
         tester.getSize(find.byType(ForgeNumberField)).height,
         ForgeTheme.tapMin,
       );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).textAlign,
+        TextAlign.start,
+      );
       // The one text is the empty box's dash: no unit.
       expect(find.byType(Text), findsOneWidget);
       expect(find.text('—'), findsOneWidget);
       await tester.enterText(find.byType(TextField), '82.5');
 
       expect(changes, ['82.5']);
+    });
+
+    testWidgets('an invalid compact box has a danger border, also while '
+        'typing', (tester) async {
+      Future<void> pumpField({required bool invalid}) => pump(
+        tester,
+        Align(
+          alignment: Alignment.topLeft,
+          child: ForgeNumberField.compact(
+            label: 'Field one',
+            width: 70,
+            onChanged: (_) {},
+            invalid: invalid,
+          ),
+        ),
+      );
+      Border border() =>
+          (tester
+                          .widget<Container>(
+                            find
+                                .descendant(
+                                  of: find.byType(ForgeNumberField),
+                                  matching: find.byType(Container),
+                                )
+                                .first,
+                          )
+                          .decoration!
+                      as BoxDecoration)
+                  .border!
+              as Border;
+
+      await pumpField(invalid: false);
+      final colors = ForgeStyle.of(
+        tester.element(find.byType(ForgeNumberField)),
+      ).colors;
+      expect(border().top, BorderSide(color: colors.lineStrong));
+
+      await pumpField(invalid: true);
+      expect(border().top, BorderSide(color: colors.danger, width: 1.5));
+      await tester.tap(find.byType(ForgeNumberField));
+      await tester.pump();
+      expect(border().top, BorderSide(color: colors.danger, width: 1.5));
     });
   });
 }

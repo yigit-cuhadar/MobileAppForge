@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 import 'package:forge_ui/src/widgets/busy_ring.dart';
+import 'package:forge_ui/src/widgets/forge_switch.dart' show CheckboxMark;
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -197,6 +198,63 @@ void main() {
     );
     expect(material.color, colors(tester).accentSoft);
     expect(textColor(tester, 'Item title'), colors(tester).onAccentSoft);
+  });
+
+  group('check', () {
+    Future<void> pumpCheck(WidgetTester tester, List<bool> changes) => pump(
+      tester,
+      SizedBox(
+        width: 300,
+        child: ListRow.check(
+          title: 'Item title',
+          checked: true,
+          onChanged: changes.add,
+        ),
+      ),
+    );
+
+    testWidgets('is 44px tall, nearly flush, the checkbox at its end, and '
+        'untinted when ticked', (tester) async {
+      await pumpCheck(tester, []);
+
+      final row = tester.getRect(find.byType(ListRow));
+      expect(row.height, 44);
+      final box = tester.getRect(find.byType(CheckboxMark));
+      expect(box.size, const Size.square(ForgeCheckbox.size));
+      expect(row.right - box.right, Gap.xs);
+      expect(tester.getRect(find.text('Item title')).left - row.left, Gap.xs);
+      final material = tester.widget<Material>(
+        find
+            .descendant(
+              of: find.byType(ListRow),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(material.color, isNot(colors(tester).accentSoft));
+      expect(textColor(tester, 'Item title'), colors(tester).ink);
+    });
+
+    testWidgets('a tap anywhere on it ticks or unticks it, read as one '
+        'checkbox', (tester) async {
+      final changes = <bool>[];
+      await pumpCheck(tester, changes);
+
+      expect(
+        tester.getSemantics(find.byType(ListRow)),
+        matchesSemantics(
+          label: 'Item title',
+          hasCheckedState: true,
+          isChecked: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          isFocusable: true,
+        ),
+      );
+      await tester.tap(find.text('Item title'));
+      await tester.tap(find.byType(CheckboxMark));
+      expect(changes, [false, false]);
+    });
   });
 
   testWidgets('a missing value shows a danger dash and the error line', (

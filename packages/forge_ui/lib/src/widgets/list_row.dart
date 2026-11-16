@@ -9,6 +9,7 @@ import 'busy_ring.dart';
 import 'card_frame.dart';
 import 'chart_paint.dart';
 import 'day_circle.dart';
+import 'forge_switch.dart';
 import 'skeleton.dart';
 import 'tap_band.dart';
 
@@ -127,7 +128,7 @@ enum ListRowEnd { none, chevron, external }
 /// a [detail] line under it, the [value] in ink-muted, a [trailing] part
 /// (a Tag, Button, Switch or TextField) and the [end] mark. A row with a
 /// [ListRowDateBox] or an info icon has a title-style title and sits
-/// tighter.
+/// tighter. [ListRow.check] is the compact form for a check list.
 class ListRow extends StatelessWidget {
   const ListRow({
     super.key,
@@ -155,6 +156,36 @@ class ListRow extends StatelessWidget {
          (onInfo == null) == (infoLabel == null),
          'Give the info icon a label and an action together.',
        ),
+       onChanged = null,
+       loading = false,
+       _skeleton = 0;
+
+  /// One answer of a check list: the [title] with a checkbox at the end; a
+  /// tap anywhere on it ticks or unticks it. It sits nearly flush (4px at
+  /// the sides), 44px tall, and stays untinted when ticked; put a divider
+  /// between each two.
+  const ListRow.check({
+    super.key,
+    required String this.title,
+    required bool this.checked,
+    required ValueChanged<bool> this.onChanged,
+  }) : detail = null,
+       error = null,
+       leading = null,
+       value = null,
+       trailing = null,
+       end = ListRowEnd.none,
+       onTap = null,
+       onInfo = null,
+       infoLabel = null,
+       destructive = false,
+       missing = false,
+       locked = false,
+       busy = false,
+       disabled = false,
+       muted = false,
+       dataTitle = false,
+       dataValue = false,
        loading = false,
        _skeleton = 0;
 
@@ -173,6 +204,7 @@ class ListRow extends StatelessWidget {
       onInfo = null,
       infoLabel = null,
       checked = null,
+      onChanged = null,
       destructive = false,
       missing = false,
       locked = false,
@@ -207,6 +239,9 @@ class ListRow extends StatelessWidget {
   /// Puts a checkbox in front; a checked row turns accent-soft.
   final bool? checked;
 
+  /// Ticks or unticks a [ListRow.check].
+  final ValueChanged<bool>? onChanged;
+
   /// The title in danger: a row that deletes or ends something.
   final bool destructive;
 
@@ -238,8 +273,14 @@ class ListRow extends StatelessWidget {
   final bool loading;
   final int _skeleton;
 
-  static const _minHeight = 52.0;
-  static const _flushMinHeight = 40.0;
+  // The least height and the padding of a row in a card, flush in a
+  // dialog's list, and of a check row.
+  static const _card = (
+    52.0,
+    EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+  );
+  static const _flush = (40.0, EdgeInsets.symmetric(vertical: Gap.xs));
+  static const _check = (44.0, EdgeInsets.symmetric(horizontal: Gap.xs));
 
   // Title and detail bar widths of loading rows, in turn.
   static const _skeletons = [(0.55, 0.35), (0.45, 0.30), (0.60, 0.40)];
@@ -272,9 +313,12 @@ class ListRow extends StatelessWidget {
     }
 
     final flush = ListRowFlush._of(context);
+    final onChanged = this.onChanged;
+    final check = onChanged != null;
     final on = checked ?? false;
-    // A checked row turns accent-soft, except flush in a dialog's list.
-    final tinted = on && !flush;
+    // A checked row turns accent-soft, except flush in a dialog's list and
+    // in a check list.
+    final tinted = on && !flush && !check;
     final titleColor = disabled
         ? colors.lineStrong
         : destructive
@@ -296,7 +340,7 @@ class ListRow extends StatelessWidget {
     final line = error ?? detail;
     final info = onInfo == null ? null : TapBandLink();
     final handle = this.leading is ListRowDragHandle ? TapBandLink() : null;
-    final leading = checked != null
+    final leading = checked != null && !check
         ? _Checkbox(checked: on)
         : handle != null
         ? TapBandTarget(link: handle, child: this.leading!)
@@ -375,6 +419,7 @@ class ListRow extends StatelessWidget {
             ),
           ),
         ?trailing,
+        if (check) CheckboxMark(value: on),
         if (busy)
           Opacity(
             opacity: 0.8,
@@ -392,6 +437,11 @@ class ListRow extends StatelessWidget {
       builder: (context, constraints) => rowOf(constraints.maxWidth),
     );
 
+    final fit = check
+        ? _check
+        : flush
+        ? _flush
+        : _card;
     final tint = tinted
         ? colors.accentSoft
         : missing
@@ -401,13 +451,14 @@ class ListRow extends StatelessWidget {
       type: tint == null ? MaterialType.transparency : MaterialType.canvas,
       color: tint,
       child: InkWell(
-        onTap: disabled ? null : onTap,
+        onTap: disabled
+            ? null
+            : check
+            ? () => onChanged(!on)
+            : onTap,
         child: info == null && handle == null
-            ? _frame(row, flush: flush)
-            : TapBandArea(
-                links: [?info, ?handle],
-                child: _frame(row, flush: flush),
-              ),
+            ? _frame(row, fit)
+            : TapBandArea(links: [?info, ?handle], child: _frame(row, fit)),
       ),
     );
     if (checked != null || disabled) {
@@ -447,17 +498,11 @@ class ListRow extends StatelessWidget {
     };
   }
 
-  Widget _frame(Widget child, {bool flush = false}) => ConstrainedBox(
-    constraints: BoxConstraints(
-      minHeight: flush ? _flushMinHeight : _minHeight,
-    ),
-    child: Padding(
-      padding: flush
-          ? const EdgeInsets.symmetric(vertical: Gap.xs)
-          : const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-      child: child,
-    ),
-  );
+  Widget _frame(Widget child, [(double, EdgeInsets) fit = _card]) =>
+      ConstrainedBox(
+        constraints: BoxConstraints(minHeight: fit.$1),
+        child: Padding(padding: fit.$2, child: child),
+      );
 }
 
 /// Draws the [ListRow]s under it flush: no side padding, 40px tall at

@@ -46,3 +46,25 @@ Widget errorSnackbar(BuildContext context) => _shown(
     error: true,
   ),
 );
+
+@widgetbook.UseCase(name: 'Over a sheet', type: ForgeSnackbar)
+Widget snackbarOverSheet(BuildContext context) => Center(
+  child: ForgeButton(
+    label: 'Open',
+    onPressed: () => showForgeBottomSheet<void>(
+      context: context,
+      builder: (context) => ForgeBottomSheet(
+        title: 'Item title',
+        action: ForgeButton(
+          label: 'Save',
+          onPressed: () => showForgeSnackbar(
+            context,
+            message: "Couldn't save. Check your connection.",
+            error: true,
+          ),
+        ),
+        child: const SizedBox(height: 160),
+      ),
+    ),
+  ),
+);

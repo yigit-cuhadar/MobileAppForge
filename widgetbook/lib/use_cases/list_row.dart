@@ -143,6 +143,36 @@ class _CheckboxesState extends State<_Checkboxes> {
   );
 }
 
+@widgetbook.UseCase(name: 'Check, compact', type: ListRow)
+Widget checkRows(BuildContext context) => _page(const _CheckList());
+
+/// Compact check rows with a line between each two, as a check sheet
+/// lists them.
+class _CheckList extends StatefulWidget {
+  const _CheckList();
+
+  @override
+  State<_CheckList> createState() => _CheckListState();
+}
+
+class _CheckListState extends State<_CheckList> {
+  final _checked = [true, false, false, true];
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (final (i, on) in _checked.indexed) ...[
+        if (i > 0) const Divider(),
+        ListRow.check(
+          title: 'Item title',
+          checked: on,
+          onChanged: (on) => setState(() => _checked[i] = on),
+        ),
+      ],
+    ],
+  );
+}
+
 @widgetbook.UseCase(name: 'Required, missing', type: ListRow)
 Widget missingRow(BuildContext context) => _page(
   ListRowCard(

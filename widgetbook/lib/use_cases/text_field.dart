@@ -202,6 +202,39 @@ Widget compactNumbers(BuildContext context) => _padded(
   ),
 );
 
+@widgetbook.UseCase(name: 'Compact, invalid', type: ForgeNumberField)
+Widget compactInvalid(BuildContext context) => _padded(
+  Column(
+    spacing: Gap.sm,
+    children: [
+      for (final (first, second, invalid) in [
+        ('50', '8', false),
+        ('98', '5', true),
+      ])
+        Row(
+          spacing: Gap.sm,
+          children: [
+            for (final (label, value, bad) in [
+              ('Field one', first, invalid),
+              ('Field two', second, false),
+            ])
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => ForgeNumberField.compact(
+                    label: label,
+                    width: constraints.maxWidth,
+                    controller: TextEditingController(text: value),
+                    onChanged: (_) {},
+                    invalid: bad,
+                  ),
+                ),
+              ),
+          ],
+        ),
+    ],
+  ),
+);
+
 @widgetbook.UseCase(name: 'Tap-only', type: ForgeTextField)
 Widget tapOnly(BuildContext context) => _padded(
   Column(
