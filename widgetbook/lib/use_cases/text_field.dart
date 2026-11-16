@@ -142,6 +142,36 @@ Widget inlineNumber(BuildContext context) => _padded(
   ),
 );
 
+@widgetbook.UseCase(name: 'Left and right pair', type: ForgeNumberField)
+Widget pairedNumbers(BuildContext context) => _padded(
+  ListRowCard(
+    children: [
+      for (final (title, left, right, error) in [
+        ('Item one', '36.5', '36', null),
+        ('Item two', '58', '', 'Enter both sides.'),
+      ])
+        ListRow(
+          title: title,
+          error: error,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: Gap.sm,
+            children: [
+              for (final (side, value) in [('Left', left), ('Right', right)])
+                ForgeNumberField(
+                  label: title,
+                  side: side,
+                  unit: '[UNIT]',
+                  controller: TextEditingController(text: value),
+                  onChanged: (_) {},
+                ),
+            ],
+          ),
+        ),
+    ],
+  ),
+);
+
 @widgetbook.UseCase(name: 'Compact in a row', type: ForgeNumberField)
 Widget compactNumbers(BuildContext context) => _padded(
   Column(

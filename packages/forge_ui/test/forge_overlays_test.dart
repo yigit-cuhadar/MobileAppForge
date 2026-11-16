@@ -234,6 +234,120 @@ void main() {
         lessThan(tester.getRect(find.byType(FilledButton)).top),
       );
     });
+    testWidgets('without a message, the buttons follow the title', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        (context) => showForgeDialog<void>(
+          context: context,
+          builder: (context) => ForgeDialog(
+            title: 'Remove item?',
+            action: FilledButton(onPressed: () {}, child: const Text('Remove')),
+            cancel: ElevatedButton(
+              onPressed: () {},
+              child: const Text('Cancel'),
+            ),
+          ),
+        ),
+      );
+      await open(tester);
+
+      expect(
+        find.descendant(
+          of: find.byType(ForgeDialog),
+          matching: find.byType(Text),
+        ),
+        findsNWidgets(3),
+      );
+      expect(
+        tester.getRect(find.text('Remove item?')).bottom,
+        lessThan(tester.getRect(find.byType(FilledButton)).top),
+      );
+    });
+
+    group('list', () {
+      Future<void> openList(WidgetTester tester, int rows) async {
+        await pump(
+          tester,
+          (context) => showForgeDialog<void>(
+            context: context,
+            builder: (context) => ForgeDialog.list(
+              title: 'Items to show',
+              list: [
+                for (var i = 0; i < rows; i++)
+                  ListRow(title: 'Item $i', checked: i.isEven, onTap: () {}),
+              ],
+              action: FilledButton(onPressed: () {}, child: const Text('Done')),
+              cancel: ElevatedButton(
+                onPressed: () {},
+                child: const Text('Cancel'),
+              ),
+            ),
+          ),
+        );
+        await open(tester);
+      }
+
+      /// The fade over the list's bottom, if drawn.
+      Finder fade() => find.descendant(
+        of: find.byType(ForgeDialog),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is DecoratedBox &&
+              w.decoration is BoxDecoration &&
+              (w.decoration as BoxDecoration).gradient != null,
+        ),
+      );
+
+      testWidgets('puts the rows flush and untinted between title and '
+          'buttons', (tester) async {
+        await openList(tester, 3);
+
+        final title = tester.getRect(find.text('Items to show'));
+        final row = tester.getRect(find.byType(ListRow).first);
+        expect(title.bottom, lessThan(row.top));
+        expect(
+          tester.getRect(find.byType(ListRow).last).bottom,
+          lessThan(tester.getRect(find.byType(FilledButton)).top),
+        );
+        // Flush: the row is as wide as the buttons, 40px tall.
+        expect(row.width, tester.getRect(find.byType(FilledButton)).width);
+        expect(row.height, 40);
+        final colors = ForgeStyle.of(tester.element(find.byType(ListRow).first))
+            .colors;
+        final material = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(ListRow).first,
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        expect(material.color, isNot(colors.accentSoft));
+        expect(
+          tester.widget<Text>(find.text('Item 0')).style?.color,
+          colors.ink,
+        );
+        expect(fade(), findsNothing);
+      });
+
+      testWidgets('a long list scrolls and fades out until its end', (
+        tester,
+      ) async {
+        await openList(tester, 30);
+
+        expect(fade(), findsOneWidget);
+        expect(find.text('Done'), findsOneWidget);
+        await tester.dragUntilVisible(
+          find.text('Item 29'),
+          find.byType(SingleChildScrollView),
+          const Offset(0, -200),
+        );
+        await tester.pumpAndSettle();
+        expect(fade(), findsNothing);
+      });
+    });
   });
 
   group('ForgeSnackbar', () {

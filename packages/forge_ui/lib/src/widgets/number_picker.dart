@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../spacing.dart';
+import '../theme/forge_palette.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
 import 'forge_dialog.dart';
@@ -27,11 +28,14 @@ class NumberPicker extends StatefulWidget {
     required this.onChanged,
     this.grouped = true,
   }) : unit = null,
+       onValueTap = null,
        _format = null,
        _loop = false;
 
   /// The value large above a ruler of thin ticks with whole-number labels,
   /// under a fixed accent pointer; dragging left picks larger values.
+  /// With [onValueTap] the value is underlined and a tap on it calls
+  /// [onValueTap] (the app opens a field to type the value).
   const NumberPicker.ruler({
     super.key,
     required this.label,
@@ -42,6 +46,7 @@ class NumberPicker extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.grouped = true,
+    this.onValueTap,
   }) : _format = null,
        _loop = false;
 
@@ -61,6 +66,7 @@ class NumberPicker extends StatefulWidget {
        value = index.toDouble(),
        onChanged = ((value) => onIndex(value.round())),
        unit = null,
+       onValueTap = null,
        grouped = false;
 
   final String label;
@@ -73,6 +79,7 @@ class NumberPicker extends StatefulWidget {
 
   /// Groups the thousands ("1,000"); false for a value such as a year.
   final bool grouped;
+  final VoidCallback? onValueTap;
   final String Function(int index)? _format;
   final bool _loop;
 
@@ -210,6 +217,7 @@ class _NumberPickerState extends State<NumberPicker>
         decreasedValue: _text(_index - 1),
         onIncrease: () => _jump(_wrap(_index + 1), report: true),
         onDecrease: () => _jump(_wrap(_index - 1), report: true),
+        onTap: widget.onValueTap,
         child: child,
       ),
       child: ExcludeSemantics(
@@ -310,13 +318,17 @@ class _NumberPickerState extends State<NumberPicker>
           textBaseline: TextBaseline.alphabetic,
           spacing: Gap.xs,
           children: [
-            AnimatedBuilder(
-              animation: _position,
-              builder: (context, _) => Text(
-                _text(_index),
-                style: text.headlineSmall!.copyWith(
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.56,
+            _tappableValue(
+              colors,
+              widget.onValueTap,
+              AnimatedBuilder(
+                animation: _position,
+                builder: (context, _) => Text(
+                  _text(_index),
+                  style: text.headlineSmall!.copyWith(
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.56,
+                  ),
                 ),
               ),
             ),
@@ -362,6 +374,22 @@ class _NumberPickerState extends State<NumberPicker>
       ],
     );
   }
+}
+
+/// [value] underlined in line, calling [onTap] when tapped; [value] as it
+/// is without [onTap].
+Widget _tappableValue(ForgePalette colors, VoidCallback? onTap, Widget value) {
+  if (onTap == null) return value;
+  return GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.line)),
+      ),
+      child: value,
+    ),
+  );
 }
 
 class _RulerPainter extends CustomPainter {
@@ -579,7 +607,23 @@ class ForgeDurationWheel extends StatefulWidget {
     required String this.hourUnit,
     required String this.minuteUnit,
     required this.onChanged,
-  }) : step = const Duration(minutes: 1);
+  }) : step = const Duration(minutes: 1),
+       secondUnit = null;
+
+  /// Hours, minutes and seconds wheels, seconds in 1-second steps, each
+  /// followed by its unit; [secondUnit] also names the seconds wheel for
+  /// screen readers. Minutes and seconds go round; past [max] the value
+  /// stays at [max].
+  const ForgeDurationWheel.hoursMinutesSeconds({
+    super.key,
+    required this.label,
+    required this.initial,
+    required this.max,
+    required String this.hourUnit,
+    required String this.minuteUnit,
+    required String this.secondUnit,
+    required this.onChanged,
+  }) : step = const Duration(seconds: 1);
 
   /// One wheel of minutes:seconds ("1:30") in steps of [step].
   const ForgeDurationWheel.minutesSeconds({
@@ -590,7 +634,8 @@ class ForgeDurationWheel extends StatefulWidget {
     required this.step,
     required this.onChanged,
   }) : hourUnit = null,
-       minuteUnit = null;
+       minuteUnit = null,
+       secondUnit = null;
 
   /// What screen readers call the dialog ("Duration").
   final String label;
@@ -599,6 +644,7 @@ class ForgeDurationWheel extends StatefulWidget {
   final Duration step;
   final String? hourUnit;
   final String? minuteUnit;
+  final String? secondUnit;
   final ValueChanged<Duration> onChanged;
 
   @override
@@ -609,6 +655,25 @@ class _ForgeDurationWheelState extends State<ForgeDurationWheel> {
   late Duration _value = widget.initial;
 
   static const _columnWidth = 64.0;
+
+  /// The width of [row] as a wheel's centre row draws it.
+  static double _rowWidth(BuildContext context, String row) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: row,
+        style: ForgeStyle.of(context).data.copyWith(
+          fontSize: _NumberPickerState._wheelSizes.first,
+          height: 1,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.width.ceilToDouble();
+    painter.dispose();
+    return width;
+  }
 
   void _set(Duration value) {
     setState(() => _value = value > widget.max ? widget.max : value);
@@ -623,21 +688,8 @@ class _ForgeDurationWheelState extends State<ForgeDurationWheel> {
       final step = widget.step.inMilliseconds;
       String format(Duration at) =>
           '${at.inMinutes}:${'${at.inSeconds % 60}'.padLeft(2, '0')}';
-      // Wide enough for the longest row, max, at the centre row's size.
-      final widest = TextPainter(
-        text: TextSpan(
-          text: format(widget.max),
-          style: ForgeStyle.of(context).data.copyWith(
-            fontSize: _NumberPickerState._wheelSizes.first,
-            height: 1,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        textScaler: MediaQuery.textScalerOf(context),
-      )..layout();
-      final width = widest.width.ceilToDouble();
-      widest.dispose();
+      // Wide enough for the longest row, max.
+      final width = _rowWidth(context, format(widget.max));
       return _WheelDialog(
         label: widget.label,
         wheels: [
@@ -656,36 +708,61 @@ class _ForgeDurationWheelState extends State<ForgeDurationWheel> {
     }
     final hours = _value.inHours;
     final minutes = _value.inMinutes % 60;
+    final seconds = _value.inSeconds % 60;
+    final secondUnit = widget.secondUnit;
     final style = Theme.of(context).textTheme.bodyMedium!
         .copyWith(color: ForgeStyle.of(context).colors.inkMuted);
     Widget unit(String text) =>
         ExcludeSemantics(child: Text(text, style: style));
+    // Three wheels and their units fit the dialog only as wide as their
+    // rows.
+    final columnWidth = secondUnit == null
+        ? _columnWidth
+        : _rowWidth(context, '${widget.max.inHours}'.padLeft(2, '0'));
+    Widget wheel(NumberPicker picker) =>
+        SizedBox(width: columnWidth, child: picker);
+    Duration at({int? h, int? m, int? s}) => Duration(
+      hours: h ?? hours,
+      minutes: m ?? minutes,
+      seconds: s ?? seconds,
+    );
     return _WheelDialog(
       label: widget.label,
       wheels: [
-        SizedBox(
-          width: _columnWidth,
-          child: NumberPicker._column(
+        wheel(
+          NumberPicker._column(
             label: words.timePickerHourLabel,
             count: widget.max.inHours + 1,
             index: hours,
             format: (i) => '$i',
-            onIndex: (i) => _set(Duration(hours: i, minutes: minutes)),
+            onIndex: (i) => _set(at(h: i)),
           ),
         ),
         unit(widget.hourUnit!),
-        SizedBox(
-          width: _columnWidth,
-          child: NumberPicker._column(
+        wheel(
+          NumberPicker._column(
             label: words.timePickerMinuteLabel,
             count: 60,
             index: minutes,
             format: (i) => '$i'.padLeft(2, '0'),
-            onIndex: (i) => _set(Duration(hours: hours, minutes: i)),
+            onIndex: (i) => _set(at(m: i)),
             loop: true,
           ),
         ),
         unit(minuteUnit),
+        if (secondUnit != null) ...[
+          wheel(
+            NumberPicker._column(
+              label: secondUnit,
+              count: 60,
+              index: seconds,
+              format: (i) => '$i'.padLeft(2, '0'),
+              onIndex: (i) => _set(at(s: i)),
+              loop: true,
+            ),
+          ),
+          unit(secondUnit),
+        ],
       ],
     );
   }
@@ -723,10 +800,15 @@ class _WheelDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(style.radii.md),
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: Gap.sm,
-                  children: wheels,
+                // Large text shrinks the wheels to fit rather than
+                // overflow.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: Gap.sm,
+                    children: wheels,
+                  ),
                 ),
               ],
             ),

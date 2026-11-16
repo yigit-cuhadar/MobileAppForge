@@ -32,25 +32,29 @@ enum DayState {
 /// One day as a circle in its [state]: a 34px day with its [number], or a
 /// 12px legend mark with none. A [selected] day gains a 1.5px accent ring
 /// 2px outside its mark; a day with no mark becomes accent-soft inside the
-/// ring's place.
+/// ring's place. A [disabled] day, one that cannot be picked, has its
+/// number in line-strong.
 class DayCircle extends StatelessWidget {
   const DayCircle({
     super.key,
     required this.state,
     required String this.number,
     this.selected = false,
+    this.disabled = false,
   }) : size = daySize;
 
   const DayCircle.legend({super.key, required this.state})
     : assert(state != DayState.todayDone),
       number = null,
       size = legendSize,
-      selected = false;
+      selected = false,
+      disabled = false;
 
   final DayState state;
   final String? number;
   final double size;
   final bool selected;
+  final bool disabled;
 
   static const double daySize = 34;
   static const double legendSize = 12;
@@ -87,7 +91,7 @@ class DayCircle extends StatelessWidget {
               maxLines: 1,
               style: style.data.copyWith(
                 fontSize: 13,
-                color: ink,
+                color: disabled ? p.lineStrong : ink,
                 fontWeight: state == DayState.today ? FontWeight.w600 : null,
               ),
             ),

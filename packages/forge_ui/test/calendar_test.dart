@@ -342,4 +342,131 @@ void main() {
     );
     expect(ring.foregroundPainter, isNotNull);
   });
+
+  group('ForgeDatePicker', () {
+    late List<DateTime?> picked;
+
+    setUp(() => picked = []);
+
+    Future<void> openPicker(WidgetTester tester, {DateTime? initial}) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async => picked.add(
+                  await showForgeDatePicker(
+                    context: context,
+                    picker: ForgeDatePicker(
+                      title: 'Select date',
+                      initial: initial ?? DateTime(2026, 11, 13, 8, 10),
+                      lastDate: DateTime(2026, 11, 13, 23),
+                      firstWeekday: DateTime.monday,
+                      weekdays: weekdays,
+                      okLabel: 'OK',
+                      cancelLabel: 'Cancel',
+                    ),
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    Finder day(String number) => find
+        .descendant(
+          of: find.byType(ForgeDatePicker),
+          matching: find.text(number),
+        )
+        .first;
+
+    testWidgets('shows the chosen day and its month, the day filled', (
+      tester,
+    ) async {
+      await openPicker(tester);
+
+      expect(find.text('Select date'), findsOneWidget);
+      expect(find.text('Fri, Nov 13'), findsOneWidget);
+      expect(find.text('November 2026'), findsOneWidget);
+      expect(
+        tester.widget<DayCircle>(
+          find.ancestor(of: day('13'), matching: find.byType(DayCircle)),
+        ),
+        isA<DayCircle>().having((c) => c.state, 'state', DayState.done),
+      );
+    });
+
+    testWidgets('OK returns the tapped day as a date', (tester) async {
+      await openPicker(tester);
+
+      await tester.tap(day('10'));
+      await tester.pump();
+      expect(find.text('Tue, Nov 10'), findsOneWidget);
+
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(picked, [DateTime(2026, 11, 10)]);
+      expect(find.byType(ForgeDatePicker), findsNothing);
+    });
+
+    testWidgets('Cancel returns null', (tester) async {
+      await openPicker(tester);
+
+      await tester.tap(day('10'));
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(picked, [null]);
+    });
+
+    testWidgets('days after the last date are line-strong and take no tap', (
+      tester,
+    ) async {
+      await openPicker(tester);
+
+      final colors = ForgeStyle.of(tester.element(find.byType(ForgeDatePicker)))
+          .colors;
+      expect(tester.widget<Text>(day('14')).style?.color, colors.lineStrong);
+      await tester.tap(day('14'));
+      await tester.pump();
+      expect(find.text('Fri, Nov 13'), findsOneWidget);
+    });
+
+    testWidgets('the next arrow is off in the last month; previous steps '
+        'back and next returns', (tester) async {
+      await openPicker(tester);
+
+      await tester.tap(find.bySemanticsLabel('Next month'));
+      await tester.pump();
+      expect(find.text('November 2026'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Previous month'));
+      await tester.pump();
+      expect(find.text('October 2026'), findsOneWidget);
+      expect(find.text('Fri, Nov 13'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Next month'));
+      await tester.pump();
+      expect(find.text('November 2026'), findsOneWidget);
+    });
+
+    testWidgets('a day of the month before is picked and shows its month', (
+      tester,
+    ) async {
+      await openPicker(tester);
+
+      // The first week starts on Monday, October 26.
+      await tester.tap(day('26'));
+      await tester.pump();
+
+      expect(find.text('Mon, Oct 26'), findsOneWidget);
+      expect(find.text('October 2026'), findsOneWidget);
+    });
+  });
 }
