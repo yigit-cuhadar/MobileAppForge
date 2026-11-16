@@ -303,3 +303,34 @@ Widget dateBox(BuildContext context) => _page(
     ),
   ),
 );
+
+@widgetbook.UseCase(name: 'Data title and value', type: ListRow)
+Widget dataListRows(BuildContext context) => _page(
+  ListRowCard(
+    children: [
+      const ListRow(
+        title: 'Item title',
+        detail: '[DATE]',
+        value: '82.5 [UNIT] × 8',
+        dataValue: true,
+      ),
+      ListRow(
+        title: '80 × 8 · [VALUE]',
+        detail: '[DATE] · Item title',
+        dataTitle: true,
+        end: ListRowEnd.chevron,
+        onTap: () {},
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Muted', type: ListRow)
+Widget mutedListRows(BuildContext context) => _page(
+  const ListRowCard(
+    children: [
+      ListRow(title: 'Item title', detail: 'Item detail'),
+      ListRow(title: 'Item no longer here', detail: 'Item detail', muted: true),
+    ],
+  ),
+);

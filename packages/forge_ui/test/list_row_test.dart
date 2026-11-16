@@ -444,4 +444,32 @@ void main() {
     expect(moved.first, 0);
     expect(moved.last, greaterThan(0));
   });
+
+  testWidgets('data title and value use the data font', (tester) async {
+    await pump(
+      tester,
+      const ListRowCard(
+        children: [
+          ListRow(title: '80 × 8', detail: 'Item detail', dataTitle: true),
+          ListRow(title: 'Item title', value: '[VALUE]', dataValue: true),
+        ],
+      ),
+    );
+    final data = ForgeStyle.of(tester.element(find.byType(Scaffold)))
+        .data
+        .fontFamily;
+    TextStyle style(String t) => tester.widget<Text>(find.text(t)).style!;
+
+    expect(style('80 × 8').fontFamily, data);
+    expect(style('80 × 8').color, colors(tester).ink);
+    expect(style('Item detail').fontFamily, isNot(data));
+    expect(style('[VALUE]').fontFamily, data);
+    expect(style('[VALUE]').color, colors(tester).inkMuted);
+    expect(style('Item title').fontFamily, isNot(data));
+  });
+
+  testWidgets('a muted row has its title in ink-muted', (tester) async {
+    await pump(tester, const ListRow(title: 'Item title', muted: true));
+    expect(textColor(tester, 'Item title'), colors(tester).inkMuted);
+  });
 }

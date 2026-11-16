@@ -147,6 +147,9 @@ class ListRow extends StatelessWidget {
     this.locked = false,
     this.busy = false,
     this.disabled = false,
+    this.muted = false,
+    this.dataTitle = false,
+    this.dataValue = false,
   }) : assert(checked == null || leading == null),
        assert(
          (onInfo == null) == (infoLabel == null),
@@ -175,6 +178,9 @@ class ListRow extends StatelessWidget {
       locked = false,
       busy = false,
       disabled = false,
+      muted = false,
+      dataTitle = false,
+      dataValue = false,
       loading = true;
 
   final String? title;
@@ -219,6 +225,16 @@ class ListRow extends StatelessWidget {
   /// Cannot be picked now (a full item): its text and end mark in
   /// line-strong, no tap.
   final bool disabled;
+
+  /// The title in ink-muted: an entry that is gone or set aside, still
+  /// listed.
+  final bool muted;
+
+  /// The title in the data font, for a figure such as a set ("80 × 8").
+  final bool dataTitle;
+
+  /// The value in the data font, for a figure such as a record.
+  final bool dataValue;
   final bool loading;
   final int _skeleton;
 
@@ -259,7 +275,7 @@ class ListRow extends StatelessWidget {
         ? colors.lineStrong
         : destructive
         ? colors.danger
-        : locked
+        : locked || muted
         ? colors.inkMuted
         : on
         ? colors.onAccentSoft
@@ -283,9 +299,11 @@ class ListRow extends StatelessWidget {
         : this.leading;
 
     final prominent = this.leading is ListRowDateBox || onInfo != null;
+    final data = ForgeStyle.of(context).data;
+    final titleStyle = prominent ? text.titleMedium! : text.bodyMedium!;
     Widget title = Text(
       this.title!,
-      style: (prominent ? text.titleMedium! : text.bodyMedium!).copyWith(
+      style: (dataTitle ? _data(data, titleStyle) : titleStyle).copyWith(
         color: titleColor,
       ),
     );
@@ -347,9 +365,9 @@ class ListRow extends StatelessWidget {
             child: Text(
               value!,
               textAlign: TextAlign.end,
-              style: disabled
-                  ? text.bodySmall!.copyWith(color: colors.lineStrong)
-                  : text.bodySmall,
+              style:
+                  (dataValue ? _data(data, text.bodySmall!) : text.bodySmall!)
+                      .copyWith(color: disabled ? colors.lineStrong : null),
             ),
           ),
         ?trailing,
@@ -396,6 +414,14 @@ class ListRow extends StatelessWidget {
     }
     return result;
   }
+
+  /// The data font at the size and weight of [role].
+  static TextStyle _data(TextStyle data, TextStyle role) => data.copyWith(
+    fontSize: role.fontSize,
+    height: role.height,
+    fontWeight: role.fontWeight,
+    color: role.color,
+  );
 
   Widget? _endMark(ForgePalette colors) {
     final color = disabled ? colors.lineStrong : colors.inkMuted;
