@@ -185,6 +185,24 @@ void main() {
       expect(retries, 1);
     });
 
+    testWidgets('without a summary the letters lead the card', (tester) async {
+      await pump(
+        tester,
+        MonthGrid(
+          month: DateTime(2026, 11),
+          firstWeekday: DateTime.monday,
+          weekdays: weekdays,
+          stateOf: (_) => DayState.none,
+          legend: const {},
+        ),
+      );
+      final card = tester.getRect(find.byType(MonthGrid));
+      expect(
+        tester.getTopLeft(find.text('M')).dy - card.top,
+        lessThan(Gap.md + 16),
+      );
+    });
+
     testWidgets('loading keeps the weekday letters', (tester) async {
       await pump(tester, const MonthGrid.loading(weekdays: weekdays));
       expect(find.text('M'), findsOneWidget);

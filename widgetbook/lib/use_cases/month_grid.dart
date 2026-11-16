@@ -101,6 +101,25 @@ class _SelectableMonthState extends State<_SelectableMonth> {
   ]);
 }
 
+@widgetbook.UseCase(name: 'Nothing this month', type: MonthGrid)
+Widget emptyMonthGrid(BuildContext context) => _page([
+  _period,
+  MonthGrid(
+    month: DateTime(2026, 11),
+    firstWeekday: DateTime.monday,
+    weekdays: _weekdays,
+    stateOf: (day) =>
+        day == DateTime(2026, 11, 13) ? DayState.today : DayState.none,
+    legend: const {
+      DayState.done: 'Done',
+      DayState.light: 'Light',
+      DayState.planned: 'Planned',
+      DayState.missed: 'Missed',
+      DayState.today: 'Today',
+    },
+  ),
+]);
+
 @widgetbook.UseCase(name: 'Error', type: MonthGrid)
 Widget errorMonthGrid(BuildContext context) => _page([
   _period,

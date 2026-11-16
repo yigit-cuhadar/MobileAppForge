@@ -7,7 +7,7 @@ import 'day_circle.dart';
 import 'error_line.dart';
 import 'skeleton.dart';
 
-/// A month of day circles in a card: a [summary] line, the [weekdays]
+/// A month of day circles in a card: an optional [summary] line, the [weekdays]
 /// letters, the weeks that hold the month and a [legend]. Days of the
 /// weeks outside the month show at 35%. A tap on a day calls [onDayTap];
 /// the [selected] day carries the selected ring. A PeriodSelector above
@@ -19,7 +19,7 @@ class MonthGrid extends StatelessWidget {
     required this.firstWeekday,
     required this.weekdays,
     required DayState Function(DateTime day) this.stateOf,
-    required String this.summary,
+    this.summary,
     required Map<DayState, String> this.legend,
     this.selected,
     this.onDayTap,
@@ -133,10 +133,14 @@ class MonthGrid extends StatelessWidget {
     final length = DateTime(month.year, month.month + 1, 0).day;
     final count = ((lead + length) / 7).ceil() * 7;
     return _card([
-      Text(
-        summary!,
-        style: style.data.copyWith(fontSize: 11, color: style.colors.inkMuted),
-      ),
+      if (summary case final summary?)
+        Text(
+          summary,
+          style: style.data.copyWith(
+            fontSize: 11,
+            color: style.colors.inkMuted,
+          ),
+        ),
       letters,
       _weeks([
         for (var i = 0; i < count; i++)
