@@ -9,7 +9,9 @@ import 'forge_button.dart';
 
 /// Asks for a permission and says why, centred: an icon in a circle, a
 /// title, one sentence, the main button and an optional text button under
-/// it; when the device lacks what is asked for, one secondary button. In a card (the default) it replaces a page's content while the
+/// it; when the device lacks what is asked for, one secondary button. An
+/// ask may end in a muted [note] under its buttons. In a card (the
+/// default) it replaces a page's content while the
 /// permission is missing; with [page] it is an onboarding step and its main
 /// button is the 48px bottom-of-page one.
 class PermissionPrompt extends StatelessWidget {
@@ -23,6 +25,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onAllow,
     this.skipLabel,
     this.onSkip,
+    this.note,
     this.page = false,
   }) : _state = _State.ask,
        actionLabel = allowLabel,
@@ -40,6 +43,7 @@ class PermissionPrompt extends StatelessWidget {
     VoidCallback? onAskAgain,
     this.page = false,
   }) : _state = _State.refused,
+       note = null,
        icon = null,
        actionLabel = settingsLabel,
        onAction = onOpenSettings,
@@ -55,6 +59,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onRetry,
     this.page = false,
   }) : _state = _State.failed,
+       note = null,
        icon = null,
        actionLabel = retryLabel,
        onAction = onRetry,
@@ -73,6 +78,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onNotNow,
     this.page = false,
   }) : _state = _State.missing,
+       note = null,
        icon = null,
        actionLabel = getLabel,
        onAction = onGet,
@@ -90,6 +96,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onSkip,
     this.page = false,
   }) : _state = _State.unavailable,
+       note = null,
        actionLabel = skipLabel,
        onAction = onSkip,
        skipLabel = null,
@@ -104,6 +111,9 @@ class PermissionPrompt extends StatelessWidget {
   /// The text button under the main one.
   final String? skipLabel;
   final VoidCallback? onSkip;
+
+  /// A muted line under the buttons, such as where to turn access back on.
+  final String? note;
   final bool page;
   final _State _state;
 
@@ -142,6 +152,15 @@ class PermissionPrompt extends StatelessWidget {
             label: skipLabel,
             onPressed: onSkip,
             variant: ForgeButtonVariant.text,
+          ),
+        if (note case final note?)
+          Text(
+            note,
+            textAlign: TextAlign.center,
+            style: text.labelMedium!.copyWith(
+              color: colors.inkMuted,
+              fontWeight: FontWeight.w400,
+            ),
           ),
       ],
     );

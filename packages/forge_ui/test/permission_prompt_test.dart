@@ -32,6 +32,31 @@ void main() {
     expect(allowed, 1);
   });
 
+  testWidgets('a note sits muted under the buttons', (tester) async {
+    await pump(
+      tester,
+      PermissionPrompt.ask(
+        icon: ForgeIcons.favorite,
+        title: 'See your [DATA] here',
+        message: 'Nothing else is read.',
+        allowLabel: 'Allow access',
+        onAllow: () {},
+        note: 'Turned it off before? Open [SETTINGS].',
+      ),
+    );
+
+    final note = find.text('Turned it off before? Open [SETTINGS].');
+    expect(
+      tester.getTopLeft(note).dy,
+      greaterThan(tester.getBottomLeft(find.byType(ForgeButton)).dy),
+    );
+    final context = tester.element(note);
+    expect(
+      tester.widget<Text>(note).style?.color,
+      ForgeStyle.of(context).colors.inkMuted,
+    );
+  });
+
   testWidgets('the full page has the 48px button and a skip link', (
     tester,
   ) async {

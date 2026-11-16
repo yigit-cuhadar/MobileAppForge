@@ -21,6 +21,9 @@ Widget askInCard(BuildContext context) => _page(
     ),
     allowLabel: 'Allow access',
     onAllow: () {},
+    note: context.knobs.boolean(label: 'Note', initialValue: false)
+        ? 'Turned it off before? Open [SETTINGS], then [SYSTEM APP].'
+        : null,
   ),
 );
 
