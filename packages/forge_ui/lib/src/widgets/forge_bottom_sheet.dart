@@ -18,19 +18,21 @@ Future<T?> showForgeBottomSheet<T>({
   builder: builder,
 );
 
-/// A sheet: grabber, title on the left with one optional text action right
-/// of it, the content, and the sheet's main action at the bottom. A choice
+/// A sheet: grabber, title on the left with an optional muted [subtitle]
+/// 2px under it and one optional text action right of them, the content, and the sheet's main action at the bottom. A choice
 /// sheet has no main action: a tap on a row chooses and closes it.
 class ForgeBottomSheet extends StatelessWidget {
   const ForgeBottomSheet({
     super.key,
     required this.title,
+    this.subtitle,
     this.headerAction,
     required this.child,
     this.action,
   });
 
   final String title;
+  final String? subtitle;
 
   /// A text action such as "Clear all".
   final Widget? headerAction;
@@ -70,12 +72,23 @@ class ForgeBottomSheet extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 2,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                      if (subtitle case final subtitle?)
+                        Text(
+                          subtitle,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
                   ),
                 ),
                 if (headerAction case final headerAction?)

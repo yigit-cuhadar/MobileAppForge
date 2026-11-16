@@ -67,3 +67,16 @@ Widget choiceSheet(BuildContext context) => _shown(
     child: _options(['Option one', 'Option two', 'Option three']),
   ),
 );
+
+@widgetbook.UseCase(name: 'Subtitle', type: ForgeBottomSheet)
+Widget subtitleSheet(BuildContext context) => _shown(
+  context,
+  ForgeBottomSheet(
+    title: 'Item title',
+    subtitle: context.knobs.string(
+      label: 'Subtitle',
+      initialValue: '[VALUE] · [DETAIL]',
+    ),
+    child: _options(['Option one', 'Option two', 'Option three']),
+  ),
+);
