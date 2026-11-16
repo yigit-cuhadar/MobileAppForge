@@ -11,11 +11,11 @@ import 'skeleton.dart';
 import 'state_views.dart';
 
 /// One bar of [Chart.bar]: its [label] under it and, once it has a
-/// [value], the [valueLabel] above it. A bar with no value yet is a short
-/// stub.
+/// [value], the [valueLabel] above it (none for a bar not worth a figure,
+/// such as zero). A bar with no value yet is a short stub.
 class ChartBar {
   const ChartBar({required this.label, this.value, this.valueLabel})
-    : assert((value == null) == (valueLabel == null));
+    : assert(value != null || valueLabel == null);
 
   final String label;
   final double? value;
@@ -625,7 +625,7 @@ class _BarChart extends StatelessWidget {
                                 ]
                               : [
                                   Text(
-                                    bar.valueLabel!,
+                                    bar.valueLabel ?? '',
                                     maxLines: 1,
                                     textAlign: TextAlign.center,
                                     overflow: TextOverflow.visible,
@@ -798,7 +798,7 @@ class _DenseBarChartState extends State<_DenseBarChart> {
                       height: 1.5,
                       child: CustomPaint(painter: _GoalPainter(colors.success)),
                     ),
-                  if (selected != null)
+                  if (selected != null && bars[selected].valueLabel != null)
                     Positioned.fill(
                       child: CustomSingleChildLayout(
                         delegate: _TagLayout(

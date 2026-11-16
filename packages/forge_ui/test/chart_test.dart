@@ -66,6 +66,28 @@ void main() {
     });
   });
 
+  testWidgets('a bar with a value and no label shows no figure above it', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const Chart.bar(
+        title: 'Count · 12 weeks',
+        detail: '[UNIT]',
+        bars: [
+          ChartBar(label: 'A', value: 0),
+          ChartBar(label: 'B', value: 30, valueLabel: '30'),
+        ],
+        current: 1,
+        semanticLabel: 'Count over 12 weeks',
+      ),
+    );
+
+    expect(find.text('30'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
+    expect(find.text('A'), findsOneWidget);
+  });
+
   testWidgets('Chart.bar writes values and marks the current bar', (
     tester,
   ) async {
