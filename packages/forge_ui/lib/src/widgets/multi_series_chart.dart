@@ -273,7 +273,8 @@ class MultiSeriesChart extends StatelessWidget {
       retryLabel = null;
 
   /// Nothing to chart yet: [emptyTitle], a [message] and up to two
-  /// [actions] (Buttons).
+  /// [actions] (Buttons). Nothing in the chosen range keeps the [range]
+  /// control and the [lockedCaption] under them, as the filled form.
   const MultiSeriesChart.empty({
     super.key,
     required this.title,
@@ -281,7 +282,11 @@ class MultiSeriesChart extends StatelessWidget {
     required String emptyTitle,
     required String this.message,
     this.actions = const [],
-  }) : _state = _State.empty,
+    this.range,
+    this.lockedCaption,
+    this.onLockedCaptionTap,
+  }) : assert((lockedCaption == null) == (onLockedCaptionTap == null)),
+       _state = _State.empty,
        _messageTitle = emptyTitle,
        series = null,
        from = null,
@@ -293,10 +298,7 @@ class MultiSeriesChart extends StatelessWidget {
        addLabel = null,
        onAdd = null,
        adding = false,
-       range = null,
        caption = null,
-       lockedCaption = null,
-       onLockedCaptionTap = null,
        semanticLabel = null,
        onRetry = null,
        retryLabel = null;
@@ -411,6 +413,9 @@ class MultiSeriesChart extends StatelessWidget {
           actions: actions,
           compact: true,
         ),
+        ?range,
+        if (lockedCaption != null)
+          _LockedCaption(text: lockedCaption!, onTap: onLockedCaptionTap!),
       ],
       _State.error => [
         ErrorView(

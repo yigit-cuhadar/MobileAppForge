@@ -232,6 +232,28 @@ Widget emptySeries(BuildContext context) => _page([
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Empty range', type: MultiSeriesChart)
+Widget emptyRangeSeries(BuildContext context) => _page([
+  MultiSeriesChart.empty(
+    title: '12 weeks',
+    emptyTitle: 'Nothing in this range',
+    message: 'Nothing to show in this range yet.',
+    range: ForgeSegmentedControl<int>(
+      segments: const [
+        ForgeSegment(value: 0, label: '12 weeks'),
+        ForgeSegment(value: 1, label: '6 months', locked: true),
+        ForgeSegment(value: 2, label: '1 year', locked: true),
+        ForgeSegment(value: 3, label: 'All', locked: true),
+      ],
+      selected: 0,
+      onChanged: (_) {},
+      onLocked: (_) {},
+    ),
+    lockedCaption: 'See older results with Premium',
+    onLockedCaptionTap: () {},
+  ),
+]);
+
 @widgetbook.UseCase(name: 'Error', type: MultiSeriesChart)
 Widget errorSeries(BuildContext context) => _page([
   MultiSeriesChart.error(
