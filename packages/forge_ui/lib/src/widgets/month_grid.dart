@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../icons/forge_icon.dart';
+import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
+import '../theme/forge_theme.dart';
 import 'card_frame.dart';
 import 'day_circle.dart';
 import 'error_line.dart';
+import 'forge_button.dart';
+import 'forge_dialog.dart';
 import 'skeleton.dart';
 
 /// A month of day circles in a card: an optional [summary] line, the [weekdays]
@@ -217,10 +222,244 @@ class MonthGrid extends StatelessWidget {
     children: [for (final cell in cells) Expanded(child: cell)],
   );
 
-  static Widget _weeks(List<Widget> cells) => Column(
-    spacing: Gap.sm,
+  static Widget _weeks(List<Widget> cells, {double spacing = Gap.sm}) => Column(
+    spacing: spacing,
     children: [
       for (var i = 0; i < cells.length; i += 7) _week(cells.sublist(i, i + 7)),
     ],
   );
+}
+
+/// Shows a [ForgeDatePicker] over a scrim. Returns the picked day, or null
+/// after Cancel or a tap outside.
+Future<DateTime?> showForgeDatePicker({
+  required BuildContext context,
+  required ForgeDatePicker picker,
+}) => showDialog<DateTime>(context: context, builder: (_) => picker);
+
+/// A centred dialog to pick a day: the [title] ("Select date") over the
+/// chosen day as a headline, the month between previous and next arrows,
+/// the month's days as [MonthGrid] draws them with the chosen day filled
+/// accent, then the [okLabel] button over the [cancelLabel] one. Days after
+/// [lastDate] are line-strong and cannot be picked, and the next arrow
+/// fades once no later month holds a day to pick. Tapping a day of the
+/// month before or after picks it and shows its month.
+class ForgeDatePicker extends StatefulWidget {
+  const ForgeDatePicker({
+    super.key,
+    required this.title,
+    required this.initial,
+    required this.lastDate,
+    required this.firstWeekday,
+    required this.weekdays,
+    required this.okLabel,
+    required this.cancelLabel,
+  });
+
+  final String title;
+  final DateTime initial;
+  final DateTime lastDate;
+
+  /// The week's first day, [DateTime.monday] to [DateTime.sunday].
+  final int firstWeekday;
+
+  /// Seven letters, from [firstWeekday] on.
+  final List<String> weekdays;
+  final String okLabel;
+  final String cancelLabel;
+
+  @override
+  State<ForgeDatePicker> createState() => _ForgeDatePickerState();
+}
+
+class _ForgeDatePickerState extends State<ForgeDatePicker> {
+  late DateTime _selected = DateUtils.dateOnly(widget.initial);
+  late DateTime _month = DateTime(_selected.year, _selected.month);
+
+  DateTime get _last => DateUtils.dateOnly(widget.lastDate);
+
+  void _pick(DateTime day) => setState(() {
+    _selected = day;
+    _month = DateTime(day.year, day.month);
+  });
+
+  void _show(int months) =>
+      setState(() => _month = DateTime(_month.year, _month.month + months));
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ForgeStyle.of(context);
+    final colors = style.colors;
+    final text = Theme.of(context).textTheme;
+    final words = MaterialLocalizations.of(context);
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final next = DateTime(_month.year, _month.month + 1);
+    final first = DateTime(_month.year, _month.month);
+    final lead = (first.weekday - widget.firstWeekday) % 7;
+    final length = DateTime(_month.year, _month.month + 1, 0).day;
+    final count = ((lead + length) / 7).ceil() * 7;
+    return Dialog(
+      insetPadding: const EdgeInsets.all(Gap.md),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: ForgeDialog.maxWidth),
+        child: Semantics(
+          namesRoute: true,
+          scopesRoute: true,
+          explicitChildNodes: true,
+          label: widget.title,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Gap.md,
+              vertical: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 12,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 2,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: text.labelMedium!.copyWith(
+                        color: colors.inkMuted,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    Text(
+                      words.formatMediumDate(_selected),
+                      style: text.titleLarge!.copyWith(
+                        fontSize: 22,
+                        height: 28 / 22,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _MonthArrow(
+                      icon: rtl
+                          ? ForgeIcons.chevronRight
+                          : ForgeIcons.chevronLeft,
+                      label: words.previousMonthTooltip,
+                      onTap: () => _show(-1),
+                    ),
+                    Expanded(
+                      child: Text(
+                        words.formatMonthYear(_month),
+                        textAlign: TextAlign.center,
+                        style: text.titleMedium,
+                      ),
+                    ),
+                    _MonthArrow(
+                      icon: rtl
+                          ? ForgeIcons.chevronLeft
+                          : ForgeIcons.chevronRight,
+                      label: words.nextMonthTooltip,
+                      onTap: next.isAfter(_last) ? null : () => _show(1),
+                    ),
+                  ],
+                ),
+                MonthGrid._week([
+                  for (final letter in widget.weekdays)
+                    Text(
+                      letter,
+                      textAlign: TextAlign.center,
+                      style: text.labelSmall!.copyWith(
+                        color: colors.inkSubtle,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ]),
+                MonthGrid._weeks(spacing: Gap.xs, [
+                  for (var i = 0; i < count; i++)
+                    _day(DateTime(_month.year, _month.month, 1 - lead + i)),
+                ]),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: Gap.sm,
+                  children: [
+                    ForgeButton(
+                      label: widget.okLabel,
+                      onPressed: () => Navigator.pop(context, _selected),
+                    ),
+                    ForgeButton(
+                      label: widget.cancelLabel,
+                      variant: ForgeButtonVariant.secondary,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _day(DateTime day) {
+    final selected = DateUtils.isSameDay(day, _selected);
+    final disabled = day.isAfter(_last);
+    Widget circle = Center(
+      child: DayCircle(
+        state: selected ? DayState.done : DayState.none,
+        number: '${day.day}',
+        disabled: disabled,
+      ),
+    );
+    if (day.month != _month.month) {
+      circle = Opacity(opacity: MonthGrid._outsideOpacity, child: circle);
+    }
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: !disabled,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: disabled ? null : () => _pick(day),
+        child: circle,
+      ),
+    );
+  }
+}
+
+/// A month arrow: ink-muted, line-strong when [onTap] is null.
+class _MonthArrow extends StatelessWidget {
+  const _MonthArrow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final ForgeIconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ForgeStyle.of(context).colors;
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox.square(
+          dimension: ForgeTheme.tapMin,
+          child: Center(
+            child: ForgeIcon(
+              icon,
+              size: 20,
+              color: onTap == null ? colors.lineStrong : colors.inkMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

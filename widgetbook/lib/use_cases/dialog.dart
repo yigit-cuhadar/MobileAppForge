@@ -61,3 +61,66 @@ Widget fieldDialog(BuildContext context) => _shown(
     cancel: _cancel,
   ),
 );
+
+@widgetbook.UseCase(name: 'Title only', type: ForgeDialog)
+Widget titleOnlyDialog(BuildContext context) => _shown(
+  context,
+  ForgeDialog(
+    title: 'Remove this item?',
+    action: ForgeButton(
+      label: 'Remove',
+      onPressed: () {},
+      variant: ForgeButtonVariant.danger,
+    ),
+    cancel: _cancel,
+  ),
+);
+
+@widgetbook.UseCase(name: 'List', type: ForgeDialog)
+Widget listDialog(BuildContext context) => const _ListDialog();
+
+/// Taps check and uncheck the rows, as an app would.
+class _ListDialog extends StatefulWidget {
+  const _ListDialog();
+
+  @override
+  State<_ListDialog> createState() => _ListDialogState();
+}
+
+class _ListDialogState extends State<_ListDialog> {
+  final _checked = {0, 1, 3, 4};
+
+  static const _rows = [
+    ('Item one', 'Needs Item two, Item five.'),
+    ('Item two', 'Part of item one'),
+    ('Item three', null),
+    ('Item four', null),
+    ('Item five', 'Part of item one'),
+    ('Item six', null),
+    ('Item seven', null),
+    ('Item eight', null),
+    ('Item nine', null),
+    ('Item ten', null),
+  ];
+
+  @override
+  Widget build(BuildContext context) => _shown(
+    context,
+    ForgeDialog.list(
+      title: 'Items to show',
+      list: [
+        for (final (i, (title, detail)) in _rows.indexed)
+          ListRow(
+            title: title,
+            detail: detail,
+            checked: _checked.contains(i),
+            onTap: () => setState(
+              () => _checked.contains(i) ? _checked.remove(i) : _checked.add(i),
+            ),
+          ),
+      ],
+      action: ForgeButton(label: 'Done', onPressed: () {}),
+      cancel: _cancel,
+    ),
+  );
+}

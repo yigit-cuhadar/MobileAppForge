@@ -44,6 +44,23 @@ Widget numberPickerRuler(BuildContext context) => _card(
   ),
 );
 
+@widgetbook.UseCase(name: 'Ruler, value tappable', type: NumberPicker)
+Widget numberPickerRulerTappable(BuildContext context) => _card(
+  _Live(
+    value: 180,
+    builder: (value, onChanged) => NumberPicker.ruler(
+      label: 'Amount',
+      unit: '[UNIT]',
+      min: 100,
+      max: 250,
+      step: 1,
+      value: value,
+      onChanged: onChanged,
+      onValueTap: () {},
+    ),
+  ),
+);
+
 /// The time wheel over the scrim, as [showForgeTimeWheel] shows it.
 Widget _timeWheel(BuildContext context, {required bool h24}) => ColoredBox(
   color: Theme.of(context).colorScheme.scrim,
@@ -105,6 +122,23 @@ Widget durationMinutesSeconds(BuildContext context) => _durationWheel(
     initial: const Duration(minutes: 1, seconds: 30),
     max: const Duration(minutes: 10),
     step: const Duration(seconds: 15),
+    onChanged: (_) {},
+  ),
+);
+
+@widgetbook.UseCase(
+  name: 'Duration wheel · hours, minutes and seconds',
+  type: ForgeDurationWheel,
+)
+Widget durationHoursMinutesSeconds(BuildContext context) => _durationWheel(
+  context,
+  ForgeDurationWheel.hoursMinutesSeconds(
+    label: 'Duration',
+    initial: const Duration(minutes: 28, seconds: 40),
+    max: const Duration(hours: 24),
+    hourUnit: 'h',
+    minuteUnit: 'min',
+    secondUnit: 's',
     onChanged: (_) {},
   ),
 );

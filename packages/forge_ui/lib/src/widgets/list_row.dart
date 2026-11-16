@@ -239,6 +239,7 @@ class ListRow extends StatelessWidget {
   final int _skeleton;
 
   static const _minHeight = 52.0;
+  static const _flushMinHeight = 40.0;
 
   // Title and detail bar widths of loading rows, in turn.
   static const _skeletons = [(0.55, 0.35), (0.45, 0.30), (0.60, 0.40)];
@@ -270,14 +271,17 @@ class ListRow extends StatelessWidget {
       );
     }
 
+    final flush = ListRowFlush._of(context);
     final on = checked ?? false;
+    // A checked row turns accent-soft, except flush in a dialog's list.
+    final tinted = on && !flush;
     final titleColor = disabled
         ? colors.lineStrong
         : destructive
         ? colors.danger
         : locked || muted
         ? colors.inkMuted
-        : on
+        : tinted
         ? colors.onAccentSoft
         : colors.ink;
     final detailColor = disabled
@@ -286,7 +290,7 @@ class ListRow extends StatelessWidget {
         ? colors.danger
         : locked
         ? colors.inkSubtle
-        : on
+        : tinted
         ? colors.onAccentSoft
         : colors.inkMuted;
     final line = error ?? detail;
@@ -388,7 +392,7 @@ class ListRow extends StatelessWidget {
       builder: (context, constraints) => rowOf(constraints.maxWidth),
     );
 
-    final tint = on
+    final tint = tinted
         ? colors.accentSoft
         : missing
         ? Color.lerp(colors.surface, colors.danger, 0.08)
@@ -399,8 +403,11 @@ class ListRow extends StatelessWidget {
       child: InkWell(
         onTap: disabled ? null : onTap,
         child: info == null && handle == null
-            ? _frame(row)
-            : TapBandArea(links: [?info, ?handle], child: _frame(row)),
+            ? _frame(row, flush: flush)
+            : TapBandArea(
+                links: [?info, ?handle],
+                child: _frame(row, flush: flush),
+              ),
       ),
     );
     if (checked != null || disabled) {
@@ -440,13 +447,30 @@ class ListRow extends StatelessWidget {
     };
   }
 
-  Widget _frame(Widget child) => ConstrainedBox(
-    constraints: const BoxConstraints(minHeight: _minHeight),
+  Widget _frame(Widget child, {bool flush = false}) => ConstrainedBox(
+    constraints: BoxConstraints(
+      minHeight: flush ? _flushMinHeight : _minHeight,
+    ),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+      padding: flush
+          ? const EdgeInsets.symmetric(vertical: Gap.xs)
+          : const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
       child: child,
     ),
   );
+}
+
+/// Draws the [ListRow]s under it flush: no side padding, 40px tall at
+/// least, and checked rows untinted. ForgeDialog's list puts its rows in
+/// one.
+class ListRowFlush extends InheritedWidget {
+  const ListRowFlush({super.key, required super.child});
+
+  static bool _of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ListRowFlush>() != null;
+
+  @override
+  bool updateShouldNotify(ListRowFlush oldWidget) => false;
 }
 
 /// A row's leading date: the weekday over the day of the month, marked as

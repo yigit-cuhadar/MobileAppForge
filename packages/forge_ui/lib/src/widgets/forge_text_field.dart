@@ -216,6 +216,9 @@ class _TextFormFieldState extends FormFieldState<String> {
 /// A compact number box at the end of a list row: the value in mono,
 /// right-aligned, with its [unit] small inside. The row's title is its
 /// [label], read out by screen readers. It takes taps across a 44px band.
+///
+/// A row of a left and right pair holds two boxes, each with its [side]
+/// ("Left", "Right") small at its start.
 class ForgeNumberField extends StatefulWidget {
   const ForgeNumberField({
     super.key,
@@ -223,6 +226,7 @@ class ForgeNumberField extends StatefulWidget {
     required String this.unit,
     required this.onChanged,
     this.controller,
+    this.side,
   }) : boxSize = size;
 
   /// A 34px box [width] wide with no unit, for values edited inside a row.
@@ -233,12 +237,14 @@ class ForgeNumberField extends StatefulWidget {
     required this.onChanged,
     this.controller,
   }) : unit = null,
+       side = null,
        boxSize = Size(width, compactHeight);
 
   final String label;
   final String? unit;
   final ValueChanged<String> onChanged;
   final TextEditingController? controller;
+  final String? side;
 
   /// The drawn box of this field.
   final Size boxSize;
@@ -272,6 +278,8 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
     final p = style.colors;
     final value = style.data.copyWith(fontSize: 14, color: p.ink);
     final typing = _focus.hasFocus;
+    final text = Theme.of(context).textTheme;
+    final side = widget.side;
     return Pressable(
       onTap: _focus.requestFocus,
       height: widget.boxSize.height,
@@ -292,9 +300,19 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
         child: Row(
           spacing: Gap.xs,
           children: [
+            if (side != null)
+              ExcludeSemantics(
+                child: Text(
+                  side,
+                  style: text.labelSmall!.copyWith(
+                    color: p.inkMuted,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
             Expanded(
               child: Semantics(
-                label: widget.label,
+                label: side == null ? widget.label : '${widget.label}, $side',
                 child: TextField(
                   controller: widget.controller,
                   focusNode: _focus,
@@ -314,8 +332,10 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
             if (widget.unit case final unit?)
               Text(
                 unit,
-                style: Theme.of(context).textTheme.labelMedium!
-                    .copyWith(color: p.inkMuted, fontWeight: FontWeight.w400),
+                style: text.labelMedium!.copyWith(
+                  color: p.inkMuted,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
           ],
         ),

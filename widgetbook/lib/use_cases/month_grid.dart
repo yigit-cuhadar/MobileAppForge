@@ -134,3 +134,17 @@ Widget errorMonthGrid(BuildContext context) => _page([
 @widgetbook.UseCase(name: 'Loading', type: MonthGrid)
 Widget loadingMonthGrid(BuildContext context) =>
     _page([const MonthGrid.loading(weekdays: _weekdays)]);
+
+@widgetbook.UseCase(name: 'Date picker', type: ForgeDatePicker)
+Widget datePicker(BuildContext context) => ColoredBox(
+  color: Theme.of(context).colorScheme.scrim,
+  child: ForgeDatePicker(
+    title: 'Select date',
+    initial: DateTime(2026, 11, 13),
+    lastDate: DateTime(2026, 11, 13),
+    firstWeekday: DateTime.monday,
+    weekdays: _weekdays,
+    okLabel: 'OK',
+    cancelLabel: 'Cancel',
+  ),
+);

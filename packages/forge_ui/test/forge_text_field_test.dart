@@ -282,6 +282,60 @@ void main() {
       expect(changes, ['36.5']);
     });
 
+    testWidgets('a pair of boxes, each with its side small at its start, '
+        'reports each side', (tester) async {
+      final left = <String>[];
+      final right = <String>[];
+      await pump(
+        tester,
+        ListRowCard(
+          children: [
+            ListRow(
+              title: 'Item title',
+              error: 'Enter both sides.',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: Gap.sm,
+                children: [
+                  // One-letter sides: the test font draws every glyph a
+                  // full em wide.
+                  ForgeNumberField(
+                    label: 'Item title',
+                    side: 'L',
+                    unit: 'cm',
+                    onChanged: left.add,
+                  ),
+                  ForgeNumberField(
+                    label: 'Item title',
+                    side: 'R',
+                    unit: 'cm',
+                    onChanged: right.add,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final leftBox = tester.getRect(find.byType(ForgeNumberField).first);
+      expect(
+        tester.getRect(find.text('L')).left,
+        lessThan(tester.getRect(find.byType(EditableText).first).left),
+      );
+      expect(leftBox.contains(tester.getCenter(find.text('L'))), isTrue);
+      expect(find.text('cm'), findsNWidgets(2));
+      expect(find.text('Enter both sides.'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Item title, L')), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Item title, R')), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).first, '36.5');
+      await tester.enterText(find.byType(TextField).last, '36');
+      expect(left, ['36.5']);
+      expect(right, ['36']);
+    });
+
     testWidgets('takes taps across a 44px band', (tester) async {
       await pump(
         tester,

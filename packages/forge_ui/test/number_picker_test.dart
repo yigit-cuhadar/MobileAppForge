@@ -62,6 +62,52 @@ void main() {
   }
 
   group('ruler', () {
+    testWidgets('with onValueTap the value is underlined and a tap on it '
+        'calls it', (tester) async {
+      var taps = 0;
+      await pump(
+        tester,
+        NumberPicker.ruler(
+          label: 'Amount',
+          unit: '[UNIT]',
+          min: 100,
+          max: 250,
+          step: 1,
+          value: 180,
+          onChanged: changes.add,
+          onValueTap: () => taps++,
+        ),
+      );
+
+      final underline = find.ancestor(
+        of: find.text('180'),
+        matching: find.byType(DecoratedBox),
+      );
+      expect(underline, findsOneWidget);
+      final colors = ForgeStyle.of(tester.element(find.text('180'))).colors;
+      expect(
+        (tester.widget<DecoratedBox>(underline).decoration as BoxDecoration)
+            .border,
+        Border(bottom: BorderSide(color: colors.line)),
+      );
+
+      await tester.tap(find.text('180'));
+      expect(taps, 1);
+      expect(changes, isEmpty);
+    });
+
+    testWidgets('without onValueTap the value is plain', (tester) async {
+      await pump(tester, ruler());
+
+      expect(
+        find.ancestor(
+          of: find.text('80.0'),
+          matching: find.byType(DecoratedBox),
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('shows the value and the unit, reports nothing until '
         'dragged', (tester) async {
       await pump(tester, ruler());
@@ -351,6 +397,101 @@ void main() {
 
       await turn(tester, '50', 15);
       expect(durations.last, const Duration(hours: 1, minutes: 5));
+    });
+
+    ForgeDurationWheel hoursMinutesSeconds(Duration initial, Duration max) =>
+        ForgeDurationWheel.hoursMinutesSeconds(
+          label: 'Duration',
+          initial: initial,
+          max: max,
+          hourUnit: 'h',
+          minuteUnit: 'min',
+          secondUnit: 's',
+          onChanged: durations.add,
+        );
+
+    testWidgets('hours, minutes and seconds, each with its unit, seconds in '
+        '1-second steps', (tester) async {
+      await pumpWheel(
+        tester,
+        hoursMinutesSeconds(
+          const Duration(minutes: 28, seconds: 40),
+          const Duration(hours: 24),
+        ),
+      );
+
+      for (final unit in ['h', 'min', 's']) {
+        expect(find.text(unit), findsOneWidget);
+      }
+      final h = tester.getCenter(find.text('h')).dx;
+      final min = tester.getCenter(find.text('min')).dx;
+      expect(tester.getCenter(find.text('28')).dx, inExclusiveRange(h, min));
+      expect(
+        tester.getCenter(find.text('40')).dx,
+        inExclusiveRange(min, tester.getCenter(find.text('s')).dx),
+      );
+      expect(tester.takeException(), isNull);
+
+      await turn(tester, '40', 1);
+      expect(durations.last, const Duration(minutes: 28, seconds: 41));
+      await turn(tester, '41', -1);
+      expect(durations.last, const Duration(minutes: 28, seconds: 40));
+
+      await turn(tester, '0', 1);
+      expect(
+        durations.last,
+        const Duration(hours: 1, minutes: 28, seconds: 40),
+      );
+    });
+
+    testWidgets('seconds go round without moving the minutes', (tester) async {
+      await pumpWheel(
+        tester,
+        hoursMinutesSeconds(
+          const Duration(minutes: 28, seconds: 59),
+          const Duration(hours: 24),
+        ),
+      );
+
+      await turn(tester, '59', 1);
+
+      expect(durations.last, const Duration(minutes: 28));
+    });
+
+    testWidgets('three wheels fit the dialog at large text', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.3)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: hoursMinutesSeconds(
+              const Duration(hours: 1),
+              const Duration(hours: 24),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a turn past max stays at max', (tester) async {
+      await pumpWheel(
+        tester,
+        hoursMinutesSeconds(
+          const Duration(minutes: 59, seconds: 50),
+          const Duration(hours: 1),
+        ),
+      );
+
+      await turn(tester, '0', 1);
+
+      expect(durations.last, const Duration(hours: 1));
     });
 
     testWidgets('stops at max with the minutes at 0', (tester) async {

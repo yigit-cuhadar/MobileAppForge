@@ -31,7 +31,7 @@ export 'src/widgets/forge_snackbar.dart';
 export 'src/widgets/forge_switch.dart';
 export 'src/widgets/forge_tag.dart';
 export 'src/widgets/forge_text_field.dart';
-export 'src/widgets/list_row.dart';
+export 'src/widgets/list_row.dart' hide ListRowFlush;
 export 'src/widgets/mini_bar.dart';
 export 'src/widgets/month_grid.dart';
 export 'src/widgets/multi_series_chart.dart';
