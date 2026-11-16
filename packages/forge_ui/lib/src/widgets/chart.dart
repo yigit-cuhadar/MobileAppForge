@@ -39,6 +39,8 @@ class Chart extends StatelessWidget {
     required String this.endLabel,
     required String this.semanticLabel,
   }) : _state = _State.line,
+       band = null,
+       card = true,
        bars = null,
        current = null,
        _messageTitle = null,
@@ -48,7 +50,11 @@ class Chart extends StatelessWidget {
        retryLabel = null;
 
   /// Bars with their value above and their label under them; the
-  /// [current] bar (today) in accent, the others in accent at 55%.
+  /// [current] bar (today) in accent, the others in accent at 55%. A
+  /// [band] (such as 10–20) is a sunken stripe behind the bars, and each
+  /// bar then takes the BandBar colours: a soft accent below the band,
+  /// accent within it, danger above it. Without its [card] the chart sits
+  /// on the page or sheet under its title.
   const Chart.bar({
     super.key,
     required this.title,
@@ -56,6 +62,8 @@ class Chart extends StatelessWidget {
     required List<ChartBar> this.bars,
     this.current,
     this.target,
+    this.band,
+    this.card = true,
     required String this.semanticLabel,
   }) : _state = _State.bar,
        values = null,
@@ -71,6 +79,8 @@ class Chart extends StatelessWidget {
   /// The title row stays; the chart and its end labels shimmer.
   const Chart.loading({super.key, required this.title, this.detail})
     : _state = _State.loading,
+      band = null,
+      card = true,
       values = null,
       pointLabel = null,
       startLabel = null,
@@ -95,6 +105,8 @@ class Chart extends StatelessWidget {
     required String this.message,
     this.actions = const [],
   }) : _state = _State.empty,
+       band = null,
+       card = true,
        _messageTitle = emptyTitle,
        values = null,
        pointLabel = null,
@@ -118,6 +130,8 @@ class Chart extends StatelessWidget {
     required VoidCallback this.onRetry,
     required String this.retryLabel,
   }) : _state = _State.error,
+       band = null,
+       card = true,
        _messageTitle = errorTitle,
        values = null,
        pointLabel = null,
@@ -143,6 +157,10 @@ class Chart extends StatelessWidget {
   final String? semanticLabel;
   final List<ChartBar>? bars;
   final int? current;
+
+  /// The values a bar should land between.
+  final ({double low, double high})? band;
+  final bool card;
   final String? _messageTitle;
   final String? message;
   final List<Widget> actions;
@@ -167,6 +185,7 @@ class Chart extends StatelessWidget {
           bars: bars!,
           current: current,
           target: target,
+          band: band,
           semanticLabel: semanticLabel!,
         ),
       ],
@@ -197,19 +216,18 @@ class Chart extends StatelessWidget {
         ),
       ],
     };
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: Gap.sm,
+      children: [
+        ChartTitleRow(title: title, detail: detail),
+        ...children,
+      ],
+    );
+    if (!card) return column;
     return CardFrame(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: Gap.sm,
-          children: [
-            ChartTitleRow(title: title, detail: detail),
-            ...children,
-          ],
-        ),
-      ),
+      child: Padding(padding: const EdgeInsets.all(Gap.md), child: column),
     );
   }
 }
@@ -454,12 +472,14 @@ class _BarChart extends StatelessWidget {
     required this.bars,
     required this.current,
     required this.target,
+    required this.band,
     required this.semanticLabel,
   });
 
   final List<ChartBar> bars;
   final int? current;
   final double? target;
+  final ({double low, double high})? band;
   final String semanticLabel;
 
   static const height = 130.0;
@@ -487,14 +507,28 @@ class _BarChart extends StatelessWidget {
     painter.dispose();
     final barArea = height - labelHeight - Gap.xs;
     final target = this.target;
+    final band = this.band;
     final top =
         [
           for (final bar in bars) ?bar.value,
           ?target,
+          ?band?.high,
         ].fold<double>(0, math.max) /
         peak;
     // Bars grow up from zero: a negative value draws none.
     double share(double value) => top <= 0 ? 0 : math.max(0.0, value) / top;
+    Color fill(int i, double value) {
+      if (band == null) {
+        return i == current
+            ? colors.accent
+            : colors.accent.withValues(alpha: 0.55);
+      }
+      if (value < band.low) {
+        return Color.lerp(colors.surface, colors.accent, 0.4)!;
+      }
+      return value > band.high ? colors.danger : colors.accent;
+    }
+
     return Semantics(
       container: true,
       label: semanticLabel,
@@ -506,6 +540,14 @@ class _BarChart extends StatelessWidget {
             height: height,
             child: Stack(
               children: [
+                if (band != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: barArea * share(band.low),
+                    height: barArea * (share(band.high) - share(band.low)),
+                    child: ColoredBox(color: colors.surfaceSunken),
+                  ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   spacing: Gap.sm,
@@ -542,11 +584,7 @@ class _BarChart extends StatelessWidget {
                                   Container(
                                     height: barArea * share(bar.value!),
                                     decoration: BoxDecoration(
-                                      color: i == current
-                                          ? colors.accent
-                                          : colors.accent.withValues(
-                                              alpha: 0.55,
-                                            ),
+                                      color: fill(i, bar.value!),
                                       borderRadius: radius,
                                     ),
                                   ),

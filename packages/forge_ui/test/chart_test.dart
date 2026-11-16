@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
+import 'package:forge_ui/src/widgets/card_frame.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -113,6 +114,58 @@ void main() {
       matching: find.byType(Container),
     );
     expect(tester.getSize(bar.first).height, 0);
+  });
+
+  group('Chart.bar with a band', () {
+    Widget banded({bool card = true}) => Chart.bar(
+      title: 'Last 12 weeks',
+      bars: const [
+        ChartBar(label: '1', value: 8, valueLabel: '8'),
+        ChartBar(label: '2', value: 14, valueLabel: '14'),
+        ChartBar(label: '3', value: 22, valueLabel: '22'),
+      ],
+      band: (low: 10, high: 20),
+      card: card,
+      semanticLabel: 'Count over 12 weeks',
+    );
+
+    Color fillOf(WidgetTester tester, String value) {
+      final bar = find.descendant(
+        of: find.ancestor(of: find.text(value), matching: find.byType(Column)),
+        matching: find.byType(Container),
+      );
+      return (tester.widget<Container>(bar.first).decoration! as BoxDecoration)
+          .color!;
+    }
+
+    testWidgets('colours each bar by where it lands', (tester) async {
+      await pump(tester, banded());
+      final c = colors(tester);
+      expect(fillOf(tester, '8'), Color.lerp(c.surface, c.accent, 0.4));
+      expect(fillOf(tester, '14'), c.accent);
+      expect(fillOf(tester, '22'), c.danger);
+    });
+
+    testWidgets('the band is a sunken stripe from low to high', (tester) async {
+      await pump(tester, banded());
+      final stripe = find.byWidgetPredicate(
+        (w) => w is ColoredBox && w.color == colors(tester).surfaceSunken,
+      );
+      final bar14 = find.descendant(
+        of: find.ancestor(of: find.text('14'), matching: find.byType(Column)),
+        matching: find.byType(Container),
+      );
+      final band = tester.getRect(stripe);
+      final bar = tester.getRect(bar14.first);
+      // 14 is 40% of the way from 10 to 20.
+      expect(bar.top, closeTo(band.bottom - band.height * 0.4, 0.01));
+    });
+
+    testWidgets('without its card it keeps the title only', (tester) async {
+      await pump(tester, banded(card: false));
+      expect(find.byType(CardFrame), findsNothing);
+      expect(find.text('Last 12 weeks'), findsOneWidget);
+    });
   });
 
   testWidgets('loading keeps the title and shimmers the rest', (tester) async {
