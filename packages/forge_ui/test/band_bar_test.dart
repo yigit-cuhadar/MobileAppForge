@@ -89,4 +89,27 @@ void main() {
     );
     expect(track.top - label.bottom, Gap.xs);
   });
+
+  testWidgets('a muted bar has its label in ink-muted', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: const Scaffold(
+          body: BandBar(
+            label: 'Item title',
+            valueLabel: '0 [UNIT]',
+            value: 0,
+            low: 0.4,
+            high: 0.8,
+            muted: true,
+          ),
+        ),
+      ),
+    );
+    final colors = ForgeStyle.of(tester.element(find.byType(Scaffold))).colors;
+    expect(
+      tester.widget<Text>(find.text('Item title')).style?.color,
+      colors.inkMuted,
+    );
+  });
 }

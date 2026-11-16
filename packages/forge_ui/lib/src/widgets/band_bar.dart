@@ -30,6 +30,7 @@ class BandBar extends StatelessWidget {
     required this.low,
     required this.high,
     this.fills,
+    this.muted = false,
   }) : assert(0 <= low && low <= high && high <= 1),
        _compact = false;
 
@@ -43,6 +44,7 @@ class BandBar extends StatelessWidget {
     required this.low,
     required this.high,
     this.fills,
+    this.muted = false,
   }) : assert(0 <= low && low <= high && high <= 1),
        _compact = true;
 
@@ -52,6 +54,10 @@ class BandBar extends StatelessWidget {
   final double low;
   final double high;
   final BandBarFills? fills;
+
+  /// The label in ink-muted, for an entry with nothing in it yet (a zero
+  /// listed last).
+  final bool muted;
   final bool _compact;
 
   static const _height = 6.0;
@@ -76,9 +82,9 @@ class BandBar extends StatelessWidget {
         : fills.within;
     const radius = BorderRadius.all(Radius.circular(_height / 2));
     final text = Theme.of(context).textTheme;
-    final labelStyle = _compact
-        ? text.bodySmall!.copyWith(color: colors.ink)
-        : text.bodyMedium;
+    final labelStyle = (_compact ? text.bodySmall! : text.bodyMedium!).copyWith(
+      color: muted ? colors.inkMuted : colors.ink,
+    );
     final valueStyle = _compact
         ? style.data.copyWith(fontSize: 11, height: 14 / 11)
         : style.data;
