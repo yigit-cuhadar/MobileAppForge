@@ -391,6 +391,94 @@ void main() {
       expect(find.text('Item removed'), findsNothing);
     });
 
+    testWidgets('shown from a sheet, it lies over the sheet for 4 s and '
+        'its action works', (tester) async {
+      var retried = 0;
+      await pump(
+        tester,
+        (context) => showForgeBottomSheet<void>(
+          context: context,
+          builder: (context) => ForgeBottomSheet(
+            title: 'Item title',
+            child: SizedBox(
+              height: 300,
+              child: TextButton(
+                onPressed: () => showForgeSnackbar(
+                  context,
+                  message: "Couldn't save.",
+                  actionLabel: 'Retry',
+                  onAction: () => retried++,
+                  error: true,
+                ),
+                child: const Text('Save'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await open(tester);
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      final strip = tester.getRect(find.byType(ForgeSnackbar));
+      final screen = tester.getRect(find.byType(MaterialApp));
+      expect(strip.bottom, screen.bottom - Gap.md);
+      expect(strip.left, Gap.md);
+      expect(
+        strip.overlaps(tester.getRect(find.byType(ForgeBottomSheet))),
+        isTrue,
+      );
+      expect(find.text('Retry').hitTestable(), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text("Couldn't save."), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text("Couldn't save."), findsNothing);
+
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(retried, 1);
+      expect(find.text("Couldn't save."), findsNothing);
+    });
+
+    testWidgets('a new one over a sheet takes the place of the last', (
+      tester,
+    ) async {
+      var n = 0;
+      await pump(
+        tester,
+        (context) => showForgeBottomSheet<void>(
+          context: context,
+          builder: (context) => ForgeBottomSheet(
+            title: 'Item title',
+            child: SizedBox(
+              height: 300,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: TextButton(
+                  onPressed: () =>
+                      showForgeSnackbar(context, message: 'Saved ${++n}'),
+                  child: const Text('Save'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await open(tester);
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      expect(find.text('Saved 1'), findsNothing);
+      expect(find.text('Saved 2'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.byType(ForgeSnackbar), findsNothing);
+    });
+
     testWidgets('an error carries the danger-tinted icon', (tester) async {
       await pump(
         tester,
@@ -404,6 +492,139 @@ void main() {
       final colors = ForgeStyle.of(tester.element(find.byType(ForgeIcon)))
           .colors;
       expect(icon.color, Color.lerp(colors.ground, colors.danger, 0.55));
+    });
+  });
+
+  group('ForgeCheckSheet', () {
+    const values = ['One', 'Two', 'Three'];
+
+    Future<Set<String>?> openCheck(BuildContext context) =>
+        showForgeCheckSheet<String>(
+          context: context,
+          title: 'Items',
+          subtitle: 'Pick any',
+          values: values,
+          selected: {'Two'},
+          labelOf: (value) => 'Item $value',
+          saveLabel: 'Save',
+        );
+
+    testWidgets('lists the values as check rows with lines between, under '
+        'the title and subtitle, Save full width', (tester) async {
+      await pump(tester, openCheck);
+      await open(tester);
+
+      expect(find.text('Items'), findsOneWidget);
+      expect(find.text('Pick any'), findsOneWidget);
+      expect(find.byType(ListRow), findsNWidgets(3));
+      expect(
+        find.descendant(
+          of: find.byType(ForgeCheckSheet<String>),
+          matching: find.byType(Divider),
+        ),
+        findsNWidgets(2),
+      );
+      expect(
+        tester.getSemantics(find.byType(ListRow).at(1)),
+        matchesSemantics(
+          label: 'Item Two',
+          hasCheckedState: true,
+          isChecked: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          isFocusable: true,
+        ),
+      );
+      expect(
+        tester.getSize(find.byType(ForgeButton)).width,
+        tester.getSize(find.byType(ListRow).first).width,
+      );
+    });
+
+    testWidgets('Save returns the ticked values in their order', (
+      tester,
+    ) async {
+      Set<String>? result;
+      await pump(tester, (context) async => result = await openCheck(context));
+      await open(tester);
+
+      await tester.tap(find.text('Item Three'));
+      await tester.tap(find.text('Item One'));
+      await tester.tap(find.text('Item Two'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(result?.toList(), ['One', 'Three']);
+      expect(find.byType(ForgeCheckSheet<String>), findsNothing);
+    });
+
+    testWidgets('closing it returns null', (tester) async {
+      Set<String>? result = {'unset'};
+      await pump(tester, (context) async => result = await openCheck(context));
+      await open(tester);
+
+      await tester.tap(find.text('Item One'));
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(result, isNull);
+    });
+
+    testWidgets('a long list scrolls and keeps Save in view', (tester) async {
+      await pump(
+        tester,
+        (context) => showForgeCheckSheet<int>(
+          context: context,
+          title: 'Items',
+          values: List.generate(40, (i) => i),
+          selected: const {},
+          labelOf: (i) => 'Item $i',
+          saveLabel: 'Save',
+        ),
+      );
+      await open(tester);
+
+      expect(find.text('Save').hitTestable(), findsOneWidget);
+      await tester.dragUntilVisible(
+        find.text('Item 39'),
+        find.byType(SingleChildScrollView),
+        const Offset(0, -200),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Item 39').hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('opened from a sheet, it stacks over it and returns to it', (
+      tester,
+    ) async {
+      Set<String>? result;
+      await pump(
+        tester,
+        (context) => showForgeBottomSheet<void>(
+          context: context,
+          builder: (context) => ForgeBottomSheet(
+            title: 'Filters',
+            child: TextButton(
+              onPressed: () async => result = await openCheck(context),
+              child: const Text('Pick'),
+            ),
+          ),
+        ),
+      );
+      await open(tester);
+      await tester.tap(find.text('Pick'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filters'), findsOneWidget);
+      await tester.tap(find.text('Item One'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(result, {'One', 'Two'});
+      expect(find.byType(ForgeCheckSheet<String>), findsNothing);
+      expect(find.text('Pick').hitTestable(), findsOneWidget);
     });
   });
 

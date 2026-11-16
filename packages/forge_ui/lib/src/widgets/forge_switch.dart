@@ -141,35 +141,44 @@ class ForgeCheckbox extends StatelessWidget {
   static const double size = 22;
 
   @override
+  Widget build(BuildContext context) => Semantics(
+    checked: value,
+    child: Pressable(
+      onTap: () => onChanged(!value),
+      height: size,
+      width: size,
+      builder: (context, _) => CheckboxMark(value: value),
+    ),
+  );
+}
+
+/// The drawn box of a [ForgeCheckbox], for a row that takes the taps itself.
+class CheckboxMark extends StatelessWidget {
+  const CheckboxMark({super.key, required this.value});
+
+  final bool value;
+
+  @override
   Widget build(BuildContext context) {
     final p = ForgeStyle.of(context).colors;
-    return Semantics(
-      checked: value,
-      child: Pressable(
-        onTap: () => onChanged(!value),
-        height: size,
-        width: size,
-        builder: (context, _) => Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: value ? p.accent : p.surface,
-            borderRadius: BorderRadius.circular(
-              _cupertino(context) ? size / 2 : 6,
-            ),
-            border: value ? null : Border.all(color: p.lineStrong, width: 2),
-          ),
-          child: value
-              ? ForgeIcon(
-                  ForgeIcons.check,
-                  size: 14,
-                  weight: 3.2,
-                  color: p.onAccent,
-                )
-              : null,
-        ),
+    const size = ForgeCheckbox.size;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: value ? p.accent : p.surface,
+        borderRadius: BorderRadius.circular(_cupertino(context) ? size / 2 : 6),
+        border: value ? null : Border.all(color: p.lineStrong, width: 2),
       ),
+      child: value
+          ? ForgeIcon(
+              ForgeIcons.check,
+              size: 14,
+              weight: 3.2,
+              color: p.onAccent,
+            )
+          : null,
     );
   }
 }

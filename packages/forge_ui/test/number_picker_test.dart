@@ -96,6 +96,52 @@ void main() {
       expect(changes, isEmpty);
     });
 
+    testWidgets('parts write the value as numbers with small units while '
+        'the ruler counts the value', (tester) async {
+      await pump(
+        tester,
+        NumberPicker.ruler(
+          label: 'Height',
+          parts: (inches) => [
+            ('${inches ~/ 12}', 'ft'),
+            ('${(inches % 12).round()}', 'in'),
+          ],
+          min: 48,
+          max: 96,
+          step: 1,
+          value: 71,
+          onChanged: changes.add,
+          onValueTap: () {},
+        ),
+      );
+
+      for (final text in ['5', 'ft', '11', 'in']) {
+        expect(find.text(text), findsOneWidget);
+      }
+      final number = tester.widget<Text>(find.text('11')).style!;
+      final small = tester.widget<Text>(find.text('in')).style!;
+      expect(small.fontSize, lessThan(number.fontSize!));
+      // Each number is underlined, as the one value is.
+      for (final text in ['5', '11']) {
+        expect(
+          find.ancestor(
+            of: find.text(text),
+            matching: find.byType(DecoratedBox),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.ancestor(of: find.text('ft'), matching: find.byType(DecoratedBox)),
+        findsNothing,
+      );
+
+      await drag(tester, const Offset(-unit, 0));
+      expect(changes.last, 72);
+      expect(find.text('6'), findsOneWidget);
+      expect(find.text('0'), findsWidgets);
+    });
+
     testWidgets('without onValueTap the value is plain', (tester) async {
       await pump(tester, ruler());
 
@@ -219,6 +265,62 @@ void main() {
           value: '1995',
           increasedValue: '1996',
           decreasedValue: '1994',
+          hasIncreaseAction: true,
+          hasDecreaseAction: true,
+        ),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('the label goes to screen readers only', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(tester, ruler());
+
+      expect(find.text('Amount'), findsNothing);
+      expect(
+        tester.getSemantics(find.byType(NumberPicker)),
+        matchesSemantics(
+          isSlider: true,
+          label: 'Amount',
+          value: '80.0',
+          increasedValue: '80.1',
+          decreasedValue: '79.9',
+          hasIncreaseAction: true,
+          hasDecreaseAction: true,
+        ),
+      );
+
+      await pump(tester, wheel());
+      expect(find.text('Birth year'), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('a ruler in parts reads them out', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pump(
+        tester,
+        NumberPicker.ruler(
+          label: 'Height',
+          parts: (inches) => [
+            ('${inches ~/ 12}', 'ft'),
+            ('${(inches % 12).round()}', 'in'),
+          ],
+          min: 48,
+          max: 96,
+          step: 1,
+          value: 71,
+          onChanged: changes.add,
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(NumberPicker)),
+        matchesSemantics(
+          isSlider: true,
+          label: 'Height',
+          value: '5 ft 11 in',
+          increasedValue: '6 ft 0 in',
+          decreasedValue: '5 ft 10 in',
           hasIncreaseAction: true,
           hasDecreaseAction: true,
         ),

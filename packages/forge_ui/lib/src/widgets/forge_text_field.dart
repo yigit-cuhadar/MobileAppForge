@@ -227,15 +227,19 @@ class ForgeNumberField extends StatefulWidget {
     required this.onChanged,
     this.controller,
     this.side,
-  }) : boxSize = size;
+  }) : boxSize = size,
+       invalid = false;
 
-  /// A 34px box [width] wide with no unit, for values edited inside a row.
+  /// A 40px box [width] wide with no unit and the value at its start, for
+  /// values edited inside a row. An [invalid] value gets a danger border,
+  /// also while typing; the row says what is wrong.
   ForgeNumberField.compact({
     super.key,
     required this.label,
     required double width,
     required this.onChanged,
     this.controller,
+    this.invalid = false,
   }) : unit = null,
        side = null,
        boxSize = Size(width, compactHeight);
@@ -248,10 +252,11 @@ class ForgeNumberField extends StatefulWidget {
 
   /// The drawn box of this field.
   final Size boxSize;
+  final bool invalid;
 
   /// The drawn box of the form with a unit.
   static const Size size = Size(96, 36);
-  static const double compactHeight = 34;
+  static const double compactHeight = 40;
 
   @override
   State<ForgeNumberField> createState() => _ForgeNumberFieldState();
@@ -276,10 +281,18 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final p = style.colors;
-    final value = style.data.copyWith(fontSize: 14, color: p.ink);
-    final typing = _focus.hasFocus;
+    final compact = widget.unit == null;
+    final value = style.data.copyWith(
+      fontSize: compact ? 15 : 14,
+      color: p.ink,
+    );
     final text = Theme.of(context).textTheme;
     final side = widget.side;
+    final border = widget.invalid
+        ? Border.all(color: p.danger, width: 1.5)
+        : _focus.hasFocus
+        ? Border.all(color: p.accent, width: 2)
+        : Border.all(color: p.lineStrong);
     return Pressable(
       onTap: _focus.requestFocus,
       height: widget.boxSize.height,
@@ -287,15 +300,16 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
       builder: (context, _) => Container(
         width: widget.boxSize.width,
         height: widget.boxSize.height,
-        padding: EdgeInsets.symmetric(horizontal: Gap.sm - (typing ? 1 : 0)),
+        // The value keeps its place as the border thickens.
+        padding: EdgeInsets.symmetric(
+          horizontal: (compact ? 10 : Gap.sm) - (border.top.width - 1),
+        ),
         decoration: BoxDecoration(
           color: p.surface,
           borderRadius: const BorderRadius.all(
             Radius.circular(ForgeRadii.button),
           ),
-          border: typing
-              ? Border.all(color: p.accent, width: 2)
-              : Border.all(color: p.lineStrong),
+          border: border,
         ),
         child: Row(
           spacing: Gap.xs,
@@ -320,7 +334,7 @@ class _ForgeNumberFieldState extends State<ForgeNumberField> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  textAlign: TextAlign.end,
+                  textAlign: compact ? TextAlign.start : TextAlign.end,
                   style: value,
                   decoration: bareDecoration(
                     hintText: '—',

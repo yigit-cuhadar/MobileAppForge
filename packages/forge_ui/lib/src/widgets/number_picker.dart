@@ -8,8 +8,9 @@ import '../theme/forge_theme.dart';
 import 'forge_dialog.dart';
 import 'numbers.dart';
 
-/// Picks a number from [min] to [max] in steps of [step] under its [label],
-/// by dragging a wheel or a ruler.
+/// Picks a number from [min] to [max] in steps of [step] by dragging a
+/// wheel or a ruler. Its [label] names it for screen readers; the screen
+/// shows its own title.
 ///
 /// [onChanged] reports each step the user moves to. A new [value] from the
 /// parent moves the picker to the nearest step without reporting it, and
@@ -28,18 +29,23 @@ class NumberPicker extends StatefulWidget {
     required this.onChanged,
     this.grouped = true,
   }) : unit = null,
+       parts = null,
        onValueTap = null,
        _format = null,
        _loop = false;
 
-  /// The value large above a ruler of thin ticks with whole-number labels,
-  /// under a fixed accent pointer; dragging left picks larger values.
-  /// With [onValueTap] the value is underlined and a tap on it calls
-  /// [onValueTap] (the app opens a field to type the value).
+  /// The value large with its [unit] small beside it, above a ruler of thin
+  /// ticks with whole-number labels, under a fixed accent pointer; dragging
+  /// left picks larger values. With [parts] in place of [unit], the value
+  /// is written as numbers each followed by its small unit ("5 ft 11 in")
+  /// while the ruler keeps counting [value]. With [onValueTap] the value is
+  /// underlined and a tap on it calls [onValueTap] (the app opens a field to
+  /// type the value).
   const NumberPicker.ruler({
     super.key,
     required this.label,
-    required String this.unit,
+    this.unit,
+    this.parts,
     required this.min,
     required this.max,
     required this.step,
@@ -47,7 +53,11 @@ class NumberPicker extends StatefulWidget {
     required this.onChanged,
     this.grouped = true,
     this.onValueTap,
-  }) : _format = null,
+  }) : assert(
+         (unit == null) != (parts == null),
+         'Give the ruler a unit or parts.',
+       ),
+       _format = null,
        _loop = false;
 
   /// A bare wheel of [count] rows written by [format], for [ForgeTimeWheel]:
@@ -66,11 +76,17 @@ class NumberPicker extends StatefulWidget {
        value = index.toDouble(),
        onChanged = ((value) => onIndex(value.round())),
        unit = null,
+       parts = null,
        onValueTap = null,
        grouped = false;
 
+  /// What screen readers call the picker; it is not drawn.
   final String label;
   final String? unit;
+
+  /// Writes a value as (number, unit) pairs, such as `[('5', 'ft'), ('11',
+  /// 'in')]`.
+  final List<(String, String)> Function(double value)? parts;
   final double min;
   final double max;
   final double step;
@@ -114,7 +130,7 @@ class _NumberPickerState extends State<NumberPicker>
   bool _following = false;
   double _width = 0;
 
-  bool get _ruler => widget.unit != null;
+  bool get _ruler => widget.unit != null || widget.parts != null;
 
   // The epsilon keeps a last step that lands on max from rounding away.
   int get _count =>
@@ -132,6 +148,10 @@ class _NumberPickerState extends State<NumberPicker>
 
   String _text(int index) {
     final at = _wrap(index);
+    if (widget.parts case final parts?) {
+      return [for (final (n, unit) in parts(_valueAt(at))) '$n $unit']
+          .join(' ');
+    }
     return widget._format?.call(at) ??
         formatNumber(
           _valueAt(at),
@@ -220,24 +240,7 @@ class _NumberPickerState extends State<NumberPicker>
         onTap: widget.onValueTap,
         child: child,
       ),
-      child: ExcludeSemantics(
-        child: widget._format != null
-            ? picker
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: Gap.sm,
-                children: [
-                  Text(
-                    widget.label,
-                    style: text.labelMedium!.copyWith(
-                      color: style.colors.inkMuted,
-                    ),
-                  ),
-                  picker,
-                ],
-              ),
-      ),
+      child: ExcludeSemantics(child: picker),
     );
   }
 
@@ -307,36 +310,39 @@ class _NumberPickerState extends State<NumberPicker>
 
   Widget _buildRuler(ForgeStyle style, TextTheme text) {
     final colors = style.colors;
+    final number = text.headlineSmall!.copyWith(
+      fontWeight: FontWeight.w500,
+      letterSpacing: -0.56,
+    );
+    final small = text.bodyMedium!.copyWith(color: colors.inkMuted);
+    final parts = widget.parts;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: Gap.sm,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          spacing: Gap.xs,
-          children: [
-            _tappableValue(
-              colors,
-              widget.onValueTap,
-              AnimatedBuilder(
-                animation: _position,
-                builder: (context, _) => Text(
-                  _text(_index),
-                  style: text.headlineSmall!.copyWith(
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -0.56,
+        Center(
+          child: AnimatedBuilder(
+            animation: _position,
+            builder: (context, _) => Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              spacing: Gap.xs,
+              children: [
+                for (final (n, unit)
+                    in parts?.call(_valueAt(_index)) ??
+                        [(_text(_index), widget.unit!)]) ...[
+                  _tappableValue(
+                    colors,
+                    widget.onValueTap,
+                    Text(n, style: number),
                   ),
-                ),
-              ),
+                  Text(unit, style: small),
+                ],
+              ],
             ),
-            Text(
-              widget.unit!,
-              style: text.bodyMedium!.copyWith(color: colors.inkMuted),
-            ),
-          ],
+          ),
         ),
         LayoutBuilder(
           builder: (context, constraints) {

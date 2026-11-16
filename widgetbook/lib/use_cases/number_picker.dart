@@ -61,6 +61,26 @@ Widget numberPickerRulerTappable(BuildContext context) => _card(
   ),
 );
 
+@widgetbook.UseCase(name: 'Ruler in parts', type: NumberPicker)
+Widget numberPickerRulerParts(BuildContext context) => _card(
+  _Live(
+    value: 71,
+    builder: (value, onChanged) => NumberPicker.ruler(
+      label: 'Amount',
+      parts: (value) => [
+        ('${value ~/ 12}', '[UNIT]'),
+        ('${(value % 12).round()}', '[UNIT]'),
+      ],
+      min: 48,
+      max: 96,
+      step: 1,
+      value: value,
+      onChanged: onChanged,
+      onValueTap: () {},
+    ),
+  ),
+);
+
 /// The time wheel over the scrim, as [showForgeTimeWheel] shows it.
 Widget _timeWheel(BuildContext context, {required bool h24}) => ColoredBox(
   color: Theme.of(context).colorScheme.scrim,
