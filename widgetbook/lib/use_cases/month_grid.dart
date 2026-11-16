@@ -37,16 +37,18 @@ DayState _monthState(DateTime day) {
   };
 }
 
+final _period = PeriodSelector(
+  period: 'November 2026',
+  onPrevious: () {},
+  onNext: null,
+  onPeriodTap: () {},
+  previousLabel: 'Previous month',
+  nextLabel: 'Next month',
+);
+
 @widgetbook.UseCase(name: 'Month', type: MonthGrid)
 Widget monthGrid(BuildContext context) => _page([
-  PeriodSelector(
-    period: 'November 2026',
-    onPrevious: () {},
-    onNext: null,
-    onPeriodTap: () {},
-    previousLabel: 'Previous month',
-    nextLabel: 'Next month',
-  ),
+  _period,
   MonthGrid(
     month: DateTime(2026, 11),
     firstWeekday: DateTime.monday,
@@ -60,6 +62,53 @@ Widget monthGrid(BuildContext context) => _page([
       DayState.missed: 'Missed',
       DayState.today: 'Today',
     },
+  ),
+]);
+
+@widgetbook.UseCase(name: 'Selected day', type: MonthGrid)
+Widget selectedMonthGrid(BuildContext context) => const _SelectableMonth();
+
+/// Taps choose the day, as an app would.
+class _SelectableMonth extends StatefulWidget {
+  const _SelectableMonth();
+
+  @override
+  State<_SelectableMonth> createState() => _SelectableMonthState();
+}
+
+class _SelectableMonthState extends State<_SelectableMonth> {
+  DateTime? _selected = DateTime(2026, 11, 14);
+
+  @override
+  Widget build(BuildContext context) => _page([
+    _period,
+    MonthGrid(
+      month: DateTime(2026, 11),
+      firstWeekday: DateTime.monday,
+      weekdays: _weekdays,
+      stateOf: _monthState,
+      summary: '4 done · 3 light · 1 missed',
+      legend: const {
+        DayState.done: 'Done',
+        DayState.light: 'Light',
+        DayState.planned: 'Planned',
+        DayState.missed: 'Missed',
+        DayState.today: 'Today',
+      },
+      selected: _selected,
+      onDayTap: (day) => setState(() => _selected = day),
+    ),
+  ]);
+}
+
+@widgetbook.UseCase(name: 'Error', type: MonthGrid)
+Widget errorMonthGrid(BuildContext context) => _page([
+  _period,
+  MonthGrid.error(
+    weekdays: _weekdays,
+    message: "Couldn't load the month",
+    retryLabel: 'Retry',
+    onRetry: () {},
   ),
 ]);
 

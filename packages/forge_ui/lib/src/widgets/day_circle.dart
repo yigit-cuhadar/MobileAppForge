@@ -30,19 +30,27 @@ enum DayState {
 }
 
 /// One day as a circle in its [state]: a 34px day with its [number], or a
-/// 12px legend mark with none.
+/// 12px legend mark with none. A [selected] day gains a 1.5px accent ring
+/// 2px outside its mark; a day with no mark becomes accent-soft inside the
+/// ring's place.
 class DayCircle extends StatelessWidget {
-  const DayCircle({super.key, required this.state, required String this.number})
-    : size = daySize;
+  const DayCircle({
+    super.key,
+    required this.state,
+    required String this.number,
+    this.selected = false,
+  }) : size = daySize;
 
   const DayCircle.legend({super.key, required this.state})
     : assert(state != DayState.todayDone),
       number = null,
-      size = legendSize;
+      size = legendSize,
+      selected = false;
 
   final DayState state;
   final String? number;
   final double size;
+  final bool selected;
 
   static const double daySize = 34;
   static const double legendSize = 12;
@@ -52,7 +60,9 @@ class DayCircle extends StatelessWidget {
     final style = ForgeStyle.of(context);
     final p = style.colors;
     final number = this.number;
+    final plainSelected = selected && state == DayState.none;
     final (fill, ink, ring, ringWidth) = switch (state) {
+      DayState.none when plainSelected => (p.accentSoft, p.ink, p.accent, 1.5),
       DayState.none => (null, p.ink, null, 0.0),
       DayState.done || DayState.todayDone => (p.accent, p.onAccent, null, 0.0),
       DayState.light => (p.accentSoft, p.onAccentSoft, null, 0.0),
@@ -84,7 +94,13 @@ class DayCircle extends StatelessWidget {
     );
     if (state == DayState.todayDone) {
       circle = CustomPaint(
-        foregroundPainter: _OuterRing(color: p.ink),
+        foregroundPainter: _OuterRing(color: p.ink, width: 2.5),
+        child: circle,
+      );
+    }
+    if (selected && !plainSelected) {
+      circle = CustomPaint(
+        foregroundPainter: _OuterRing(color: p.accent, width: 1.5),
         child: circle,
       );
     }
@@ -104,23 +120,24 @@ class DayCircle extends StatelessWidget {
 
 /// A ring drawn outside the circle it paints over, leaving a gap.
 class _OuterRing extends CustomPainter {
-  const _OuterRing({required this.color});
+  const _OuterRing({required this.color, required this.width});
 
   final Color color;
+  final double width;
 
   static const _gap = 2.0;
-  static const _width = 2.5;
 
   @override
   void paint(Canvas canvas, Size size) => canvas.drawCircle(
     size.center(Offset.zero),
-    size.shortestSide / 2 + _gap + _width / 2,
+    size.shortestSide / 2 + _gap + width / 2,
     Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = _width
+      ..strokeWidth = width
       ..color = color,
   );
 
   @override
-  bool shouldRepaint(_OuterRing old) => old.color != color;
+  bool shouldRepaint(_OuterRing old) =>
+      old.color != color || old.width != width;
 }

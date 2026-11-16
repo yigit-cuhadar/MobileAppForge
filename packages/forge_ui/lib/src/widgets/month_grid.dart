@@ -4,12 +4,14 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'day_circle.dart';
+import 'error_line.dart';
 import 'skeleton.dart';
 
 /// A month of day circles in a card: a [summary] line, the [weekdays]
 /// letters, the weeks that hold the month and a [legend]. Days of the
-/// weeks outside the month show at 35%. A PeriodSelector above the card
-/// changes the month.
+/// weeks outside the month show at 35%. A tap on a day calls [onDayTap];
+/// the [selected] day carries the selected ring. A PeriodSelector above
+/// the card changes the month.
 class MonthGrid extends StatelessWidget {
   const MonthGrid({
     super.key,
@@ -19,7 +21,11 @@ class MonthGrid extends StatelessWidget {
     required DayState Function(DateTime day) this.stateOf,
     required String this.summary,
     required Map<DayState, String> this.legend,
-  });
+    this.selected,
+    this.onDayTap,
+  }) : message = null,
+       retryLabel = null,
+       onRetry = null;
 
   /// The weekday letters stay; the summary, days and legend shimmer.
   const MonthGrid.loading({super.key, required this.weekdays})
@@ -27,7 +33,28 @@ class MonthGrid extends StatelessWidget {
       firstWeekday = DateTime.monday,
       stateOf = null,
       summary = null,
-      legend = null;
+      legend = null,
+      selected = null,
+      onDayTap = null,
+      message = null,
+      retryLabel = null,
+      onRetry = null;
+
+  /// Loading failed: the weekday letters stay, and in place of the days
+  /// the [message] in danger with an outline Retry on one line.
+  const MonthGrid.error({
+    super.key,
+    required this.weekdays,
+    required String this.message,
+    required String this.retryLabel,
+    required VoidCallback this.onRetry,
+  }) : month = null,
+       firstWeekday = DateTime.monday,
+       stateOf = null,
+       summary = null,
+       legend = null,
+       selected = null,
+       onDayTap = null;
 
   /// Any day of the month to show.
   final DateTime? month;
@@ -42,6 +69,13 @@ class MonthGrid extends StatelessWidget {
 
   /// The states the month uses, in order, with the app's names for them.
   final Map<DayState, String>? legend;
+
+  /// The chosen day, if any.
+  final DateTime? selected;
+  final ValueChanged<DateTime>? onDayTap;
+  final String? message;
+  final String? retryLabel;
+  final VoidCallback? onRetry;
 
   static const double _outsideOpacity = 0.35;
 
@@ -64,6 +98,12 @@ class MonthGrid extends StatelessWidget {
           ),
         ),
     ]);
+    if (message case final message?) {
+      return _card([
+        letters,
+        ErrorLine(message: message, retryLabel: retryLabel!, onRetry: onRetry!),
+      ]);
+    }
     if (month == null) {
       return _card([
         const SkeletonBar(widthFactor: 0.45, height: 11),
@@ -127,12 +167,33 @@ class MonthGrid extends StatelessWidget {
   }
 
   Widget _day(DateTime day, int month) {
-    final circle = Center(
-      child: DayCircle(state: stateOf!(day), number: '${day.day}'),
+    final selected = this.selected;
+    final isSelected =
+        selected != null &&
+        selected.year == day.year &&
+        selected.month == day.month &&
+        selected.day == day.day;
+    Widget circle = Center(
+      child: DayCircle(
+        state: stateOf!(day),
+        number: '${day.day}',
+        selected: isSelected,
+      ),
     );
-    return day.month == month
-        ? circle
-        : Opacity(opacity: _outsideOpacity, child: circle);
+    if (day.month != month) {
+      circle = Opacity(opacity: _outsideOpacity, child: circle);
+    }
+    final onDayTap = this.onDayTap;
+    if (onDayTap == null) return circle;
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onDayTap(day),
+        child: circle,
+      ),
+    );
   }
 
   Widget _card(List<Widget> children) => CardFrame(

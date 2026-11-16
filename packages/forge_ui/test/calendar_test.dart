@@ -138,6 +138,53 @@ void main() {
       expect(asked, hasLength(35));
     });
 
+    testWidgets('a tap reports its day and the selected day is ringed', (
+      tester,
+    ) async {
+      final tapped = <DateTime>[];
+      await pump(
+        tester,
+        MonthGrid(
+          month: DateTime(2026, 11),
+          firstWeekday: DateTime.monday,
+          weekdays: weekdays,
+          stateOf: (day) => day.day == 9 ? DayState.done : DayState.none,
+          summary: '',
+          legend: const {},
+          selected: DateTime(2026, 11, 14),
+          onDayTap: tapped.add,
+        ),
+      );
+
+      await tester.tap(find.text('18'));
+      expect(tapped, [DateTime(2026, 11, 18)]);
+
+      DayCircle circle(String n) => tester.widget(
+        find.ancestor(of: find.text(n), matching: find.byType(DayCircle)),
+      );
+      expect(circle('14').selected, isTrue);
+      expect(circle('18').selected, isFalse);
+    });
+
+    testWidgets('error keeps the letters and retries on one line', (
+      tester,
+    ) async {
+      var retries = 0;
+      await pump(
+        tester,
+        MonthGrid.error(
+          weekdays: weekdays,
+          message: "Couldn't load the month",
+          retryLabel: 'Retry',
+          onRetry: () => retries++,
+        ),
+      );
+      expect(find.text('M'), findsOneWidget);
+      expect(find.byType(DayCircle), findsNothing);
+      await tester.tap(find.text('Retry'));
+      expect(retries, 1);
+    });
+
     testWidgets('loading keeps the weekday letters', (tester) async {
       await pump(tester, const MonthGrid.loading(weekdays: weekdays));
       expect(find.text('M'), findsOneWidget);
@@ -210,6 +257,63 @@ void main() {
       tester.getSize(find.byType(DayCircle)),
       const Size.square(DayCircle.daySize),
     );
+    final ring = tester.widget<CustomPaint>(
+      find
+          .descendant(
+            of: find.byType(DayCircle),
+            matching: find.byType(CustomPaint),
+          )
+          .first,
+    );
+    expect(ring.foregroundPainter, isNotNull);
+  });
+
+  testWidgets('a selected empty day is accent-soft inside an accent ring', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const Center(
+        child: DayCircle(state: DayState.none, number: '14', selected: true),
+      ),
+    );
+    final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
+    final decoration =
+        tester
+                .widget<Container>(
+                  find.ancestor(
+                    of: find.text('14'),
+                    matching: find.byType(Container),
+                  ),
+                )
+                .decoration!
+            as BoxDecoration;
+    expect(decoration.color, colors.accentSoft);
+    expect(decoration.border!.top.color, colors.accent);
+    expect(decoration.border!.top.width, 1.5);
+  });
+
+  testWidgets('a selected marked day keeps its fill and gains a ring', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const Center(
+        child: DayCircle(state: DayState.done, number: '9', selected: true),
+      ),
+    );
+    final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
+    final decoration =
+        tester
+                .widget<Container>(
+                  find.ancestor(
+                    of: find.text('9'),
+                    matching: find.byType(Container),
+                  ),
+                )
+                .decoration!
+            as BoxDecoration;
+    expect(decoration.color, colors.accent);
     final ring = tester.widget<CustomPaint>(
       find
           .descendant(
