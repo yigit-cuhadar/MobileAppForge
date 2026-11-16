@@ -59,6 +59,33 @@ void main() {
     );
   });
 
+  testWidgets('a plain card\'s note is drawn whole after the title, past '
+      'half the header', (tester) async {
+    tester.view.physicalSize = const Size(390, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const note = '% of weight · reps';
+    await pump(
+      tester,
+      const SectionCard.plain(title: 'Sets', note: note, child: Text('Body')),
+    );
+
+    expect(tester.takeException(), isNull);
+    final text = tester.widget<Text>(find.text(note));
+    expect(text.maxLines, isNull);
+    expect(text.overflow, isNull);
+    expect(text.style?.fontSize, 12);
+    expect(text.style?.color, colors(tester).inkMuted);
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(note));
+    expect(paragraph.didExceedMaxLines, isFalse);
+    // One line, wider than half the header, after the title.
+    final card = tester.getRect(find.byType(SectionCard));
+    final noteRect = tester.getRect(find.text(note));
+    expect(noteRect.height, lessThan(20));
+    expect(noteRect.width, greaterThan((card.width - 2 * Gap.md) / 2));
+    expect(noteRect.left, greaterThan(tester.getRect(find.text('Sets')).right));
+  });
+
   testWidgets('loading shows two skeleton bars', (tester) async {
     await pump(
       tester,

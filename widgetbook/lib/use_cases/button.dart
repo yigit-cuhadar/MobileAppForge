@@ -62,6 +62,10 @@ Widget danger(BuildContext context) => _button(
   variant: ForgeButtonVariant.danger,
 );
 
+@widgetbook.UseCase(name: 'Danger text', type: ForgeButton)
+Widget dangerText(BuildContext context) =>
+    _button(context, label: 'Remove', variant: ForgeButtonVariant.dangerText);
+
 @widgetbook.UseCase(name: 'Danger disabled', type: ForgeButton)
 Widget dangerDisabled(BuildContext context) => _button(
   context,

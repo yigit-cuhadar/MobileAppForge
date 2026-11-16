@@ -59,6 +59,21 @@ Widget headerActionSheet(BuildContext context) => _shown(
   ),
 );
 
+@widgetbook.UseCase(name: 'Header action, danger', type: ForgeBottomSheet)
+Widget headerDangerSheet(BuildContext context) => _shown(
+  context,
+  ForgeBottomSheet(
+    title: 'Item title',
+    headerAction: ForgeButton(
+      label: 'Remove',
+      onPressed: () {},
+      variant: ForgeButtonVariant.dangerText,
+    ),
+    action: ForgeButton(label: 'Save', onPressed: () {}),
+    child: _options(['Option one', 'Option two']),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Without action', type: ForgeBottomSheet)
 Widget choiceSheet(BuildContext context) => _shown(
   context,
