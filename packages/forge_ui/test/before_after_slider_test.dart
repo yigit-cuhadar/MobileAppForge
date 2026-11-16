@@ -125,4 +125,53 @@ void main() {
     expect(find.byType(SkeletonBar), findsNWidgets(2));
     expect(find.byType(ForgeChip), findsNothing);
   });
+
+  testWidgets('the later date is an accent link when it can be tapped', (
+    tester,
+  ) async {
+    var taps = 0;
+    await pumpSlider(
+      tester,
+      BeforeAfterSlider(
+        views: [
+          BeforeAfterView(
+            name: 'View A',
+            before: ComparedPhoto(photo),
+            after: ComparedPhoto(photo),
+            beforeDate: 'Day 1',
+            afterDate: 'Day 2',
+            change: '[CHANGE]',
+          ),
+        ],
+        sliderLabel: 'Before and after',
+        onLaterDateTap: () => taps++,
+      ),
+    );
+    final link = find.text('Day 2').first;
+    final context = tester.element(link);
+    expect(
+      tester.widget<Text>(link).style?.color,
+      ForgeStyle.of(context).colors.accent,
+    );
+    await tester.tap(link);
+    expect(taps, 1);
+  });
+
+  testWidgets('one view shows no chips', (tester) async {
+    await pumpSlider(
+      tester,
+      BeforeAfterSlider(
+        views: [
+          BeforeAfterView.single(
+            name: 'View A',
+            photo: ComparedPhoto(photo),
+            date: 'Day 1',
+          ),
+        ],
+        sliderLabel: 'Before and after',
+      ),
+    );
+    expect(find.byType(ForgeChip), findsNothing);
+    expect(find.text('View A'), findsOneWidget);
+  });
 }

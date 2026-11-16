@@ -28,6 +28,30 @@ Widget beforeAfterSlider(BuildContext context) => _page(
       ComparedPhoto(placeholderDark),
     ),
     sliderLabel: 'Before and after',
+    onLaterDateTap:
+        context.knobs.boolean(
+          label: 'Later date is a link',
+          initialValue: false,
+        )
+        ? () {}
+        : null,
+  ),
+);
+
+@widgetbook.UseCase(name: 'One view', type: BeforeAfterSlider)
+Widget beforeAfterOneView(BuildContext context) => _page(
+  BeforeAfterSlider(
+    views: [
+      BeforeAfterView(
+        name: 'View A',
+        before: ComparedPhoto(placeholderLight),
+        after: ComparedPhoto(placeholderDark),
+        beforeDate: '[DATE]',
+        afterDate: '[DATE]',
+        change: '[CHANGE]',
+      ),
+    ],
+    sliderLabel: 'Before and after',
   ),
 );
 
