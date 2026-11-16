@@ -86,16 +86,18 @@ class PermissionPrompt extends StatelessWidget {
        onSkip = onNotNow;
 
   /// The device lacks what the permission is for (no camera, say): [icon]
-  /// muted, no way to ask, and one secondary button to go on without it.
+  /// muted, no way to ask, and a secondary button to go on without it
+  /// unless the page around it already offers one.
   const PermissionPrompt.unavailable({
     super.key,
     required ForgeIconData this.icon,
     required this.title,
     required this.message,
-    required String skipLabel,
-    required VoidCallback onSkip,
+    String? skipLabel,
+    VoidCallback? onSkip,
     this.page = false,
-  }) : _state = _State.unavailable,
+  }) : assert((skipLabel == null) == (onSkip == null)),
+       _state = _State.unavailable,
        note = null,
        actionLabel = skipLabel,
        onAction = onSkip,
@@ -105,8 +107,8 @@ class PermissionPrompt extends StatelessWidget {
   final ForgeIconData? icon;
   final String title;
   final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   /// The text button under the main one.
   final String? skipLabel;
@@ -136,17 +138,20 @@ class PermissionPrompt extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: Gap.sm,
       children: [
-        ForgeButton(
-          label: actionLabel,
-          onPressed: onAction,
-          variant: switch (_state) {
-            _State.failed => ForgeButtonVariant.outline,
-            _State.unavailable => ForgeButtonVariant.secondary,
-            _ => ForgeButtonVariant.primary,
-          },
-          size: page ? ForgeButtonSize.large : ForgeButtonSize.regular,
-          trailingIcon: _state == _State.missing ? ForgeIcons.openInNew : null,
-        ),
+        if (actionLabel case final actionLabel?)
+          ForgeButton(
+            label: actionLabel,
+            onPressed: onAction,
+            variant: switch (_state) {
+              _State.failed => ForgeButtonVariant.outline,
+              _State.unavailable => ForgeButtonVariant.secondary,
+              _ => ForgeButtonVariant.primary,
+            },
+            size: page ? ForgeButtonSize.large : ForgeButtonSize.regular,
+            trailingIcon: _state == _State.missing
+                ? ForgeIcons.openInNew
+                : null,
+          ),
         if (skipLabel != null)
           ForgeButton(
             label: skipLabel,

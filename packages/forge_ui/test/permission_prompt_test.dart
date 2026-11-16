@@ -170,6 +170,20 @@ void main() {
     expect(skipped, 1);
   });
 
+  testWidgets('unavailable without a skip has no button', (tester) async {
+    await pump(
+      tester,
+      const PermissionPrompt.unavailable(
+        icon: ForgeIcons.noPhotography,
+        title: 'No [DEVICE] found',
+        message: 'This device has no [DEVICE].',
+      ),
+    );
+
+    expect(find.byType(ForgeButton), findsNothing);
+    expect(find.text('No [DEVICE] found'), findsOneWidget);
+  });
+
   testWidgets('unavailable as a page has the 48px button', (tester) async {
     await pump(
       tester,
