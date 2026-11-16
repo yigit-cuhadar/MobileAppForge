@@ -87,6 +87,25 @@ Widget bareBandBarChart(BuildContext context) => ColoredBox(
   ),
 );
 
+@widgetbook.UseCase(name: 'Bar · small labels', type: Chart)
+Widget smallLabelBarChart(BuildContext context) => _page(
+  Chart.bar(
+    title: '12 weeks',
+    detail: '[UNIT]',
+    bars: [
+      for (var i = 0; i < 12; i++)
+        ChartBar(
+          label: i.isOdd ? '[DATE]' : '',
+          value: 30.0 + i * 7919 % 45,
+          valueLabel: '${30 + i * 7919 % 45}',
+        ),
+    ],
+    current: 11,
+    smallLabels: true,
+    semanticLabel: 'Minutes over 12 weeks',
+  ),
+);
+
 @widgetbook.UseCase(name: 'Bar · dense (30 days)', type: Chart)
 Widget denseBarChart(BuildContext context) => _page(
   Chart.barDense(

@@ -116,6 +116,42 @@ void main() {
     expect(tester.getSize(bar.first).height, 0);
   });
 
+  testWidgets('small labels sit unwrapped under every other bar', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      Chart.bar(
+        title: '12 weeks',
+        bars: [
+          for (var i = 0; i < 12; i++)
+            ChartBar(
+              label: i.isOdd ? '[DATE] $i' : '',
+              value: 40.0 + i,
+              valueLabel: '${40 + i}',
+            ),
+        ],
+        current: 11,
+        smallLabels: true,
+        semanticLabel: 'Minutes over 12 weeks',
+      ),
+    );
+
+    final label = find.text('[DATE] 1');
+    final style = tester.widget<Text>(label).style!;
+    expect(style.fontSize, 9);
+    expect(style.color, colors(tester).inkMuted);
+    // One line, wider than its bar, centred on it.
+    expect(tester.getSize(label).height, 12);
+    final bar = tester.getRect(
+      find.ancestor(of: find.text('41'), matching: find.byType(Expanded)).first,
+    );
+    final rect = tester.getRect(label);
+    expect(rect.width, greaterThan(bar.width));
+    expect(rect.center.dx, closeTo(bar.center.dx, 0.5));
+    expect(tester.takeException(), isNull);
+  });
+
   group('Chart.barDense', () {
     Widget dense() => Chart.barDense(
       title: 'Last 30 days',

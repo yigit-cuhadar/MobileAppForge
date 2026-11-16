@@ -41,6 +41,7 @@ class Chart extends StatelessWidget {
   }) : _state = _State.line,
        band = null,
        card = true,
+       smallLabels = false,
        bars = null,
        current = null,
        _messageTitle = null,
@@ -54,7 +55,9 @@ class Chart extends StatelessWidget {
   /// [band] (such as 10–20) is a sunken stripe behind the bars, and each
   /// bar then takes the BandBar colours: a soft accent below the band,
   /// accent within it, danger above it. Without its [card] the chart sits
-  /// on the page or sheet under its title.
+  /// on the page or sheet under its title. [smallLabels] sets the labels
+  /// at 9px on one line, centred under their bar and free to run past it;
+  /// give the bars between labelled ones an empty label.
   const Chart.bar({
     super.key,
     required this.title,
@@ -64,6 +67,7 @@ class Chart extends StatelessWidget {
     this.target,
     this.band,
     this.card = true,
+    this.smallLabels = false,
     required String this.semanticLabel,
   }) : _state = _State.bar,
        values = null,
@@ -92,6 +96,7 @@ class Chart extends StatelessWidget {
   }) : _state = _State.barDense,
        band = null,
        card = true,
+       smallLabels = false,
        values = null,
        pointLabel = null,
        startLabel = null,
@@ -107,6 +112,7 @@ class Chart extends StatelessWidget {
     : _state = _State.loading,
       band = null,
       card = true,
+      smallLabels = false,
       values = null,
       pointLabel = null,
       startLabel = null,
@@ -133,6 +139,7 @@ class Chart extends StatelessWidget {
   }) : _state = _State.empty,
        band = null,
        card = true,
+       smallLabels = false,
        _messageTitle = emptyTitle,
        values = null,
        pointLabel = null,
@@ -158,6 +165,7 @@ class Chart extends StatelessWidget {
   }) : _state = _State.error,
        band = null,
        card = true,
+       smallLabels = false,
        _messageTitle = errorTitle,
        values = null,
        pointLabel = null,
@@ -187,6 +195,7 @@ class Chart extends StatelessWidget {
   /// The values a bar should land between.
   final ({double low, double high})? band;
   final bool card;
+  final bool smallLabels;
   final String? _messageTitle;
   final String? message;
   final List<Widget> actions;
@@ -212,6 +221,7 @@ class Chart extends StatelessWidget {
           current: current,
           target: target,
           band: band,
+          smallLabels: smallLabels,
           semanticLabel: semanticLabel!,
         ),
       ],
@@ -513,6 +523,7 @@ class _BarChart extends StatelessWidget {
     required this.current,
     required this.target,
     required this.band,
+    required this.smallLabels,
     required this.semanticLabel,
   });
 
@@ -520,7 +531,12 @@ class _BarChart extends StatelessWidget {
   final int? current;
   final double? target;
   final ({double low, double high})? band;
+  final bool smallLabels;
   final String semanticLabel;
+
+  /// The small labels' size and line height.
+  static const smallSize = 9.0;
+  static const smallLine = 12.0;
 
   static const height = 130.0;
   static const radius = BorderRadius.all(Radius.circular(4));
@@ -536,7 +552,6 @@ class _BarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final colors = style.colors;
-    final text = Theme.of(context).textTheme;
     final valueStyle = style.data.copyWith(fontSize: 10);
     final painter = TextPainter(
       text: TextSpan(text: '0', style: valueStyle),
@@ -648,21 +663,33 @@ class _BarChart extends StatelessWidget {
             spacing: Gap.sm,
             children: [
               for (final (i, bar) in bars.indexed)
-                Expanded(
-                  child: Text(
-                    bar.label,
-                    textAlign: TextAlign.center,
-                    style: text.labelSmall!.copyWith(
-                      color: i == current ? colors.ink : colors.inkMuted,
-                      fontWeight: i == current
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                    ),
-                  ),
-                ),
+                Expanded(child: _label(context, i, bar.label)),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _label(BuildContext context, int i, String label) {
+    final colors = ForgeStyle.of(context).colors;
+    var style = Theme.of(context).textTheme.labelSmall!.copyWith(
+      color: i == current ? colors.ink : colors.inkMuted,
+      fontWeight: i == current ? FontWeight.w700 : FontWeight.w500,
+    );
+    if (!smallLabels) {
+      return Text(label, textAlign: TextAlign.center, style: style);
+    }
+    style = style.copyWith(
+      fontSize: _BarChart.smallSize,
+      height: _BarChart.smallLine / _BarChart.smallSize,
+    );
+    return SizedBox(
+      height: MediaQuery.textScalerOf(context).scale(_BarChart.smallLine),
+      // Centred on the bar, running past its edges rather than wrapping.
+      child: OverflowBox(
+        maxWidth: double.infinity,
+        child: Text(label, maxLines: 1, softWrap: false, style: style),
       ),
     );
   }
