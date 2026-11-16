@@ -123,6 +123,14 @@ void main() {
       expect(tester.getSize(find.byType(Progress)), const Size(136, 136));
     });
 
+    testWidgets('the ring loading is a shimmering circle of its size', (
+      tester,
+    ) async {
+      await pump(tester, const Center(child: Progress.ringLoading()));
+      expect(find.byType(SkeletonBar), findsOneWidget);
+      expect(tester.getSize(find.byType(Progress)), const Size(136, 136));
+    });
+
     testWidgets('the indeterminate line runs full width, still with less '
         'motion, and is read out', (tester) async {
       await pump(tester, const Progress.indeterminate(label: 'Saving'));

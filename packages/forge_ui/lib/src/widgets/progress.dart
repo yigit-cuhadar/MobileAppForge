@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'runner_line.dart';
+import 'skeleton.dart';
 
 /// Progress toward a goal as a thin bar or a ring on surface-sunken, with
 /// the [figure] and a [caption]. Reaching the [goal] turns the fill and the
@@ -32,6 +33,16 @@ class Progress extends StatelessWidget {
   }) : _form = _Form.ring,
        thin = false,
        label = null;
+
+  /// The ring while its value loads: a shimmering 136px circle.
+  const Progress.ringLoading({super.key})
+    : _form = _Form.ringLoading,
+      value = 0,
+      goal = null,
+      figure = null,
+      caption = null,
+      thin = false,
+      label = null;
 
   /// The bare bar: 6px on surface-sunken, or [thin], 4px on line. Filled in
   /// accent to [value], from 0 to 1; given a [goal], to [value] out of it,
@@ -77,6 +88,9 @@ class Progress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
+    if (_form == _Form.ringLoading) {
+      return const SkeletonBar(width: _ringSize, height: _ringSize);
+    }
     if (_form == _Form.indeterminate) {
       return Semantics(
         label: label,
@@ -156,7 +170,7 @@ class Progress extends StatelessWidget {
   }
 }
 
-enum _Form { bar, ring, track, indeterminate }
+enum _Form { bar, ring, ringLoading, track, indeterminate }
 
 class _Track extends StatelessWidget {
   const _Track({
