@@ -174,4 +174,25 @@ void main() {
     expect(find.byType(ForgeChip), findsNothing);
     expect(find.text('View A'), findsOneWidget);
   });
+
+  testWidgets('without a change the line holds the dates alone', (
+    tester,
+  ) async {
+    await pumpSlider(
+      tester,
+      BeforeAfterSlider(
+        views: [
+          BeforeAfterView(
+            name: 'View A',
+            before: ComparedPhoto(photo),
+            after: ComparedPhoto(photo),
+            beforeDate: 'Day 1',
+            afterDate: 'Day 2',
+          ),
+        ],
+        sliderLabel: 'Before and after',
+      ),
+    );
+    expect(find.text('Day 1 → Day 2'), findsOneWidget);
+  });
 }

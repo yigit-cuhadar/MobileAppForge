@@ -8,7 +8,11 @@ import 'photo_tile.dart';
 Widget _page(Widget child) =>
     ListView(padding: const EdgeInsets.all(Gap.md), children: [child]);
 
-List<BeforeAfterView> _views(ComparedPhoto before, ComparedPhoto after) => [
+List<BeforeAfterView> _views(
+  ComparedPhoto before,
+  ComparedPhoto after, {
+  String? change = '[CHANGE]',
+}) => [
   for (final view in ['View A', 'View B', 'View C'])
     BeforeAfterView(
       name: view,
@@ -16,7 +20,7 @@ List<BeforeAfterView> _views(ComparedPhoto before, ComparedPhoto after) => [
       after: after,
       beforeDate: '[DATE]',
       afterDate: '[DATE]',
-      change: '[CHANGE]',
+      change: change,
     ),
 ];
 
@@ -26,6 +30,9 @@ Widget beforeAfterSlider(BuildContext context) => _page(
     views: _views(
       ComparedPhoto(placeholderLight),
       ComparedPhoto(placeholderDark),
+      change: context.knobs.boolean(label: 'Change', initialValue: true)
+          ? '[CHANGE]'
+          : null,
     ),
     sliderLabel: 'Before and after',
     onLaterDateTap:

@@ -36,7 +36,7 @@ class BeforeAfterView {
     required ComparedPhoto this.after,
     required this.beforeDate,
     required String this.afterDate,
-    required String this.change,
+    this.change,
   });
 
   const BeforeAfterView.single({
@@ -54,6 +54,9 @@ class BeforeAfterView {
   final ComparedPhoto? after;
   final String beforeDate;
   final String? afterDate;
+
+  /// What changed between the days; without it the line holds the dates
+  /// alone.
   final String? change;
 }
 
@@ -152,12 +155,10 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
       detail = _line(view.beforeDate, muted);
     } else {
       tag = '${_blend >= 0.5 ? view.afterDate : view.beforeDate} · $percent';
+      final change = view.change == null ? '' : ' · ${view.change}';
       final onLaterDateTap = widget.onLaterDateTap;
       detail = onLaterDateTap == null
-          ? _line(
-              '${view.beforeDate} → ${view.afterDate} · ${view.change}',
-              muted,
-            )
+          ? _line('${view.beforeDate} → ${view.afterDate}$change', muted)
           : Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -181,7 +182,7 @@ class _BeforeAfterSliderState extends State<BeforeAfterSlider> {
                     ),
                   ),
                 ),
-                Flexible(child: _line(' · ${view.change}', muted)),
+                if (change.isNotEmpty) Flexible(child: _line(change, muted)),
               ],
             );
     }
