@@ -25,7 +25,7 @@ class StatTile extends StatelessWidget {
     this.progress,
   }) : _form = _Form.tile,
        change = null,
-       changeIsGood = false,
+       changeIsGood = null,
        message = null,
        onRetry = null,
        retryLabel = null;
@@ -43,20 +43,20 @@ class StatTile extends StatelessWidget {
        onTap = null,
        progress = null,
        change = null,
-       changeIsGood = false,
+       changeIsGood = null,
        message = null,
        onRetry = null,
        retryLabel = null;
 
   /// A small tile: the [label], the [figure] and an optional [change] line
   /// in data, success when it goes the way the app calls good
-  /// ([changeIsGood]), danger when not.
+  /// ([changeIsGood]), danger when not, ink-muted when neither (null).
   const StatTile.compact({
     super.key,
     required String label,
     required String this.figure,
     this.change,
-    this.changeIsGood = false,
+    this.changeIsGood,
   }) : _form = _Form.compact,
        title = label,
        detail = null,
@@ -83,7 +83,7 @@ class StatTile extends StatelessWidget {
        figure = null,
        unit = null,
        progress = null,
-       changeIsGood = false,
+       changeIsGood = null,
        message = null,
        onRetry = null,
        retryLabel = null;
@@ -99,7 +99,7 @@ class StatTile extends StatelessWidget {
       caption = null,
       progress = null,
       change = null,
-      changeIsGood = false,
+      changeIsGood = null,
       message = null,
       onRetry = null,
       retryLabel = null;
@@ -115,7 +115,7 @@ class StatTile extends StatelessWidget {
       caption = null,
       progress = null,
       change = null,
-      changeIsGood = false,
+      changeIsGood = null,
       message = null,
       onRetry = null,
       retryLabel = null;
@@ -132,7 +132,7 @@ class StatTile extends StatelessWidget {
        caption = null,
        progress = null,
        change = null,
-       changeIsGood = false,
+       changeIsGood = null,
        message = null,
        onRetry = null,
        retryLabel = null;
@@ -150,7 +150,7 @@ class StatTile extends StatelessWidget {
        caption = null,
        progress = null,
        change = null,
-       changeIsGood = false,
+       changeIsGood = null,
        onRetry = null,
        retryLabel = null;
 
@@ -184,7 +184,7 @@ class StatTile extends StatelessWidget {
 
   /// Written with a true minus sign.
   final String? change;
-  final bool changeIsGood;
+  final bool? changeIsGood;
   final String? message;
   final VoidCallback? onRetry;
   final String? retryLabel;
@@ -234,11 +234,11 @@ class StatTile extends StatelessWidget {
                 compact ? _minus(line) : line,
                 style: style.data.copyWith(
                   fontSize: 11,
-                  color: !compact
-                      ? colors.inkMuted
-                      : changeIsGood
-                      ? colors.success
-                      : colors.danger,
+                  color: switch (compact ? changeIsGood : null) {
+                    true => colors.success,
+                    false => colors.danger,
+                    null => colors.inkMuted,
+                  },
                 ),
               ),
           ];

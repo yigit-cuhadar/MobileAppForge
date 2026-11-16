@@ -75,6 +75,12 @@ Widget compactStatTile(BuildContext context) => _grid(const [
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Compact neutral change', type: StatTile)
+Widget compactNeutralStatTile(BuildContext context) => _grid(const [
+  StatTile.compact(label: 'Value A', figure: '82.4 [UNIT]', change: '-1.7'),
+  StatTile.compact(label: 'Value B', figure: '19.5 [UNIT]', change: '+0.3'),
+]);
+
 @widgetbook.UseCase(name: 'Compact without change', type: StatTile)
 Widget compactPlainStatTile(BuildContext context) => _grid(const [
   StatTile.compact(label: 'Value A', figure: '82.4 [UNIT]'),

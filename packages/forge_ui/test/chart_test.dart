@@ -581,6 +581,19 @@ void main() {
       expect(tester.widget<Text>(find.text('+1.0')).style?.color, c.danger);
     });
 
+    testWidgets('a compact change with no good way is ink-muted', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const StatTile.compact(label: 'Value A', figure: '1', change: '+1.0'),
+      );
+      expect(
+        tester.widget<Text>(find.text('+1.0')).style?.color,
+        colors(tester).inkMuted,
+      );
+    });
+
     testWidgets('a compact tile without a change has no change line', (
       tester,
     ) async {
