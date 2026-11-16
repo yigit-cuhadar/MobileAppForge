@@ -363,8 +363,8 @@ void main() {
       );
     });
 
-    testWidgets('the compact form is a unit-free 40px box of its width, the '
-        'value at its start', (tester) async {
+    testWidgets('the compact form is a unit-free 34px box of its width, the '
+        'value at its end', (tester) async {
       final changes = <String>[];
       await pump(
         tester,
@@ -395,6 +395,48 @@ void main() {
       );
       expect(
         tester.widget<TextField>(find.byType(TextField)).textAlign,
+        TextAlign.end,
+      );
+      // The one text is the empty box's dash: no unit.
+      expect(find.byType(Text), findsOneWidget);
+      expect(find.text('—'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '82.5');
+
+      expect(changes, ['82.5']);
+    });
+
+    testWidgets('the tall form is a unit-free 40px box of its width, the '
+        'value at its start', (tester) async {
+      final changes = <String>[];
+      await pump(
+        tester,
+        Align(
+          alignment: Alignment.topLeft,
+          child: ForgeNumberField.tall(
+            label: 'Field one',
+            width: 70,
+            onChanged: changes.add,
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSize(
+          find
+              .descendant(
+                of: find.byType(ForgeNumberField),
+                matching: find.byType(Container),
+              )
+              .first,
+        ),
+        const Size(70, ForgeNumberField.tallHeight),
+      );
+      expect(
+        tester.getSize(find.byType(ForgeNumberField)).height,
+        ForgeTheme.tapMin,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).textAlign,
         TextAlign.start,
       );
       // The one text is the empty box's dash: no unit.
@@ -405,13 +447,13 @@ void main() {
       expect(changes, ['82.5']);
     });
 
-    testWidgets('an invalid compact box has a danger border, also while '
+    testWidgets('an invalid tall box has a danger border, also while '
         'typing', (tester) async {
       Future<void> pumpField({required bool invalid}) => pump(
         tester,
         Align(
           alignment: Alignment.topLeft,
-          child: ForgeNumberField.compact(
+          child: ForgeNumberField.tall(
             label: 'Field one',
             width: 70,
             onChanged: (_) {},

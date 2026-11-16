@@ -202,8 +202,8 @@ Widget compactNumbers(BuildContext context) => _padded(
   ),
 );
 
-@widgetbook.UseCase(name: 'Compact, invalid', type: ForgeNumberField)
-Widget compactInvalid(BuildContext context) => _padded(
+@widgetbook.UseCase(name: 'Tall, invalid', type: ForgeNumberField)
+Widget tallInvalid(BuildContext context) => _padded(
   Column(
     spacing: Gap.sm,
     children: [
@@ -220,7 +220,7 @@ Widget compactInvalid(BuildContext context) => _padded(
             ])
               Expanded(
                 child: LayoutBuilder(
-                  builder: (context, constraints) => ForgeNumberField.compact(
+                  builder: (context, constraints) => ForgeNumberField.tall(
                     label: label,
                     width: constraints.maxWidth,
                     controller: TextEditingController(text: value),
