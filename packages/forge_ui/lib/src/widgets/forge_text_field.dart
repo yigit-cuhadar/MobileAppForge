@@ -66,7 +66,8 @@ class ForgeTextField extends StatefulWidget {
   final FormFieldValidator<String>? validator;
 
   /// An error the caller keeps up to date as the user types; it wins over
-  /// [validator]'s.
+  /// [validator]'s. An empty one marks the field without a line under it,
+  /// for fields sharing one message.
   final String? errorText;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
@@ -171,7 +172,7 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
                   style: input,
                   decoration: decoration,
                 ),
-              if (error != null) ...[
+              if (error != null && error.isNotEmpty) ...[
                 const SizedBox(height: Gap.sm),
                 Text(
                   error,
