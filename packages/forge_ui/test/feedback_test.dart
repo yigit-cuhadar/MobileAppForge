@@ -333,6 +333,31 @@ void main() {
         Gap.md,
       );
     });
+
+    testWidgets('the line form is its message alone, in ink, beside the '
+        'icon', (tester) async {
+      await pump(
+        tester,
+        const SizedBox(
+          width: 360,
+          child: NoticeBanner.line(
+            icon: ForgeIcons.warning,
+            message: 'One line.',
+          ),
+        ),
+      );
+
+      final text = tester.widget<Text>(find.text('One line.'));
+      final context = tester.element(find.byType(NoticeBanner));
+      expect(text.style?.color, ForgeStyle.of(context).colors.ink);
+      expect(find.byType(ForgeButton), findsNothing);
+      // One line, centred on the 36px icon circle, 12px inside the card.
+      expect(tester.getSize(find.byType(NoticeBanner)).height, 36 + 2 * 12);
+      expect(
+        tester.getCenter(find.text('One line.')).dy,
+        tester.getCenter(find.byType(NoticeBanner)).dy,
+      );
+    });
   });
 
   group('TipBanner', () {

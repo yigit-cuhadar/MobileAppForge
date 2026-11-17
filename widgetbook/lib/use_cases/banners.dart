@@ -29,6 +29,17 @@ Widget noActionNotice(BuildContext context) => _page(
   ),
 );
 
+@widgetbook.UseCase(name: 'One line', type: NoticeBanner)
+Widget lineNotice(BuildContext context) => _page(
+  NoticeBanner.line(
+    icon: ForgeIcons.warning,
+    message: context.knobs.string(
+      label: 'Message',
+      initialValue: 'Nothing fits your answers for: [ITEM], [ITEM]',
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Premium ended', type: NoticeBanner)
 Widget premiumEndedNotice(BuildContext context) => _page(
   NoticeBanner(

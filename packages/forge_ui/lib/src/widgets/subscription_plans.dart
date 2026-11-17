@@ -209,13 +209,12 @@ class SubscriptionPlans extends StatelessWidget {
                     const SizedBox(height: Gap.md),
                     _MessageCard(message!),
                   ],
-                  const Spacer(),
-                  const SizedBox(height: Gap.md),
-                  if (message != null && !failed)
-                    _MessageCard(message)
-                  else if (!failed)
-                    _plans(),
                 ],
+                bottom: message != null && !failed
+                    ? _MessageCard(message)
+                    : failed
+                    ? null
+                    : _plans(),
                 footer: _footer(),
               ),
             ),
@@ -359,14 +358,20 @@ class SubscriptionPlans extends StatelessWidget {
   }
 }
 
-/// The page above [footer]. The footer is pinned to the bottom while it
+/// The page above [footer]: [top] at the top and [bottom] (the plans) at
+/// the foot of the room left. The footer is pinned to the bottom while it
 /// takes at most half the height; taller, the whole page scrolls as one,
-/// the footer last, so every plan and link stays reachable. [top] is a
-/// column that fills the room, so a Spacer in it pushes the plans down.
+/// the footer last. Either way the page scrolls when it does not fit, so
+/// nothing is left under the footer.
 class _PinOrScroll extends StatefulWidget {
-  const _PinOrScroll({required this.top, required this.footer});
+  const _PinOrScroll({
+    required this.top,
+    required this.bottom,
+    required this.footer,
+  });
 
   final List<Widget> top;
+  final Widget? bottom;
   final Widget footer;
 
   @override
@@ -405,32 +410,38 @@ class _PinOrScrollState extends State<_PinOrScroll> {
           child: KeyedSubtree(key: _footer, child: widget.footer),
         ),
       );
-      final page = CustomScrollView(
-        slivers: [
-          SliverFillRemaining(
-            hasScrollBody: false,
+      // At least the viewport's height, so the plans sit at its foot, and
+      // as tall as its content otherwise. No intrinsic sizes: they can
+      // come out short and cut the content off.
+      final page = LayoutBuilder(
+        builder: (context, viewport) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: viewport.maxHeight),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      Gap.md,
-                      0,
-                      Gap.md,
-                      Gap.md,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: widget.top,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: widget.top,
                   ),
                 ),
-                if (!_pinned) footer,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(Gap.md),
+                      child: widget.bottom,
+                    ),
+                    if (!_pinned) footer,
+                  ],
+                ),
               ],
             ),
           ),
-        ],
+        ),
       );
       if (!_pinned) return page;
       return Column(
@@ -548,7 +559,11 @@ class _PlanBox extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (tag != null) ForgeTag(tag, kind: ForgeTagKind.record),
+                      // Large text shortens the tag before the plan's name.
+                      if (tag != null)
+                        Flexible(
+                          child: ForgeTag(tag, kind: ForgeTagKind.record),
+                        ),
                     ],
                   ),
           ),

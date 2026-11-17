@@ -13,13 +13,22 @@ class NoticeBanner extends StatelessWidget {
   const NoticeBanner({
     super.key,
     required this.icon,
-    required this.title,
+    required String this.title,
     required this.message,
     this.action,
   });
 
+  /// The compact form: the [message] alone, one line in ink next to the
+  /// icon ("No exercise fits your answers for: [ITEMS]"), and no action.
+  const NoticeBanner.line({
+    super.key,
+    required this.icon,
+    required this.message,
+  }) : title = null,
+       action = null;
+
   final ForgeIconData icon;
-  final String title;
+  final String? title;
   final String message;
   final Widget? action;
 
@@ -29,6 +38,38 @@ class NoticeBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
     final text = Theme.of(context).textTheme;
+    final circle = Container(
+      width: _circle,
+      height: _circle,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: colors.surfaceSunken,
+      ),
+      child: ForgeIcon(icon, size: 18, color: colors.danger),
+    );
+    final title = this.title;
+    if (title == null) {
+      return CardFrame(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 12,
+            children: [
+              circle,
+              Expanded(
+                child: Padding(
+                  // The first line centred on the circle.
+                  padding: const EdgeInsets.only(top: Gap.sm),
+                  child: Text(message, style: text.bodyMedium),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return CardFrame(
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
@@ -41,16 +82,7 @@ class NoticeBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: Gap.md,
               children: [
-                Container(
-                  width: _circle,
-                  height: _circle,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.surfaceSunken,
-                  ),
-                  child: ForgeIcon(icon, size: 18, color: colors.danger),
-                ),
+                circle,
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

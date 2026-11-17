@@ -355,6 +355,21 @@ Widget dataListRows(BuildContext context) => _page(
   ),
 );
 
+@widgetbook.UseCase(name: 'Data detail with a note', type: ListRow)
+Widget dataDetailRows(BuildContext context) => _page(
+  ListRowCard(
+    children: [
+      ListRow(
+        title: 'Item title',
+        detail: '3 × 6–8',
+        dataDetail: true,
+        detailNote: context.knobs.string(label: 'Note', initialValue: '[NOTE]'),
+      ),
+      const ListRow(title: 'Item title', detail: '3 × 8–10', dataDetail: true),
+    ],
+  ),
+);
+
 @widgetbook.UseCase(name: 'Muted', type: ListRow)
 Widget mutedListRows(BuildContext context) => _page(
   const ListRowCard(
