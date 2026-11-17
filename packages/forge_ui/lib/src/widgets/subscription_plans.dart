@@ -448,7 +448,18 @@ class _PinOrScrollState extends State<_PinOrScroll> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(child: page),
-          footer,
+          // A footer that grows past half the page (plans arriving at a
+          // large text size) is clipped for the frame until it is measured
+          // at its full height and moves into the page.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: _height / 2),
+            child: UnconstrainedBox(
+              constrainedAxis: Axis.horizontal,
+              alignment: Alignment.topCenter,
+              clipBehavior: Clip.hardEdge,
+              child: footer,
+            ),
+          ),
         ],
       );
     },
