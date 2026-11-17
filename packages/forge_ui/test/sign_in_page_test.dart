@@ -70,6 +70,49 @@ void main() {
     passwordError: passwordError,
   );
 
+  testWidgets('only a pushed page shows back, and back pops it', (
+    tester,
+  ) async {
+    await pump(tester, page([]));
+    expect(find.bySemanticsLabel('Back'), findsNothing);
+
+    final nav = tester.state<NavigatorState>(find.byType(Navigator));
+    nav.push(MaterialPageRoute<void>(builder: (_) => page([])));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Back'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Back'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Back'), findsNothing);
+  });
+
+  testWidgets('the email form also shows back when pushed', (tester) async {
+    await pump(tester, page([]));
+    tester
+        .state<NavigatorState>(find.byType(Navigator))
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => page(
+              [],
+              email: SignInEmailForm(
+                backLabel: 'Other options',
+                onBack: () {},
+                title: 'Create account',
+                emailLabel: 'Email',
+                passwordLabel: 'Password',
+                submitLabel: 'Create account',
+                onSubmit: (_, _) {},
+                switchLabel: 'Sign in',
+                onSwitch: () {},
+              ),
+            ),
+          ),
+        );
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Back'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('every option reports its tap', (tester) async {
     final taps = <String>[];
     await pump(tester, page(taps));

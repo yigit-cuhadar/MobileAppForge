@@ -155,6 +155,11 @@ class SignInPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: Gap.sm,
         children: [
+          // Pushed over another page, the page offers its own way back.
+          if (ModalRoute.of(context)?.impliesAppBarDismissal ?? false) ...[
+            _BackButton(color: colors.onFeatured),
+            if (this.email == null) const Spacer(),
+          ],
           // With the column's gap, 16 under the mark.
           Container(
             width: _tile,
@@ -255,6 +260,41 @@ class SignInPage extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A 36px round back button on the featured block.
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return Semantics(
+      button: true,
+      label: MaterialLocalizations.of(context).backButtonTooltip,
+      excludeSemantics: true,
+      child: Material(
+        color: color.withValues(alpha: 0.16),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => Navigator.maybePop(context),
+          child: SizedBox.square(
+            dimension: 36,
+            child: Center(
+              child: ForgeIcon(
+                rtl ? ForgeIcons.chevronRight : ForgeIcons.chevronLeft,
+                size: 22,
+                color: color,
+              ),
+            ),
+          ),
         ),
       ),
     );
