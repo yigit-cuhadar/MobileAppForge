@@ -14,6 +14,23 @@ void main() {
   );
 
   group('ForgeTextField', () {
+    testWidgets('puts its unit at the end of the box', (tester) async {
+      await pump(
+        tester,
+        ForgeTextField(
+          label: 'Height',
+          unit: 'cm',
+          controller: TextEditingController(text: '180'),
+        ),
+      );
+
+      final box = tester.getRect(find.byType(TextField));
+      final unit = tester.getRect(find.text('cm'));
+      expect(box.contains(unit.center), isTrue);
+      // At the box's end, as ForgeNumberField's unit.
+      expect(unit.left, greaterThan(box.center.dx));
+    });
+
     testWidgets('puts the label above a 44px box', (tester) async {
       await pump(tester, const ForgeTextField(label: 'Name', hint: 'e.g. X'));
 
