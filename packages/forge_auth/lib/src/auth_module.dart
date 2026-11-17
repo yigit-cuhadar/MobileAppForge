@@ -48,6 +48,7 @@ class AuthModule implements FeatureModule {
           signInWithProvider: sl(),
           sendPasswordReset: sl(),
           getCurrentUser: sl(),
+          signInAnonymously: sl(),
         ),
       );
   }

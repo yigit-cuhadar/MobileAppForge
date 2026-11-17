@@ -127,5 +127,14 @@ class FirebaseAuthRepository implements AuthRepository {
           email: user.email,
           displayName: user.displayName,
           isAnonymous: user.isAnonymous,
+          signInMethods: {
+            for (final info in user.providerData) ?_methods[info.providerId],
+          },
         );
+
+  static final _methods = {
+    EmailAuthProvider.PROVIDER_ID: SignInMethod.email,
+    GoogleAuthProvider.PROVIDER_ID: SignInMethod.google,
+    AppleAuthProvider.PROVIDER_ID: SignInMethod.apple,
+  };
 }

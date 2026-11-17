@@ -19,6 +19,7 @@ void main() {
     List<String> taps, {
     SignInOption? running,
     SignInEmailForm? email,
+    bool guest = true,
   }) => SignInPage(
     mark: const Text('A'),
     name: '[APP NAME]',
@@ -35,8 +36,8 @@ void main() {
     ),
     useEmailLabel: 'Use email instead',
     onUseEmail: () => taps.add('email'),
-    guestLabel: 'Continue as guest',
-    onGuest: () => taps.add('guest'),
+    guestLabel: guest ? 'Continue as guest' : null,
+    onGuest: guest ? () => taps.add('guest') : null,
     terms: SignInTerms(
       text: 'By continuing you agree to the {terms} and {privacy}.',
       termsLabel: 'Terms',
@@ -275,5 +276,46 @@ void main() {
       matching: find.byType(ForgeButton),
     );
     expect(tester.widget<ForgeButton>(button).size, ForgeButtonSize.regular);
+  });
+
+  testWidgets('without a guest action the guest link is left out', (
+    tester,
+  ) async {
+    await pump(tester, page([], guest: false));
+    expect(find.text('Continue as guest'), findsNothing);
+    expect(find.text('Use email instead'), findsOneWidget);
+  });
+
+  testWidgets('a one-colour mark takes the button label colour', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: SignInPage(
+          mark: const Text('A'),
+          name: '[APP NAME]',
+          tagline: '[TAGLINE]',
+          apple: SignInProvider(
+            mark: const Icon(Icons.circle),
+            label: 'Continue with Apple',
+            onPressed: () {},
+          ),
+          useEmailLabel: 'Use email instead',
+          onUseEmail: () {},
+          terms: SignInTerms(
+            text: '{terms} {privacy}',
+            termsLabel: 'Terms',
+            onTerms: () {},
+            privacyLabel: 'Privacy Policy',
+            onPrivacy: () {},
+          ),
+          signingInLabel: 'Signing in…',
+        ),
+      ),
+    );
+    final context = tester.element(find.byIcon(Icons.circle));
+    final label = tester.widget<Text>(find.text('Continue with Apple'));
+    expect(IconTheme.of(context).color, label.style!.color);
   });
 }

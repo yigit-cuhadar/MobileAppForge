@@ -5,244 +5,236 @@ import 'package:forge_ui/forge_ui.dart';
 
 import '../domain/auth_user.dart';
 import 'auth_cubit.dart';
+import 'auth_failure_field.dart';
 import 'auth_form_cubit.dart';
 import 'auth_strings.dart';
 import 'provider_mark.dart';
 
-/// Combined sign-in / sign-up screen. Needs `AuthCubit` above it. Navigation
-/// after success belongs to the app: either its router reacts to `AuthCubit`,
-/// or it passes [onSignedIn].
+/// The sign-in screen, on forge_ui's [SignInPage]: the app's [mark],
+/// [name] and [tagline], the [providers], "Use email instead" opening the
+/// email form, a guest link while nobody is signed in, and the terms line
+/// with links to [onTerms] and [onPrivacy]. Needs `AuthCubit` above it.
+/// Navigation after success belongs to the app: either its router reacts
+/// to `AuthCubit`, or it passes [onSignedIn].
 ///
-/// For a guest, signing up upgrades the guest in place; signing in to an
-/// existing account discards the guest after the user confirms.
+/// For a guest, creating an account or a provider sign-in upgrades the
+/// guest in place; signing in to an existing account discards the guest
+/// after the user confirms.
 class AuthPage extends StatelessWidget {
   const AuthPage({
     super.key,
+    required this.mark,
+    required this.name,
+    required this.tagline,
+    required this.onTerms,
+    required this.onPrivacy,
     this.strings = const AuthStrings(),
     this.providers = const [],
-    this.header,
     this.onSignedIn,
     this.initialSignUp = false,
   });
 
+  final Widget mark;
+  final String name;
+  final String tagline;
+  final VoidCallback onTerms;
+  final VoidCallback onPrivacy;
   final AuthStrings strings;
 
   /// Social sign-in buttons to show; each must be enabled in Firebase.
   final List<SocialProvider> providers;
-  final Widget? header;
 
-  /// Called once when a non-guest session starts while the page is open.
+  /// Called once when a session starts while the page is open: any
+  /// non-guest one, or a guest one when nobody was signed in.
   final VoidCallback? onSignedIn;
+
+  /// Opens straight on the email form's create-account mode.
   final bool initialSignUp;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<AuthFormCubit>(),
-      child: _AuthView(
-        strings: strings,
-        providers: providers,
-        header: header,
-        onSignedIn: onSignedIn,
-        initialSignUp: initialSignUp,
-      ),
+      child: _AuthView(page: this),
     );
   }
 }
 
 class _AuthView extends StatefulWidget {
-  const _AuthView({
-    required this.strings,
-    required this.providers,
-    required this.initialSignUp,
-    this.header,
-    this.onSignedIn,
-  });
+  const _AuthView({required this.page});
 
-  final AuthStrings strings;
-  final List<SocialProvider> providers;
-  final bool initialSignUp;
-  final Widget? header;
-  final VoidCallback? onSignedIn;
+  final AuthPage page;
 
   @override
   State<_AuthView> createState() => _AuthViewState();
 }
 
 class _AuthViewState extends State<_AuthView> {
-  final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  late bool _signUp = widget.initialSignUp;
+  /// The email form's mode, or null while the options show.
+  late bool? _signUp = widget.page.initialSignUp ? true : null;
+
+  /// The option started last; it shows as running while the form loads.
+  SignInOption? _option;
+  String? _emailError;
+  String? _passwordError;
   bool _signedIn = false;
 
   static final _emailPattern = RegExp(r'^\S+@\S+\.\S+$');
 
-  @override
-  void dispose() {
-    _email.dispose();
-    _password.dispose();
-    super.dispose();
+  AuthStrings get _s => widget.page.strings;
+  AuthFormCubit get _cubit => context.read<AuthFormCubit>();
+
+  void _showEmail(bool? signUp) => setState(() {
+    _signUp = signUp;
+    _emailError = null;
+    _passwordError = null;
+  });
+
+  String? _checkEmail(String email) =>
+      _emailPattern.hasMatch(email) ? null : _s.invalidEmail;
+
+  void _submit(String email, String password) {
+    final emailError = _checkEmail(email);
+    final passwordError = password.length >= 6 ? null : _s.shortPassword;
+    setState(() {
+      _emailError = emailError;
+      _passwordError = passwordError;
+    });
+    if (emailError != null || passwordError != null) return;
+    _option = SignInOption.email;
+    _signUp! ? _cubit.signUp(email, password) : _cubit.signIn(email, password);
   }
 
-  String? _validateEmail(String? value) =>
-      _emailPattern.hasMatch(value?.trim() ?? '')
-      ? null
-      : widget.strings.invalidEmail;
+  void _resetPassword(String email) {
+    final error = _checkEmail(email);
+    setState(() {
+      _emailError = error;
+      _passwordError = null;
+    });
+    if (error != null) return;
+    _option = SignInOption.email;
+    _cubit.resetPassword(email);
+  }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-    final cubit = context.read<AuthFormCubit>();
-    _signUp
-        ? cubit.signUp(_email.text, _password.text)
-        : cubit.signIn(_email.text, _password.text);
+  void _start(SignInOption option, Future<void> Function() action) {
+    _option = option;
+    action();
+  }
+
+  void _onFailure(Failure failure) {
+    final field = failureField(failure);
+    if (field == null) {
+      return showForgeSnackbar(
+        context,
+        message: _s.signInFailed,
+        actionLabel: _s.retry,
+        onAction: _cubit.retry,
+        error: true,
+      );
+    }
+    final message = _s.errorFor(failure);
+    setState(() {
+      _emailError = field == AuthFailureField.email ? message : null;
+      _passwordError = field == AuthFailureField.password ? message : null;
+    });
   }
 
   Future<void> _confirmReplaceGuest() async {
-    final s = widget.strings;
-    final cubit = context.read<AuthFormCubit>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(s.replaceGuestTitle),
-        content: Text(s.replaceGuestBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(s.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(s.replaceGuestConfirm),
-          ),
-        ],
-      ),
+    final cubit = _cubit;
+    final confirmed = await confirmReplaceGuestData(
+      context,
+      title: _s.replaceGuestTitle,
+      message: _s.replaceGuestBody,
+      confirmLabel: _s.replaceGuestConfirm,
+      cancelLabel: _s.cancel,
     );
-    confirmed ?? false
-        ? await cubit.confirmReplaceGuest()
-        : cubit.cancelReplaceGuest();
+    confirmed ? await cubit.confirmReplaceGuest() : cubit.cancelReplaceGuest();
   }
 
-  void _resetPassword() {
-    final error = _validateEmail(_email.text);
-    if (error != null) return _show(error);
-    context.read<AuthFormCubit>().resetPassword(_email.text);
+  SignInProvider? _provider(SocialProvider provider, SignInOption? running) {
+    if (!widget.page.providers.contains(provider)) return null;
+    final option = switch (provider) {
+      SocialProvider.google => SignInOption.google,
+      SocialProvider.apple => SignInOption.apple,
+    };
+    return SignInProvider(
+      mark: ProviderMark(provider, enabled: running == null),
+      label: switch (provider) {
+        SocialProvider.google => _s.continueWithGoogle,
+        SocialProvider.apple => _s.continueWithApple,
+      },
+      onPressed: () => _start(option, () => _cubit.signInWith(provider)),
+    );
   }
 
-  void _show(String message) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+  SignInEmailForm _emailForm(bool signUp) => SignInEmailForm(
+    backLabel: _s.otherOptions,
+    onBack: () => _showEmail(null),
+    title: signUp ? _s.signUp : _s.signInWithEmail,
+    emailLabel: _s.email,
+    passwordLabel: _s.password,
+    submitLabel: signUp ? _s.signUp : _s.signIn,
+    onSubmit: _submit,
+    forgotPasswordLabel: signUp ? null : _s.forgotPassword,
+    onForgotPassword: signUp ? null : _resetPassword,
+    switchLabel: signUp ? _s.switchToSignIn : _s.switchToSignUp,
+    onSwitch: () => _showEmail(!signUp),
+    emailError: _emailError,
+    passwordError: _passwordError,
+  );
 
   @override
   Widget build(BuildContext context) {
-    final s = widget.strings;
+    final page = widget.page;
+    final s = _s;
+    final nobody = context.select<AuthCubit, bool>(
+      (cubit) => cubit.state is Unauthenticated,
+    );
     return BlocListener<AuthCubit, AuthState>(
-      listenWhen: (_, state) =>
-          widget.onSignedIn != null &&
+      listenWhen: (previous, state) =>
+          page.onSignedIn != null &&
           state is Authenticated &&
-          !state.user.isAnonymous,
+          (!state.user.isAnonymous || previous is! Authenticated),
       listener: (_, _) {
         if (_signedIn) return;
         _signedIn = true;
-        widget.onSignedIn!();
+        page.onSignedIn!();
       },
       child: BlocConsumer<AuthFormCubit, AuthFormState>(
         listener: (context, state) => switch (state.status) {
-          AuthFormStatus.failure => _show(s.errorFor(state.failure!)),
+          AuthFormStatus.failure => _onFailure(state.failure!),
           AuthFormStatus.confirmReplaceGuest => _confirmReplaceGuest(),
-          AuthFormStatus.resetSent => _show(s.resetSent),
+          AuthFormStatus.resetSent => showForgeSnackbar(
+            context,
+            message: s.resetSent,
+          ),
           _ => null,
         },
         builder: (context, state) {
-          return Scaffold(
-            appBar: AppBar(title: Text(_signUp ? s.signUp : s.signIn)),
-            body: SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(Gap.lg),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Form(
-                      key: _formKey,
-                      child: AutofillGroup(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (widget.header != null) ...[
-                              widget.header!,
-                              const SizedBox(height: Gap.lg),
-                            ],
-                            ForgeTextField(
-                              label: s.email,
-                              controller: _email,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.email],
-                              validator: _validateEmail,
-                            ),
-                            const SizedBox(height: Gap.md),
-                            ForgeTextField(
-                              label: s.password,
-                              controller: _password,
-                              obscure: true,
-                              textInputAction: TextInputAction.done,
-                              autofillHints: [
-                                _signUp
-                                    ? AutofillHints.newPassword
-                                    : AutofillHints.password,
-                              ],
-                              validator: (v) => (v?.length ?? 0) >= 6
-                                  ? null
-                                  : s.shortPassword,
-                              onSubmitted: (_) => _submit(),
-                            ),
-                            const SizedBox(height: Gap.lg),
-                            ForgeButton(
-                              label: _signUp ? s.signUp : s.signIn,
-                              loading: state.isLoading,
-                              onPressed: _submit,
-                            ),
-                            if (!_signUp)
-                              TextButton(
-                                onPressed: state.isLoading
-                                    ? null
-                                    : _resetPassword,
-                                child: Text(s.forgotPassword),
-                              ),
-                            TextButton(
-                              onPressed: state.isLoading
-                                  ? null
-                                  : () => setState(() => _signUp = !_signUp),
-                              child: Text(
-                                _signUp ? s.switchToSignIn : s.switchToSignUp,
-                              ),
-                            ),
-                            for (final provider in widget.providers) ...[
-                              const SizedBox(height: Gap.sm),
-                              OutlinedButton.icon(
-                                onPressed: state.isLoading
-                                    ? null
-                                    : () => context
-                                          .read<AuthFormCubit>()
-                                          .signInWith(provider),
-                                icon: ProviderMark(
-                                  provider,
-                                  enabled: !state.isLoading,
-                                ),
-                                label: Text(switch (provider) {
-                                  SocialProvider.google => s.continueWithGoogle,
-                                  SocialProvider.apple => s.continueWithApple,
-                                }),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+          final running = state.isLoading ? _option : null;
+          final signUp = _signUp;
+          return SignInPage(
+            mark: page.mark,
+            name: page.name,
+            tagline: page.tagline,
+            apple: _provider(SocialProvider.apple, running),
+            google: _provider(SocialProvider.google, running),
+            useEmailLabel: s.useEmail,
+            onUseEmail: () => _showEmail(false),
+            guestLabel: nobody ? s.continueAsGuest : null,
+            onGuest: nobody
+                ? () => _start(SignInOption.guest, _cubit.continueAsGuest)
+                : null,
+            terms: SignInTerms(
+              text: s.terms,
+              termsLabel: s.termsLink,
+              onTerms: page.onTerms,
+              privacyLabel: s.privacyLink,
+              onPrivacy: page.onPrivacy,
             ),
+            signingInLabel: s.signingIn,
+            email: signUp == null ? null : _emailForm(signUp),
+            running: running,
           );
         },
       ),

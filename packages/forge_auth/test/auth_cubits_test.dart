@@ -129,6 +129,7 @@ void main() {
       signInWithProvider: SignInWithProvider(repository),
       sendPasswordReset: SendPasswordReset(repository),
       getCurrentUser: GetCurrentUser(repository),
+      signInAnonymously: SignInAnonymously(repository),
     );
 
     blocTest<AuthFormCubit, AuthFormState>(
@@ -172,6 +173,57 @@ void main() {
     );
 
     blocTest<AuthFormCubit, AuthFormState>(
+      'continueAsGuest starts a guest session',
+      setUp: () =>
+          when(() => repository.signInAnonymously())
+              .thenAnswer((_) async => const Ok(AuthUser(id: 'g1'))),
+      build: build,
+      act: (cubit) => cubit.continueAsGuest(),
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(),
+      ],
+      verify: (_) => verify(() => repository.signInAnonymously()).called(1),
+    );
+
+    const offline = NetworkFailure('offline');
+    blocTest<AuthFormCubit, AuthFormState>(
+      'retry runs the failed action again',
+      setUp: () {
+        var calls = 0;
+        when(() => repository.signInWithEmail('a@b.co', 'secret1')).thenAnswer(
+          (_) async => calls++ == 0 ? const Err(offline) : const Ok(user),
+        );
+        when(() => repository.currentUser).thenReturn(null);
+      },
+      build: build,
+      act: (cubit) async {
+        await cubit.signIn('a@b.co', 'secret1');
+        await cubit.retry();
+      },
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(status: AuthFormStatus.failure, failure: offline),
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(),
+      ],
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'retry does nothing unless the last action failed',
+      setUp: () =>
+          when(() => repository.signInAnonymously())
+              .thenAnswer((_) async => const Ok(AuthUser(id: 'g1'))),
+      build: build,
+      act: (cubit) async {
+        await cubit.retry();
+        await cubit.continueAsGuest();
+        await cubit.retry();
+      },
+      verify: (_) => verify(() => repository.signInAnonymously()).called(1),
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
       'ignores a second submit while loading',
       setUp: () => when(
         () => repository.signInWithProvider(
@@ -203,6 +255,7 @@ void main() {
       signInWithProvider: SignInWithProvider(repository),
       sendPasswordReset: SendPasswordReset(repository),
       getCurrentUser: GetCurrentUser(repository),
+      signInAnonymously: SignInAnonymously(repository),
     );
 
     void stubProvider({

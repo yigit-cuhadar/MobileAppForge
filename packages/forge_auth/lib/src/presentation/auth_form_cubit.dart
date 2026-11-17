@@ -37,6 +37,7 @@ class AuthFormCubit extends Cubit<AuthFormState> {
     required this._signInWithProvider,
     required this._sendPasswordReset,
     required this._getCurrentUser,
+    required this._signInAnonymously,
   }) : super(const AuthFormState());
 
   final SignInWithEmail _signInWithEmail;
@@ -44,9 +45,13 @@ class AuthFormCubit extends Cubit<AuthFormState> {
   final SignInWithProvider _signInWithProvider;
   final SendPasswordReset _sendPasswordReset;
   final GetCurrentUser _getCurrentUser;
+  final SignInAnonymously _signInAnonymously;
 
   /// The action waiting for the user to confirm discarding the guest.
   Future<void> Function()? _pending;
+
+  /// The last action started, which [retry] runs again.
+  Future<void> Function()? _last;
 
   /// Signing in replaces a guest session, so a guest is asked first.
   Future<void> signIn(String email, String password) async {
@@ -73,6 +78,14 @@ class AuthFormCubit extends Cubit<AuthFormState> {
   Future<void> resetPassword(String email) =>
       _run(() => _sendPasswordReset(email), onOk: AuthFormStatus.resetSent);
 
+  /// Starts a guest session; for when nobody is signed in.
+  Future<void> continueAsGuest() => _run(_signInAnonymously.call);
+
+  /// Runs the action that failed again.
+  Future<void> retry() async {
+    if (state.status == AuthFormStatus.failure) await _last?.call();
+  }
+
   Future<void> confirmReplaceGuest() async {
     final action = _pending;
     _pending = null;
@@ -95,6 +108,7 @@ class AuthFormCubit extends Cubit<AuthFormState> {
     Future<void> Function()? onAccountExists,
   }) async {
     if (state.isLoading) return;
+    _last = () => _run(action, onOk: onOk, onAccountExists: onAccountExists);
     emit(const AuthFormState(status: AuthFormStatus.loading));
     final result = await action();
     if (isClosed) return;
