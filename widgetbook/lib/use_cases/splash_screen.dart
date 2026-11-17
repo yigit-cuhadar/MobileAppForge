@@ -40,10 +40,11 @@ Widget slowSplash(BuildContext context) => _starting(context, Duration.zero);
 Widget failedSplash(BuildContext context) {
   final colors = ForgeStyle.of(context).colors;
   return SplashScreen.failed(
+    mark: const _Mark(),
+    name: context.knobs.string(label: 'Name', initialValue: '[APP NAME]'),
     background: colors.featured,
     foreground: colors.onFeatured,
-    title: "Couldn't start",
-    message: 'Check your connection and try again.',
+    message: "Couldn't start. Check your connection and try again.",
     retryLabel: 'Retry',
     onRetry: () {},
   );
