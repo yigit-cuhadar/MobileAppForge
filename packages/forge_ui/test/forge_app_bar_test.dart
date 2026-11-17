@@ -15,6 +15,7 @@ void main() {
   Future<void> push(
     WidgetTester tester, {
     bool fullscreenDialog = false,
+    bool back = true,
   }) async {
     await pump(tester, const ForgeAppBar(title: 'Home'));
     tester
@@ -22,8 +23,9 @@ void main() {
         .push(
           MaterialPageRoute<void>(
             fullscreenDialog: fullscreenDialog,
-            builder: (_) =>
-                const Scaffold(appBar: ForgeAppBar(title: 'Details')),
+            builder: (_) => Scaffold(
+              appBar: ForgeAppBar(title: 'Details', back: back),
+            ),
           ),
         );
     await tester.pumpAndSettle();
@@ -57,6 +59,17 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Close'));
     await tester.pumpAndSettle();
     expect(find.text('Details'), findsNothing);
+  });
+
+  testWidgets('back: false shows neither back nor close on a pushed page', (
+    tester,
+  ) async {
+    await push(tester, back: false);
+    expect(find.bySemanticsLabel('Back'), findsNothing);
+    expect(find.text('Details'), findsOneWidget);
+
+    await push(tester, fullscreenDialog: true, back: false);
+    expect(find.bySemanticsLabel('Close'), findsNothing);
   });
 
   testWidgets('the title stays centred beside a wide action', (tester) async {

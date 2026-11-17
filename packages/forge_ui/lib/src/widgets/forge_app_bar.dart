@@ -16,6 +16,7 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required String this.title,
     this.actions = const [],
+    this.back = true,
   }) : leading = null,
        value = null,
        subtitle = null;
@@ -30,7 +31,8 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
     required String this.value,
     required String this.subtitle,
     this.actions = const [],
-  }) : title = null;
+  }) : title = null,
+       back = false;
 
   final String? title;
   final Widget? leading;
@@ -39,6 +41,10 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// [ForgeAppBarAction]s, left to right.
   final List<Widget> actions;
+
+  /// False drops back (and close) on a page the user must not leave that
+  /// way, though the route could pop: a step that cannot be undone.
+  final bool back;
 
   static const double height = 52;
 
@@ -56,7 +62,7 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
     final route = ModalRoute.of(context);
     final close = route is PageRoute && route.fullscreenDialog;
     final strings = MaterialLocalizations.of(context);
-    final leading = route?.impliesAppBarDismissal ?? false
+    final leading = back && (route?.impliesAppBarDismissal ?? false)
         ? ForgeAppBarAction.icon(
             icon: close
                 ? ForgeIcons.close

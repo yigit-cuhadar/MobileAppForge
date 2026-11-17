@@ -268,4 +268,55 @@ void main() {
     await tester.scrollUntilVisible(find.text('Privacy Policy'), 100);
     expect(tester.takeException(), isNull);
   });
+
+  /// Every plan can be scrolled clear of the main button: none of them is
+  /// left under a pinned footer.
+  Future<void> expectPlansClearOfFooter(WidgetTester tester) async {
+    expect(tester.takeException(), isNull);
+    final button = find.widgetWithText(ForgeButton, 'Start 7-day free trial');
+    for (final plan in ['Yearly', 'Monthly']) {
+      await tester.scrollUntilVisible(find.text(plan), 50);
+      await tester.pump();
+      final top = tester.getTopLeft(button).dy;
+      expect(
+        tester.getBottomLeft(find.text(plan)).dy,
+        lessThanOrEqualTo(top),
+        reason: '$plan sits under the main button',
+      );
+    }
+    await tester.scrollUntilVisible(find.text('Privacy Policy'), 50);
+    expect(tester.takeException(), isNull);
+  }
+
+  testWidgets('at 3x text every plan scrolls clear of the footer', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(390, 844)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(
+      tester,
+      MediaQuery.withClampedTextScaling(
+        minScaleFactor: 3,
+        maxScaleFactor: 3,
+        child: paywall([]),
+      ),
+    );
+
+    await expectPlansClearOfFooter(tester);
+  });
+
+  testWidgets('on a 390x600 page every plan scrolls clear of the footer', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(390, 600)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(tester, paywall([]));
+
+    expect(inScroll(find.text('Restore purchases')), findsNothing);
+    await expectPlansClearOfFooter(tester);
+  });
 }

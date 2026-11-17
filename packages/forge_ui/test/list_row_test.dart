@@ -118,6 +118,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a data detail is mono with its note after a dot in accent', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const ListRow(
+        title: 'Item title',
+        detail: '3 × 6–8',
+        dataDetail: true,
+        detailNote: 'Note',
+      ),
+    );
+
+    final context = tester.element(find.byType(ListRow));
+    final style = ForgeStyle.of(context);
+    final detail = tester.widget<Text>(find.text('3 × 6–8 · Note'));
+    expect(detail.style?.fontFamily, style.data.fontFamily);
+    expect(detail.style?.color, style.colors.inkMuted);
+    final note = (detail.textSpan! as TextSpan).children!.last as TextSpan;
+    expect(note.text, 'Note');
+    expect(note.style?.fontFamily, isNot(style.data.fontFamily));
+    expect(note.style?.color, style.colors.accent);
+    expect(note.style?.fontWeight, FontWeight.w600);
+  });
+
   testWidgets('a destructive row has its title in danger', (tester) async {
     await pump(tester, const ListRow(title: 'Delete', destructive: true));
 

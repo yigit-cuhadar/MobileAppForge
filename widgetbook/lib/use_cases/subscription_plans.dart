@@ -115,6 +115,15 @@ Widget tilesPaywall(BuildContext context) =>
 Widget singlePaywall(BuildContext context) =>
     _paywall(context, layout: SubscriptionLayout.single);
 
+/// At 3x text the footer outgrows half the page and scrolls with it.
+@widgetbook.UseCase(name: 'Large text', type: SubscriptionPlans)
+Widget largeTextPaywall(BuildContext context) =>
+    MediaQuery.withClampedTextScaling(
+      minScaleFactor: 3,
+      maxScaleFactor: 3,
+      child: _paywall(context, layout: _layout(context)),
+    );
+
 /// A plan without a trial chosen: its own button label and terms.
 @widgetbook.UseCase(name: 'Plan without a trial', type: SubscriptionPlans)
 Widget noTrialPaywall(BuildContext context) => _paywall(

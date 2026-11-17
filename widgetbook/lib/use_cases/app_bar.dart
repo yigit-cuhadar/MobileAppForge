@@ -64,6 +64,11 @@ Widget disabledActionAppBar(BuildContext context) => _pushed(
 Widget closeAppBar(BuildContext context) =>
     _pushed(const ForgeAppBar(title: 'Section title'), close: true);
 
+/// A pushed page the user must not leave by back: no back, no close.
+@widgetbook.UseCase(name: 'Without back', type: ForgeAppBar)
+Widget withoutBackAppBar(BuildContext context) =>
+    _pushed(const ForgeAppBar(title: 'Section title', back: false));
+
 @widgetbook.UseCase(name: 'Count badge', type: ForgeAppBar)
 Widget countAppBar(BuildContext context) => _pushed(
   ForgeAppBar(

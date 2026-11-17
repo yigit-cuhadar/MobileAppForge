@@ -134,6 +134,8 @@ class ListRow extends StatelessWidget {
     super.key,
     required String this.title,
     this.detail,
+    this.dataDetail = false,
+    this.detailNote,
     this.error,
     this.leading,
     this.value,
@@ -152,6 +154,7 @@ class ListRow extends StatelessWidget {
     this.dataTitle = false,
     this.dataValue = false,
   }) : assert(checked == null || leading == null),
+       assert(detailNote == null || detail != null),
        assert(
          (onInfo == null) == (infoLabel == null),
          'Give the info icon a label and an action together.',
@@ -170,6 +173,8 @@ class ListRow extends StatelessWidget {
     required bool this.checked,
     required ValueChanged<bool> this.onChanged,
   }) : detail = null,
+       dataDetail = false,
+       detailNote = null,
        error = null,
        leading = null,
        value = null,
@@ -195,6 +200,8 @@ class ListRow extends StatelessWidget {
     : _skeleton = index % 3,
       title = null,
       detail = null,
+      dataDetail = false,
+      detailNote = null,
       error = null,
       leading = null,
       value = null,
@@ -217,6 +224,13 @@ class ListRow extends StatelessWidget {
 
   final String? title;
   final String? detail;
+
+  /// The detail in the data font, for a figure such as sets × reps.
+  final bool dataDetail;
+
+  /// A word after the [detail] and a dot, in accent: what the app did to
+  /// this row ("Kept").
+  final String? detailNote;
 
   /// A danger line under the title, in place of [detail]: what is missing
   /// or what went wrong.
@@ -338,6 +352,7 @@ class ListRow extends StatelessWidget {
         ? colors.onAccentSoft
         : colors.inkMuted;
     final line = error ?? detail;
+    final note = error == null ? detailNote : null;
     final info = onInfo == null ? null : TapBandLink();
     final handle = this.leading is ListRowDragHandle ? TapBandLink() : null;
     final leading = checked != null && !check
@@ -349,6 +364,10 @@ class ListRow extends StatelessWidget {
     final prominent = this.leading is ListRowDateBox || onInfo != null;
     final data = ForgeStyle.of(context).data;
     final titleStyle = prominent ? text.titleMedium! : text.bodyMedium!;
+    final detailStyle = text.labelMedium!.copyWith(
+      fontWeight: FontWeight.w400,
+      color: detailColor,
+    );
     Widget title = Text(
       this.title!,
       style: (dataTitle ? _data(data, titleStyle) : titleStyle).copyWith(
@@ -392,12 +411,25 @@ class ListRow extends StatelessWidget {
               title,
               if (line != null) ...[
                 const SizedBox(height: 1),
-                Text(
-                  line,
-                  style: text.labelMedium!.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: detailColor,
+                Text.rich(
+                  TextSpan(
+                    text: line,
+                    children: [
+                      if (note != null) ...[
+                        const TextSpan(text: ' · '),
+                        TextSpan(
+                          text: note,
+                          style: detailStyle.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: disabled ? null : colors.accent,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                  style: dataDetail && error == null
+                      ? _data(data, detailStyle)
+                      : detailStyle,
                 ),
               ],
             ],
