@@ -14,7 +14,7 @@ import 'bare_decoration.dart';
 /// is the note form: the same box, wrapping and growing up to three lines,
 /// then scrolling inside. [maxLength] stops input at that many characters,
 /// with no counter. [autofocus] raises the keyboard as the field appears
-/// (a dialog's field).
+/// (a dialog's field). [unit] sits muted after the value, inside the box.
 class ForgeTextField extends StatefulWidget {
   const ForgeTextField({
     super.key,
@@ -34,6 +34,7 @@ class ForgeTextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.autofocus = false,
+    this.unit,
   }) : value = null,
        onTap = null;
 
@@ -58,7 +59,8 @@ class ForgeTextField extends StatefulWidget {
        autofillHints = null,
        onChanged = null,
        onSubmitted = null,
-       autofocus = false;
+       autofocus = false,
+       unit = null;
 
   final String label;
   final String? hint;
@@ -80,6 +82,7 @@ class ForgeTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool autofocus;
+  final String? unit;
   final String? value;
   final VoidCallback? onTap;
 
@@ -121,6 +124,8 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
           hintText: widget.hint,
           fillColor: widget.enabled ? p.surface : p.surfaceSunken,
           counterText: '',
+          suffixText: widget.unit,
+          suffixStyle: input.copyWith(color: p.inkMuted),
           enabledBorder: error == null ? null : outline(p.danger, 2),
           focusedBorder: error == null ? null : outline(p.danger, 2),
         );

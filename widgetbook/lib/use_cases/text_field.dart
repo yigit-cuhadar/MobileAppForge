@@ -23,6 +23,16 @@ Widget filled(BuildContext context) => _padded(
   ),
 );
 
+@widgetbook.UseCase(name: 'With unit', type: ForgeTextField)
+Widget withUnit(BuildContext context) => _padded(
+  ForgeTextField(
+    label: 'Value',
+    unit: context.knobs.string(label: 'Unit', initialValue: '[UNIT]'),
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    controller: TextEditingController(text: '180'),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Error', type: ForgeTextField)
 Widget error(BuildContext context) => _padded(const _Error());
 
