@@ -124,8 +124,18 @@ class _ForgeTextFieldState extends State<ForgeTextField> {
           hintText: widget.hint,
           fillColor: widget.enabled ? p.surface : p.surfaceSunken,
           counterText: '',
-          suffixText: widget.unit,
-          suffixStyle: input.copyWith(color: p.inkMuted),
+          suffixIcon: widget.unit == null
+              ? null
+              : ExcludeSemantics(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 12),
+                    child: Text(
+                      widget.unit!,
+                      style: input.copyWith(color: p.inkMuted),
+                    ),
+                  ),
+                ),
+          suffixIconConstraints: const BoxConstraints(),
           enabledBorder: error == null ? null : outline(p.danger, 2),
           focusedBorder: error == null ? null : outline(p.danger, 2),
         );
