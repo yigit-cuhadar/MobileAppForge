@@ -6,6 +6,7 @@ class AuthUser extends Equatable {
     this.email,
     this.displayName,
     this.isAnonymous = false,
+    this.signInMethods = const {},
   });
 
   final String id;
@@ -15,8 +16,19 @@ class AuthUser extends Equatable {
   /// A guest session: no credential yet, the data lives only on this uid.
   final bool isAnonymous;
 
+  /// How the user can sign in; empty for a guest.
+  final Set<SignInMethod> signInMethods;
+
   @override
-  List<Object?> get props => [id, email, displayName, isAnonymous];
+  List<Object?> get props => [
+    id,
+    email,
+    displayName,
+    isAnonymous,
+    signInMethods,
+  ];
 }
 
 enum SocialProvider { google, apple }
+
+enum SignInMethod { email, google, apple }

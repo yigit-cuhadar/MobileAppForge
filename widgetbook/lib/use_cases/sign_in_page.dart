@@ -30,6 +30,7 @@ SignInPage _page(
   BuildContext context, {
   SignInOption? running,
   SignInEmailForm? email,
+  bool guest = true,
 }) => SignInPage(
   mark: const Text('A'),
   name: context.knobs.string(label: 'Name', initialValue: '[APP NAME]'),
@@ -46,8 +47,8 @@ SignInPage _page(
   ),
   useEmailLabel: 'Use email instead',
   onUseEmail: () {},
-  guestLabel: 'Continue as guest',
-  onGuest: () {},
+  guestLabel: guest ? 'Continue as guest' : null,
+  onGuest: guest ? () {} : null,
   terms: SignInTerms(
     text: 'By continuing you agree to the {terms} and {privacy}.',
     termsLabel: 'Terms',
@@ -62,6 +63,10 @@ SignInPage _page(
 
 @widgetbook.UseCase(name: 'Options', type: SignInPage)
 Widget signInOptions(BuildContext context) => _page(context);
+
+/// For a user who is already a guest: no guest link.
+@widgetbook.UseCase(name: 'Options · no guest link', type: SignInPage)
+Widget signInNoGuest(BuildContext context) => _page(context, guest: false);
 
 @widgetbook.UseCase(name: 'Signing in', type: SignInPage)
 Widget signingIn(BuildContext context) => _page(
@@ -84,7 +89,7 @@ Widget signInError(BuildContext context) => Stack(
       bottom: Gap.md,
       child: SafeArea(
         child: ForgeSnackbar(
-          message: "Sign-in didn't finish.",
+          message: "Sign-in didn't finish. Try again.",
           actionLabel: 'Retry',
           onAction: () {},
           error: true,
@@ -127,20 +132,28 @@ Widget emailValidation(BuildContext context) => _page(
 Widget emailSigningIn(BuildContext context) =>
     _page(context, email: _signIn(), running: SignInOption.email);
 
+SignInEmailForm _createAccount({String? emailError}) => SignInEmailForm(
+  backLabel: 'Other options',
+  onBack: () {},
+  title: 'Create account',
+  emailLabel: 'Email',
+  passwordLabel: 'Password',
+  submitLabel: 'Create account',
+  onSubmit: (_, _) {},
+  switchLabel: 'Already have an account? Sign in',
+  onSwitch: () {},
+  emailError: emailError,
+);
+
 @widgetbook.UseCase(name: 'Email · create account', type: SignInPage)
-Widget emailCreateAccount(BuildContext context) => _page(
+Widget emailCreateAccount(BuildContext context) =>
+    _page(context, email: _createAccount());
+
+/// A server error that belongs to a field shows under it.
+@widgetbook.UseCase(name: 'Email · email in use', type: SignInPage)
+Widget emailInUse(BuildContext context) => _page(
   context,
-  email: SignInEmailForm(
-    backLabel: 'Other options',
-    onBack: () {},
-    title: 'Create account',
-    emailLabel: 'Email',
-    passwordLabel: 'Password',
-    submitLabel: 'Create account',
-    onSubmit: (_, _) {},
-    switchLabel: 'Already have an account? Sign in',
-    onSwitch: () {},
-  ),
+  email: _createAccount(emailError: 'This email is already registered'),
 );
 
 /// The dialog `confirmReplaceGuestData` shows, over the scrim.

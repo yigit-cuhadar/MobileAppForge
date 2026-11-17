@@ -35,6 +35,7 @@ void main() {
     when(() => user.email).thenReturn('a@b.co');
     when(() => user.displayName).thenReturn(null);
     when(() => user.isAnonymous).thenReturn(false);
+    when(() => user.providerData).thenReturn([]);
     repository = FirebaseAuthRepository(auth);
   });
 
@@ -101,6 +102,7 @@ void main() {
     when(() => guest.email).thenReturn(null);
     when(() => guest.displayName).thenReturn(null);
     when(() => guest.isAnonymous).thenReturn(true);
+    when(() => guest.providerData).thenReturn([]);
     when(() => auth.signInAnonymously())
         .thenAnswer((_) async => credentialFor(guest));
 
@@ -171,18 +173,35 @@ void main() {
     verifyNever(() => guest.linkWithProvider(any()));
   });
 
+  UserInfo provider(String id) {
+    final info = MockUserInfo();
+    when(() => info.providerId).thenReturn(id);
+    return info;
+  }
+
   test('currentUser maps the signed-in Firebase user', () {
     when(() => auth.currentUser).thenReturn(user);
     expect(repository.currentUser, const AuthUser(id: 'u1', email: 'a@b.co'));
   });
 
-  group('reauthenticate', () {
-    UserInfo provider(String id) {
-      final info = MockUserInfo();
-      when(() => info.providerId).thenReturn(id);
-      return info;
-    }
+  test('a user carries their sign-in methods', () {
+    final providers = [
+      provider('google.com'),
+      provider('password'),
+      provider('apple.com'),
+      provider('phone'),
+    ];
+    when(() => user.providerData).thenReturn(providers);
+    when(() => auth.currentUser).thenReturn(user);
 
+    expect(repository.currentUser?.signInMethods, {
+      SignInMethod.google,
+      SignInMethod.email,
+      SignInMethod.apple,
+    });
+  });
+
+  group('reauthenticate', () {
     setUp(() {
       when(() => auth.currentUser).thenReturn(user);
       final providers = [provider('google.com'), provider('password')];

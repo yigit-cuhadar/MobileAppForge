@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
-import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
-import 'busy_ring.dart';
 import 'forge_button.dart';
 import 'forge_dialog.dart';
 import 'forge_text_field.dart';
-import 'pressable.dart';
+import 'sign_in_provider_buttons.dart';
 
 /// A sign-in provider's button: the provider's own [mark] (drawn by the
 /// caller, 18px), its [label] and what a tap starts.
@@ -91,9 +89,9 @@ class SignInEmailForm {
 
 /// The sign-in page: a featured block with the app's [mark], [name] and
 /// [tagline]; under it Apple and Google as 48px buttons, [useEmailLabel],
-/// a guest link and the [terms]. With an [email] form the block shrinks to
-/// its content and the form replaces the options. While an option is
-/// [running] it shows a spinner and every other option is off.
+/// an optional guest link and the [terms]. With an [email] form the block
+/// shrinks to its content and the form replaces the options. While an
+/// option is [running] it shows a spinner and every other option is off.
 class SignInPage extends StatelessWidget {
   const SignInPage({
     super.key,
@@ -104,13 +102,16 @@ class SignInPage extends StatelessWidget {
     this.google,
     required this.useEmailLabel,
     required this.onUseEmail,
-    required this.guestLabel,
-    required this.onGuest,
+    this.guestLabel,
+    this.onGuest,
     required this.terms,
     required this.signingInLabel,
     this.email,
     this.running,
-  });
+  }) : assert(
+         (guestLabel == null) == (onGuest == null),
+         'Give the guest link a label and an action together.',
+       );
 
   /// Drawn in featured on a 52px on-featured tile.
   final Widget mark;
@@ -120,8 +121,8 @@ class SignInPage extends StatelessWidget {
   final SignInProvider? google;
   final String useEmailLabel;
   final VoidCallback onUseEmail;
-  final String guestLabel;
-  final VoidCallback onGuest;
+  final String? guestLabel;
+  final VoidCallback? onGuest;
   final SignInTerms terms;
 
   /// The running provider button's label.
@@ -195,40 +196,37 @@ class SignInPage extends StatelessWidget {
       ),
     );
 
-    Widget provider(SignInProvider provider, SignInOption option) =>
-        _ProviderButton(
-          provider: provider,
-          filled: option == SignInOption.apple,
-          running: running == option,
-          enabled: idle,
-          runningLabel: signingInLabel,
-        );
-
     final email = this.email;
+    final guestLabel = this.guestLabel;
     final Widget below = email != null
         ? _EmailForm(form: email, busy: running == SignInOption.email)
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: Gap.sm,
             children: [
-              if (apple case final apple?) provider(apple, SignInOption.apple),
-              if (google case final google?)
-                provider(google, SignInOption.google),
+              if (apple != null || google != null)
+                SignInProviderButtons(
+                  apple: apple,
+                  google: google,
+                  signingInLabel: signingInLabel,
+                  running: running,
+                ),
               ForgeButton(
                 label: useEmailLabel,
                 onPressed: idle ? onUseEmail : null,
                 variant: ForgeButtonVariant.secondary,
               ),
-              Center(
-                child: ForgeButton(
-                  label: guestLabel,
-                  onPressed: idle || running == SignInOption.guest
-                      ? onGuest
-                      : null,
-                  loading: running == SignInOption.guest,
-                  variant: ForgeButtonVariant.text,
+              if (guestLabel != null)
+                Center(
+                  child: ForgeButton(
+                    label: guestLabel,
+                    onPressed: idle || running == SignInOption.guest
+                        ? onGuest
+                        : null,
+                    loading: running == SignInOption.guest,
+                    variant: ForgeButtonVariant.text,
+                  ),
                 ),
-              ),
               _TermsLine(terms),
             ],
           );
@@ -257,84 +255,6 @@ class SignInPage extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProviderButton extends StatelessWidget {
-  const _ProviderButton({
-    required this.provider,
-    required this.filled,
-    required this.running,
-    required this.enabled,
-    required this.runningLabel,
-  });
-
-  final SignInProvider provider;
-
-  /// Ink-filled (Apple); otherwise surface in a line outline (Google).
-  final bool filled;
-  final bool running;
-  final bool enabled;
-  final String runningLabel;
-
-  static const double _mark = 18;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = ForgeStyle.of(context);
-    final colors = style.colors;
-    // Off while another option runs: the Button card's disabled look, a
-    // sunken fill and a line-strong label.
-    final off = !enabled && !running;
-    final ink = off
-        ? colors.lineStrong
-        : filled
-        ? colors.surface
-        : colors.ink;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      child: Pressable(
-        onTap: enabled ? provider.onPressed : null,
-        height: ForgeTheme.buttonHeightLg,
-        builder: (context, _) => Container(
-          height: ForgeTheme.buttonHeightLg,
-          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-          decoration: BoxDecoration(
-            color: off
-                ? colors.surfaceSunken
-                : filled
-                ? colors.ink
-                : colors.surface,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(ForgeRadii.button),
-            ),
-            border: off || filled ? null : Border.all(color: colors.line),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: Gap.sm,
-            children: [
-              if (running)
-                BusyRing(size: 16, stroke: 2, sweep: 0.75, color: ink)
-              else
-                SizedBox.square(
-                  dimension: _mark,
-                  child: FittedBox(child: provider.mark),
-                ),
-              Flexible(
-                child: Text(
-                  running ? runningLabel : provider.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: style.buttonLg.copyWith(color: ink),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
