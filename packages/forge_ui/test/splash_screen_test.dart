@@ -31,24 +31,31 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets("couldn't start offers Retry on the featured action", (
+  testWidgets("couldn't start keeps the mark and name over an outline Retry", (
     tester,
   ) async {
     var retries = 0;
     await pump(
       tester,
       SplashScreen.failed(
+        mark: const SizedBox.square(dimension: 26),
+        name: '[APP NAME]',
         background: background,
         foreground: foreground,
-        title: "Couldn't start",
-        message: 'Check your connection and try again.',
+        message: "Couldn't start. Check your connection and try again.",
         retryLabel: 'Retry',
         onRetry: () => retries++,
       ),
     );
 
+    expect(find.text('[APP NAME]'), findsOneWidget);
+    expect(
+      find.text("Couldn't start. Check your connection and try again."),
+      findsOneWidget,
+    );
+    expect(find.byType(ClipRRect), findsNothing);
     final retry = tester.widget<ForgeButton>(find.byType(ForgeButton));
-    expect(retry.variant, ForgeButtonVariant.featured);
+    expect(retry.variant, ForgeButtonVariant.outline);
     await tester.tap(find.text('Retry'));
     expect(retries, 1);
   });
@@ -70,10 +77,11 @@ void main() {
     await pump(
       tester,
       SplashScreen.failed(
+        mark: const SizedBox.square(dimension: 26),
+        name: '[APP NAME]',
         background: background,
         foreground: foreground,
-        title: "Couldn't start",
-        message: 'Check your connection and try again.',
+        message: "Couldn't start. Check your connection and try again.",
         retryLabel: 'Retry',
         onRetry: () {},
       ),

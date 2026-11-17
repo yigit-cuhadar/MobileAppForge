@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../icons/forge_icon.dart';
-import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import 'forge_button.dart';
 import 'runner_line.dart';
@@ -11,40 +9,37 @@ import 'runner_line.dart';
 /// The app's start screen: its [mark] on a rounded tile with its [name]
 /// under it, centred on the app's [background]; [foreground] is the colour
 /// on it. No spinner: once [slowAfter] has passed, a thin indeterminate
-/// line appears under the name. [SplashScreen.failed] is the "Couldn't
-/// start" look on the same background, with Retry.
+/// line appears under the name. [SplashScreen.failed] keeps the mark and
+/// the name and adds one [message] line and an outline Retry.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({
     super.key,
-    required Widget this.mark,
-    required String this.name,
+    required this.mark,
+    required this.name,
     required this.background,
     required this.foreground,
     required Duration this.slowAfter,
-  }) : title = null,
-       message = null,
+  }) : message = null,
        retryLabel = null,
        onRetry = null;
 
   const SplashScreen.failed({
     super.key,
+    required this.mark,
+    required this.name,
     required this.background,
     required this.foreground,
-    required String this.title,
     required String this.message,
     required String this.retryLabel,
     required VoidCallback this.onRetry,
-  }) : mark = null,
-       name = null,
-       slowAfter = null;
+  }) : slowAfter = null;
 
   /// Drawn in [background] on a 64px [foreground] tile.
-  final Widget? mark;
-  final String? name;
+  final Widget mark;
+  final String name;
   final Color background;
   final Color foreground;
   final Duration? slowAfter;
-  final String? title;
   final String? message;
   final String? retryLabel;
   final VoidCallback? onRetry;
@@ -59,7 +54,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   static const double _tile = 64;
   static const double _tileRadius = 18;
-  static const double _errorCircle = 44;
 
   @override
   void initState() {
@@ -95,73 +89,51 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final on = widget.foreground;
-    final List<Widget> children;
-    if (widget.onRetry case final onRetry?) {
-      children = [
-        Container(
-          width: _errorCircle,
-          height: _errorCircle,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: on.withValues(alpha: on.a * 0.14),
-          ),
-          child: ForgeIcon(ForgeIcons.error, size: 22, color: on),
+    final children = [
+      Container(
+        width: _tile,
+        height: _tile,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on,
+          borderRadius: BorderRadius.circular(_tileRadius),
         ),
-        Column(
-          spacing: Gap.xs,
-          children: [
-            Text(
-              widget.title!,
-              textAlign: TextAlign.center,
-              style: text.titleMedium!.copyWith(color: on),
-            ),
-            Text(
-              widget.message!,
-              textAlign: TextAlign.center,
-              style: text.bodySmall!.copyWith(
-                color: on.withValues(alpha: on.a * 0.72),
-              ),
-            ),
-          ],
+        child: IconTheme.merge(
+          data: IconThemeData(color: widget.background),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: widget.background),
+            child: widget.mark,
+          ),
+        ),
+      ),
+      Text(
+        widget.name,
+        textAlign: TextAlign.center,
+        style: text.titleLarge!.copyWith(
+          fontSize: 20,
+          height: 1.2,
+          letterSpacing: -0.2,
+          color: on,
+        ),
+      ),
+      if (widget.onRetry case final onRetry?) ...[
+        Padding(
+          // The message stands apart from the name.
+          padding: const EdgeInsets.only(top: Gap.lg),
+          child: Text(
+            widget.message!,
+            textAlign: TextAlign.center,
+            style: text.bodyLarge!.copyWith(height: 21 / 15, color: on),
+          ),
         ),
         ForgeButton(
           label: widget.retryLabel!,
           onPressed: onRetry,
-          variant: ForgeButtonVariant.featured,
+          variant: ForgeButtonVariant.outline,
         ),
-      ];
-    } else {
-      children = [
-        Container(
-          width: _tile,
-          height: _tile,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: on,
-            borderRadius: BorderRadius.circular(_tileRadius),
-          ),
-          child: IconTheme.merge(
-            data: IconThemeData(color: widget.background),
-            child: DefaultTextStyle.merge(
-              style: TextStyle(color: widget.background),
-              child: widget.mark!,
-            ),
-          ),
-        ),
-        Text(
-          widget.name!,
-          textAlign: TextAlign.center,
-          style: text.titleLarge!.copyWith(
-            fontSize: 20,
-            height: 1.2,
-            letterSpacing: -0.2,
-            color: on,
-          ),
-        ),
-        if (_slow) RunnerLine(color: on, width: 96),
-      ];
-    }
+      ] else if (_slow)
+        RunnerLine(color: on, width: 96),
+    ];
     return ColoredBox(
       color: widget.background,
       child: SafeArea(
