@@ -34,7 +34,17 @@ GoRouter buildRouter(AuthCubit auth) {
         // with its own SplashScreen puts it here.
         builder: (_, _) => const Scaffold(),
       ),
-      GoRoute(path: Routes.auth, builder: (_, _) => const AuthPage()),
+      GoRoute(
+        path: Routes.auth,
+        // Placeholders until the app has its mark, name and legal pages.
+        builder: (_, _) => AuthPage(
+          mark: const Icon(Icons.apps),
+          name: 'App',
+          tagline: '',
+          onTerms: () {},
+          onPrivacy: () {},
+        ),
+      ),
       GoRoute(path: Routes.home, builder: (_, _) => const HomePage()),
     ],
   );
