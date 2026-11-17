@@ -197,19 +197,35 @@ class PermissionPrompt extends StatelessWidget {
     ];
 
     if (page) {
-      return Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: Gap.md,
-            children: [
-              ...children,
-              Padding(
-                padding: const EdgeInsets.only(top: Gap.lg),
-                child: buttons,
+      // The text centred in the room above the buttons, which sit at the
+      // page's foot; on a short page everything scrolls together.
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(Gap.lg),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: Gap.md,
+                          children: children,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(Gap.md),
+                    child: buttons,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       );
