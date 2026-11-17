@@ -79,6 +79,37 @@ void main() {
     expect(button(tester, 'Not now').variant, ForgeButtonVariant.text);
     await tester.tap(find.text('Not now'));
     expect(skipped, 1);
+
+    // The buttons at the page's foot, the text centred in the room above.
+    final page = tester.getRect(find.byType(Scaffold));
+    final skip = tester.getRect(find.widgetWithText(ForgeButton, 'Not now'));
+    expect(page.bottom - skip.bottom, lessThan(40));
+    final title = tester.getRect(find.text('Turn on reminders?'));
+    expect(title.center.dy, lessThan(page.center.dy));
+    expect(title.top, greaterThan(page.top + page.height / 4));
+  });
+
+  testWidgets('a full page on a short screen scrolls', (tester) async {
+    tester.view
+      ..physicalSize = const Size(320, 360)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(
+      tester,
+      PermissionPrompt.ask(
+        icon: ForgeIcons.notifications,
+        title: 'Turn on reminders?',
+        message: 'One reminder at the time you choose.',
+        allowLabel: 'Turn on reminders',
+        onAllow: () {},
+        skipLabel: 'Not now',
+        onSkip: () {},
+        page: true,
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(find.text('Not now'), 50);
   });
 
   testWidgets('refused offers Ask again only when given', (tester) async {
