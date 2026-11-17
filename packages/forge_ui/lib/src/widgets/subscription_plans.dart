@@ -570,10 +570,14 @@ class _PlanBox extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // Large text shortens the tag before the plan's name.
+                      // At the row's end; large text shortens the tag
+                      // before the plan's name.
                       if (tag != null)
                         Flexible(
-                          child: ForgeTag(tag, kind: ForgeTagKind.record),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: ForgeTag(tag, kind: ForgeTagKind.record),
+                          ),
                         ),
                     ],
                   ),

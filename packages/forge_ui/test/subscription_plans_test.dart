@@ -79,6 +79,11 @@ void main() {
     await pump(tester, paywall(taps));
 
     expect(find.text('Best value'), findsOneWidget);
+    // The tag sits at the row's end, past the plan's name and price.
+    expect(
+      tester.getRect(find.text('Best value')).right,
+      greaterThan(tester.getSize(find.byType(MaterialApp)).width * 0.85),
+    );
     expect(find.text(yearlyTerms), findsOneWidget);
     await tester.tap(find.text('Monthly'));
     await tester.tap(find.text('Start 7-day free trial'));
