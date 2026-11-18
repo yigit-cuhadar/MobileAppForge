@@ -4,7 +4,7 @@ import 'forge_palette.dart';
 import 'forge_preset.dart';
 
 /// What [ThemeData] has no slot for: every colour role, the radii, the card
-/// border and the mono text styles. Read it with [ForgeStyle.of].
+/// border and the text styles Material has no role for. Read it with [ForgeStyle.of].
 class ForgeStyle extends ThemeExtension<ForgeStyle> {
   const ForgeStyle({
     required this.colors,
@@ -13,6 +13,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
     required this.data,
     required this.dataLg,
     required this.buttonLg,
+    required this.heading,
   });
 
   final ForgePalette colors;
@@ -31,6 +32,10 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
   /// The label of the full-width primary action at a page's bottom: 15/20.
   final TextStyle buttonLg;
 
+  /// An in-page heading: a question, a step, a card's title line: 22/28.
+  /// The one featured name on a screen is the hero, `headlineMedium`.
+  final TextStyle heading;
+
   /// The featured block's outline width, in [ForgePalette.featuredBorder].
   static const double featuredBorder = 1.5;
 
@@ -45,6 +50,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
     TextStyle? data,
     TextStyle? dataLg,
     TextStyle? buttonLg,
+    TextStyle? heading,
   }) => ForgeStyle(
     colors: colors ?? this.colors,
     radii: radii ?? this.radii,
@@ -52,6 +58,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
     data: data ?? this.data,
     dataLg: dataLg ?? this.dataLg,
     buttonLg: buttonLg ?? this.buttonLg,
+    heading: heading ?? this.heading,
   );
 
   @override
@@ -64,6 +71,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
       data: TextStyle.lerp(data, other.data, t)!,
       dataLg: TextStyle.lerp(dataLg, other.dataLg, t)!,
       buttonLg: TextStyle.lerp(buttonLg, other.buttonLg, t)!,
+      heading: TextStyle.lerp(heading, other.heading, t)!,
     );
   }
 }

@@ -58,6 +58,25 @@ void main() {
     expect(theme.textTheme.headlineSmall!.fontFamily, preset.mono);
   });
 
+  test('has two in-page headings: hero 30/34 and heading 22/28', () {
+    final theme = ForgeTheme.light(preset);
+    final hero = theme.textTheme.headlineMedium!;
+    expect(hero.fontSize, 30);
+    expect(hero.fontSize! * hero.height!, closeTo(34, 1e-9));
+    final heading = theme.extension<ForgeStyle>()!.heading;
+    expect(heading.fontFamily, preset.sans);
+    expect(heading.fontWeight, FontWeight.w600);
+    expect(heading.fontSize, 22);
+    expect(heading.fontSize! * heading.height!, closeTo(28, 1e-9));
+  });
+
+  test('the dark featured block is outlined in line-strong', () {
+    expect(
+      ForgePreset.slate.dark.featuredBorder,
+      ForgePreset.slate.dark.lineStrong,
+    );
+  });
+
   testWidgets('ForgeStyle.of reads the active brightness', (tester) async {
     late ForgeStyle style;
     await tester.pumpWidget(
