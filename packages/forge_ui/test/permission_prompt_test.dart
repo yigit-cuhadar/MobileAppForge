@@ -230,4 +230,198 @@ void main() {
 
     expect(button(tester, 'Skip').size, ForgeButtonSize.large);
   });
+
+  testWidgets('consent as a page has two equal 48px secondary buttons', (
+    tester,
+  ) async {
+    final taps = <String>[];
+    await pump(
+      tester,
+      PermissionPrompt.consent(
+        icon: ForgeIcons.barChart,
+        title: 'Help improve [APP NAME]?',
+        message: 'Share usage statistics from this device.',
+        allowLabel: 'Allow',
+        onAllow: () => taps.add('allow'),
+        declineLabel: "Don't allow",
+        onDecline: () => taps.add('decline'),
+        page: true,
+      ),
+    );
+
+    for (final label in ['Allow', "Don't allow"]) {
+      expect(button(tester, label).variant, ForgeButtonVariant.secondary);
+      expect(button(tester, label).size, ForgeButtonSize.large);
+    }
+    final allow = tester.getRect(find.widgetWithText(ForgeButton, 'Allow'));
+    final decline = tester.getRect(
+      find.widgetWithText(ForgeButton, "Don't allow"),
+    );
+    expect(allow.size, decline.size);
+    expect(allow.bottom, lessThanOrEqualTo(decline.top));
+    await tester.tap(find.text('Allow'));
+    await tester.tap(find.text("Don't allow"));
+    expect(taps, ['allow', 'decline']);
+  });
+
+  testWidgets('consent in a card has two regular secondary buttons', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      PermissionPrompt.consent(
+        icon: ForgeIcons.barChart,
+        title: 'Help improve [APP NAME]?',
+        message: 'Share usage statistics from this device.',
+        allowLabel: 'Allow',
+        onAllow: () {},
+        declineLabel: "Don't allow",
+        onDecline: () {},
+      ),
+    );
+
+    for (final label in ['Allow', "Don't allow"]) {
+      expect(button(tester, label).variant, ForgeButtonVariant.secondary);
+      expect(button(tester, label).size, ForgeButtonSize.regular);
+    }
+  });
+
+  group('dialog', () {
+    Future<void> open(WidgetTester tester, List<String> taps) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showForgeDialog<void>(
+                  context: context,
+                  builder: (context) => PermissionPrompt.dialog(
+                    icon: ForgeIcons.notifications,
+                    title: 'Allow notifications?',
+                    message: 'Reminders are notifications.',
+                    allowLabel: 'Allow',
+                    onAllow: () {
+                      taps.add('allow');
+                      Navigator.pop(context);
+                    },
+                    notNowLabel: 'Not now',
+                    onNotNow: () {
+                      taps.add('later');
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a muted icon in a 44px circle, Allow over Not now', (
+      tester,
+    ) async {
+      final taps = <String>[];
+      await open(tester, taps);
+
+      expect(find.byType(Dialog), findsOneWidget);
+      final icon = tester.widget<ForgeIcon>(
+        find.descendant(
+          of: find.byType(PermissionPrompt),
+          matching: find.byType(ForgeIcon),
+        ),
+      );
+      final colors = ForgeStyle.of(
+        tester.element(find.byType(PermissionPrompt)),
+      ).colors;
+      expect(icon.color, colors.inkMuted);
+      expect(icon.size, 22);
+      expect(button(tester, 'Allow').variant, ForgeButtonVariant.primary);
+      expect(button(tester, 'Not now').variant, ForgeButtonVariant.text);
+      final allow = tester.getRect(find.widgetWithText(ForgeButton, 'Allow'));
+      final later = tester.getRect(find.widgetWithText(ForgeButton, 'Not now'));
+      expect(allow.width, later.width);
+      expect(allow.bottom, lessThanOrEqualTo(later.top));
+
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      await open(tester, taps);
+      await tester.tap(find.text('Allow'));
+      await tester.pumpAndSettle();
+      expect(taps, ['later', 'allow']);
+    });
+
+    testWidgets('names its route by the title', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await open(tester, []);
+      expect(find.bySemanticsLabel('Allow notifications?'), findsWidgets);
+      semantics.dispose();
+    });
+
+    for (final scale in [2.0, 3.0]) {
+      testWidgets('lays out at ${scale}x text', (tester) async {
+        tester.view
+          ..physicalSize = const Size(390, 844)
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ForgeTheme.light(),
+            builder: (context, page) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: page!,
+            ),
+            home: PermissionPrompt.dialog(
+              icon: ForgeIcons.timer,
+              title: 'Notify when a rest ends?',
+              message: 'Get a notification when a rest is over.',
+              allowLabel: 'Allow',
+              onAllow: () {},
+              notNowLabel: 'Not now',
+              onNotNow: () {},
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
+
+  for (final scale in [2.0, 3.0]) {
+    testWidgets('consent as a page lays out at ${scale}x text', (tester) async {
+      tester.view
+        ..physicalSize = const Size(390, 844)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          builder: (context, page) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(scale)),
+            child: page!,
+          ),
+          home: Scaffold(
+            body: PermissionPrompt.consent(
+              icon: ForgeIcons.barChart,
+              title: 'Help improve [APP NAME]?',
+              message: 'Share usage statistics from this device.',
+              allowLabel: 'Allow',
+              onAllow: () {},
+              declineLabel: "Don't allow",
+              onDecline: () {},
+              page: true,
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

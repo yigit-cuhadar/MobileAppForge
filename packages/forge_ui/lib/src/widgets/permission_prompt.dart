@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
+import '../theme/forge_palette.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
+import 'forge_dialog.dart';
 
 /// Asks for a permission and says why, centred: an icon in a circle, a
 /// title, one sentence, the main button and an optional text button under
@@ -13,7 +15,9 @@ import 'forge_button.dart';
 /// ask may end in a muted [note] under its buttons. In a card (the
 /// default) it replaces a page's content while the
 /// permission is missing; with [page] it is an onboarding step and its main
-/// button is the 48px bottom-of-page one.
+/// button is the 48px bottom-of-page one. [PermissionPrompt.consent] asks
+/// for consent with two equal buttons, and [PermissionPrompt.dialog] asks
+/// at the moment an action needs the permission.
 class PermissionPrompt extends StatelessWidget {
   /// Asks for access; [icon] names what it is for.
   const PermissionPrompt.ask({
@@ -30,6 +34,47 @@ class PermissionPrompt extends StatelessWidget {
   }) : _state = _State.ask,
        actionLabel = allowLabel,
        onAction = onAllow;
+
+  /// Asks for consent, such as to share usage data: [allowLabel] and
+  /// [declineLabel] are equal secondary buttons, Allow on top, so neither
+  /// answer is pushed.
+  const PermissionPrompt.consent({
+    super.key,
+    required ForgeIconData this.icon,
+    required this.title,
+    required this.message,
+    required String allowLabel,
+    required VoidCallback onAllow,
+    required String declineLabel,
+    required VoidCallback onDecline,
+    this.page = false,
+  }) : _state = _State.consent,
+       note = null,
+       actionLabel = allowLabel,
+       onAction = onAllow,
+       skipLabel = declineLabel,
+       onSkip = onDecline;
+
+  /// A dialog over the page, shown with [showForgeDialog] when an action
+  /// needs the permission: [icon] muted in a 44px circle, the title, one
+  /// sentence, a full-width [allowLabel] and a text [notNowLabel] under it.
+  /// The app closes the dialog in [onAllow] and [onNotNow].
+  const PermissionPrompt.dialog({
+    super.key,
+    required ForgeIconData this.icon,
+    required this.title,
+    required this.message,
+    required String allowLabel,
+    required VoidCallback onAllow,
+    required String notNowLabel,
+    required VoidCallback onNotNow,
+  }) : _state = _State.dialog,
+       note = null,
+       page = false,
+       actionLabel = allowLabel,
+       onAction = onAllow,
+       skipLabel = notNowLabel,
+       onSkip = onNotNow;
 
   /// The user said no: the main button opens the system settings. Give
   /// [askAgainLabel] only where the system can ask a second time.
@@ -120,13 +165,15 @@ class PermissionPrompt extends StatelessWidget {
   final _State _state;
 
   static const double _circle = 64;
+  static const double _dialogCircle = 44;
 
   @override
   Widget build(BuildContext context) {
     final colors = ForgeStyle.of(context).colors;
     final text = Theme.of(context).textTheme;
+    if (_state == _State.dialog) return _dialog(colors, text);
     final (icon, iconColor) = switch (_state) {
-      _State.ask => (this.icon!, colors.ink),
+      _State.ask || _State.consent || _State.dialog => (this.icon!, colors.ink),
       _State.refused => (ForgeIcons.block, colors.inkMuted),
       _State.failed => (ForgeIcons.error, colors.danger),
       _State.missing => (ForgeIcons.getApp, colors.ink),
@@ -144,7 +191,8 @@ class PermissionPrompt extends StatelessWidget {
             onPressed: onAction,
             variant: switch (_state) {
               _State.failed => ForgeButtonVariant.outline,
-              _State.unavailable => ForgeButtonVariant.secondary,
+              _State.unavailable ||
+              _State.consent => ForgeButtonVariant.secondary,
               _ => ForgeButtonVariant.primary,
             },
             size: page ? ForgeButtonSize.large : ForgeButtonSize.regular,
@@ -153,11 +201,18 @@ class PermissionPrompt extends StatelessWidget {
                 : null,
           ),
         if (skipLabel != null)
-          ForgeButton(
-            label: skipLabel,
-            onPressed: onSkip,
-            variant: ForgeButtonVariant.text,
-          ),
+          _state == _State.consent
+              ? ForgeButton(
+                  label: skipLabel,
+                  onPressed: onSkip,
+                  variant: ForgeButtonVariant.secondary,
+                  size: page ? ForgeButtonSize.large : ForgeButtonSize.regular,
+                )
+              : ForgeButton(
+                  label: skipLabel,
+                  onPressed: onSkip,
+                  variant: ForgeButtonVariant.text,
+                ),
         if (note case final note?)
           Text(
             note,
@@ -244,6 +299,52 @@ class PermissionPrompt extends StatelessWidget {
       ),
     );
   }
+
+  Widget _dialog(ForgePalette colors, TextTheme text) => Dialog(
+    insetPadding: const EdgeInsets.all(Gap.md),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: ForgeDialog.maxWidth),
+      child: Semantics(
+        namesRoute: true,
+        scopesRoute: true,
+        explicitChildNodes: true,
+        label: title,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: Gap.sm,
+            children: [
+              Center(
+                child: Container(
+                  width: _dialogCircle,
+                  height: _dialogCircle,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.surfaceSunken,
+                  ),
+                  child: ForgeIcon(icon!, size: 22, color: colors.inkMuted),
+                ),
+              ),
+              Text(title, textAlign: TextAlign.center, style: text.titleLarge),
+              Text(message, textAlign: TextAlign.center, style: text.bodySmall),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: ForgeButton(label: actionLabel!, onPressed: onAction),
+              ),
+              ForgeButton(
+                label: skipLabel!,
+                onPressed: onSkip,
+                variant: ForgeButtonVariant.text,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
-enum _State { ask, refused, failed, missing, unavailable }
+enum _State { ask, consent, dialog, refused, failed, missing, unavailable }
