@@ -34,6 +34,7 @@ class AuthModule implements FeatureModule {
       ..registerFactory(() => DeleteAccount(sl()))
       ..registerFactory(() => Reauthenticate(sl()))
       ..registerFactory(() => ReauthenticateWithProvider(sl()))
+      ..registerFactory(() => RevokeAppleSignIn(sl()))
       ..registerLazySingleton(
         () => AuthCubit(
           watchAuthUser: sl(),

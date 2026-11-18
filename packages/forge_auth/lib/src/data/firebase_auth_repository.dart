@@ -106,31 +106,42 @@ class FirebaseAuthRepository implements AuthRepository {
   }, mapper: mapFirebaseError);
 
   @override
-  Future<Result<void>> reauthenticateWithProvider(
-    SocialProvider provider,
-  ) => guard(
-    () async {
-      final user = _auth.currentUser;
-      final authProvider = _authProvider(provider);
-      final linked =
-          user?.providerData.any(
-            (info) => info.providerId == authProvider.providerId,
-          ) ??
-          false;
-      if (user == null || !linked) {
-        throw AuthFailure('${provider.name} not linked', code: notLinkedCode);
-      }
-      await user.reauthenticateWithProvider(authProvider);
-    },
-    mapper: (error) =>
-        error is FirebaseAuthException && _cancelledCodes.contains(error.code)
-        ? AuthFailure(
-            error.message ?? error.code,
-            code: cancelledCode,
-            cause: error,
-          )
-        : mapFirebaseError(error),
-  );
+  Future<Result<void>> reauthenticateWithProvider(SocialProvider provider) =>
+      guard(() => _reauthenticate(provider), mapper: _reauthError);
+
+  @override
+  Future<Result<void>> revokeAppleSignIn() => guard(() async {
+    final code = (await _reauthenticate(SocialProvider.apple))
+        .additionalUserInfo
+        ?.authorizationCode;
+    if (code == null) {
+      throw const AuthFailure('no Apple authorization code');
+    }
+    await _auth.revokeTokenWithAuthorizationCode(code);
+  }, mapper: _reauthError);
+
+  Future<UserCredential> _reauthenticate(SocialProvider provider) async {
+    final user = _auth.currentUser;
+    final authProvider = _authProvider(provider);
+    final linked =
+        user?.providerData.any(
+          (info) => info.providerId == authProvider.providerId,
+        ) ??
+        false;
+    if (user == null || !linked) {
+      throw AuthFailure('${provider.name} not linked', code: notLinkedCode);
+    }
+    return user.reauthenticateWithProvider(authProvider);
+  }
+
+  static Failure? _reauthError(Object error) =>
+      error is FirebaseAuthException && _cancelledCodes.contains(error.code)
+      ? AuthFailure(
+          error.message ?? error.code,
+          code: cancelledCode,
+          cause: error,
+        )
+      : mapFirebaseError(error);
 
   /// What Firebase reports when the user closes the provider's sheet, by
   /// platform and provider.

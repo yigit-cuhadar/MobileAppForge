@@ -100,3 +100,12 @@ class ReauthenticateWithProvider implements UseCase<void, SocialProvider> {
   Future<Result<void>> call(SocialProvider params) =>
       _repository.reauthenticateWithProvider(params);
 }
+
+class RevokeAppleSignIn implements UseCase<void, NoParams> {
+  const RevokeAppleSignIn(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<void>> call([NoParams params = const NoParams()]) =>
+      _repository.revokeAppleSignIn();
+}
