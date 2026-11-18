@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
@@ -12,18 +13,33 @@ import 'state_views.dart';
 
 /// One bar of [Chart.bar]: its [label] under it and, once it has a
 /// [value], the [valueLabel] above it (none for a bar not worth a figure,
-/// such as zero). A bar with no value yet is a short stub.
+/// such as zero). A bar with no value yet is a short stub. Held, a bar
+/// shows its [tooltip] ("5,739 steps · Mon, Nov 3"), or else its
+/// [valueLabel], in a dark tag; screen readers read it per bar.
 class ChartBar {
-  const ChartBar({required this.label, this.value, this.valueLabel})
-    : assert(value != null || valueLabel == null);
+  const ChartBar({
+    required this.label,
+    this.value,
+    this.valueLabel,
+    this.tooltip,
+  }) : assert(value != null || (valueLabel == null && tooltip == null));
 
   final String label;
   final double? value;
   final String? valueLabel;
+  final String? tooltip;
+
+  String? get _tag => tooltip ?? valueLabel;
+
+  String get _spoken =>
+      tooltip ?? [label, ?valueLabel].where((s) => s.isNotEmpty).join(', ');
 }
 
 /// A chart in a card under its [title] and [detail]: a line with a dot per
 /// point, or bars with their values. A goal is a dashed success line.
+/// Pressing and holding a bar darkens it, fades the others and shows its
+/// [ChartBar.tooltip] in a dark tag above it; dragging moves the tag from
+/// bar to bar, and letting go hides it.
 class Chart extends StatelessWidget {
   /// A 2px accent line with a dot per point, no grid, [startLabel] and
   /// [endLabel] under its ends. A tap rings the nearest point and shows its
@@ -81,10 +97,8 @@ class Chart extends StatelessWidget {
        retryLabel = null;
 
   /// Many bars (such as 30 days) 2px apart, with no values above them: the
-  /// first and last bar's [ChartBar.label] sit under the ends, and a tap
-  /// shows that bar in accent with its [ChartBar.valueLabel] in a dark tag
-  /// ("10,500 · Nov 3"). The [current] bar and a [target] as in
-  /// [Chart.bar].
+  /// first and last bar's [ChartBar.label] sit under the ends. The
+  /// [current] bar and a [target] as in [Chart.bar].
   const Chart.barDense({
     super.key,
     required this.title,
@@ -517,7 +531,7 @@ class _Tag extends StatelessWidget {
   }
 }
 
-class _BarChart extends StatelessWidget {
+class _BarChart extends StatefulWidget {
   const _BarChart({
     required this.bars,
     required this.current,
@@ -549,7 +563,19 @@ class _BarChart extends StatelessWidget {
   static const stub = 0.03;
 
   @override
+  State<_BarChart> createState() => _BarChartState();
+}
+
+class _BarChartState extends State<_BarChart> with _Held<_BarChart> {
+  @override
+  List<ChartBar> get _bars => widget.bars;
+
+  @override
   Widget build(BuildContext context) {
+    final _BarChart(:bars, :current, :target, :band, :semanticLabel) = widget;
+    const height = _BarChart.height;
+    const radius = _BarChart.radius;
+    const stub = _BarChart.stub;
     final style = ForgeStyle.of(context);
     final colors = style.colors;
     final valueStyle = style.data.copyWith(fontSize: 10);
@@ -561,102 +587,130 @@ class _BarChart extends StatelessWidget {
     final labelHeight = painter.height;
     painter.dispose();
     final barArea = height - labelHeight - Gap.xs;
-    final target = this.target;
-    final band = this.band;
     final top =
         [
           for (final bar in bars) ?bar.value,
           ?target,
           ?band?.high,
         ].fold<double>(0, math.max) /
-        peak;
+        _BarChart.peak;
     // Bars grow up from zero: a negative value draws none.
     double share(double value) => top <= 0 ? 0 : math.max(0.0, value) / top;
+    final held = _held;
     Color fill(int i, double value) {
-      if (band == null) {
-        return i == current
-            ? colors.accent
-            : colors.accent.withValues(alpha: 0.55);
-      }
-      if (value < band.low) {
-        return Color.lerp(colors.surface, colors.accent, 0.4)!;
-      }
-      return value > band.high ? colors.danger : colors.accent;
+      final color = band == null
+          ? i == current || i == held
+                ? colors.accent
+                : colors.accent.withValues(alpha: 0.55)
+          : value < band.low
+          ? Color.lerp(colors.surface, colors.accent, 0.4)!
+          : value > band.high
+          ? colors.danger
+          : colors.accent;
+      return held == null || i == held ? color : _faded(color);
     }
 
-    return Semantics(
-      container: true,
-      label: semanticLabel,
-      child: Column(
+    return _semantics(
+      semanticLabel,
+      Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: Gap.sm,
         children: [
           SizedBox(
             height: height,
-            child: Stack(
-              children: [
-                if (band != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: barArea * share(band.low),
-                    height: barArea * (share(band.high) - share(band.low)),
-                    child: ColoredBox(color: colors.surfaceSunken),
-                  ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  spacing: Gap.sm,
-                  children: [
-                    for (final (i, bar) in bars.indexed)
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          spacing: Gap.xs,
-                          children: bar.value == null
-                              ? [
-                                  Container(
-                                    height: barArea * stub,
-                                    decoration: BoxDecoration(
-                                      color: colors.surfaceSunken,
-                                      borderRadius: radius,
-                                    ),
-                                  ),
-                                ]
-                              : [
-                                  Text(
-                                    bar.valueLabel ?? '',
-                                    maxLines: 1,
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.visible,
-                                    softWrap: false,
-                                    style: valueStyle.copyWith(
-                                      color: i == current
-                                          ? colors.ink
-                                          : colors.inkMuted,
-                                    ),
-                                  ),
-                                  Container(
-                                    height: barArea * share(bar.value!),
-                                    decoration: BoxDecoration(
-                                      color: fill(i, bar.value!),
-                                      borderRadius: radius,
-                                    ),
-                                  ),
-                                ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                // Each bar's share of the row, after the gaps between them.
+                final barWidth = bars.isEmpty
+                    ? 0.0
+                    : (width - Gap.sm * (bars.length - 1)) / bars.length;
+                final pitch = barWidth + Gap.sm;
+                return _holdable(
+                  (x) => ((x + Gap.sm / 2) / pitch).floor(),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (band != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: barArea * share(band.low),
+                          height:
+                              barArea * (share(band.high) - share(band.low)),
+                          child: ColoredBox(color: colors.surfaceSunken),
                         ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        spacing: Gap.sm,
+                        children: [
+                          for (final (i, bar) in bars.indexed)
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                spacing: Gap.xs,
+                                children: bar.value == null
+                                    ? [
+                                        Container(
+                                          height: barArea * stub,
+                                          decoration: BoxDecoration(
+                                            color: colors.surfaceSunken,
+                                            borderRadius: radius,
+                                          ),
+                                        ),
+                                      ]
+                                    : [
+                                        Text(
+                                          bar.valueLabel ?? '',
+                                          maxLines: 1,
+                                          textAlign: TextAlign.center,
+                                          overflow: TextOverflow.visible,
+                                          softWrap: false,
+                                          style: valueStyle.copyWith(
+                                            color: i == current
+                                                ? colors.ink
+                                                : colors.inkMuted,
+                                          ),
+                                        ),
+                                        Container(
+                                          height: barArea * share(bar.value!),
+                                          decoration: BoxDecoration(
+                                            color: fill(i, bar.value!),
+                                            borderRadius: radius,
+                                          ),
+                                        ),
+                                      ],
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                if (target != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: barArea * share(target) - 0.75,
-                    height: 1.5,
-                    child: CustomPaint(painter: _GoalPainter(colors.success)),
+                      if (target != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: barArea * share(target) - 0.75,
+                          height: 1.5,
+                          child: CustomPaint(
+                            painter: _GoalPainter(colors.success),
+                          ),
+                        ),
+                      if (held != null)
+                        Positioned.fill(
+                          child: CustomSingleChildLayout(
+                            delegate: _TagLayout(
+                              Offset(
+                                pitch * held + barWidth / 2,
+                                height - barArea * share(bars[held].value!),
+                              ),
+                            ),
+                            child: _Tag(bars[held]._tag!),
+                          ),
+                        ),
+                    ],
                   ),
-              ],
+                );
+              },
             ),
           ),
           Row(
@@ -672,6 +726,7 @@ class _BarChart extends StatelessWidget {
   }
 
   Widget _label(BuildContext context, int i, String label) {
+    final _BarChart(:current, :smallLabels) = widget;
     final colors = ForgeStyle.of(context).colors;
     var style = Theme.of(context).textTheme.labelSmall!.copyWith(
       color: i == current ? colors.ink : colors.inkMuted,
@@ -719,19 +774,10 @@ class _DenseBarChart extends StatefulWidget {
   State<_DenseBarChart> createState() => _DenseBarChartState();
 }
 
-class _DenseBarChartState extends State<_DenseBarChart> {
-  int? _selected;
-
+class _DenseBarChartState extends State<_DenseBarChart>
+    with _Held<_DenseBarChart> {
   @override
-  void didUpdateWidget(_DenseBarChart old) {
-    super.didUpdateWidget(old);
-    final selected = _selected;
-    if (selected != null &&
-        (selected >= widget.bars.length ||
-            widget.bars[selected].value == null)) {
-      _selected = null;
-    }
-  }
+  List<ChartBar> get _bars => widget.bars;
 
   @override
   Widget build(BuildContext context) {
@@ -745,27 +791,20 @@ class _DenseBarChartState extends State<_DenseBarChart> {
     ].fold<double>(0, math.max);
     double height(double value) =>
         peak <= 0 ? 0 : math.max(0.0, value) / peak * area;
-    return Semantics(
-      container: true,
-      label: widget.semanticLabel,
-      child: SizedBox(
+    final held = _held;
+    return _semantics(
+      widget.semanticLabel,
+      SizedBox(
         height: _DenseBarChart.height,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final slot = bars.isEmpty ? 0.0 : width / bars.length;
-            final selected = _selected;
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (details) {
-                if (bars.isEmpty) return;
-                final i = (details.localPosition.dx / slot).floor().clamp(
-                  0,
-                  bars.length - 1,
-                );
-                if (bars[i].value != null) setState(() => _selected = i);
-              },
-              child: Stack(
+            return _holdable(
+              (x) => (x / slot).floor(),
+              Stack(
+                // The bars stand on the chart's floor, the tag's room above.
+                alignment: AlignmentDirectional.bottomStart,
                 clipBehavior: Clip.none,
                 children: [
                   Row(
@@ -781,7 +820,11 @@ class _DenseBarChartState extends State<_DenseBarChart> {
                             decoration: BoxDecoration(
                               color: bar.value == null
                                   ? colors.surfaceSunken
-                                  : i == widget.current || i == selected
+                                  : held != null
+                                  ? i == held
+                                        ? colors.accent
+                                        : _faded(colors.accent)
+                                  : i == widget.current
                                   ? colors.accent
                                   : colors.accent.withValues(alpha: 0.55),
                               borderRadius: _DenseBarChart.radius,
@@ -798,17 +841,16 @@ class _DenseBarChartState extends State<_DenseBarChart> {
                       height: 1.5,
                       child: CustomPaint(painter: _GoalPainter(colors.success)),
                     ),
-                  if (selected != null && bars[selected].valueLabel != null)
+                  if (held != null)
                     Positioned.fill(
                       child: CustomSingleChildLayout(
                         delegate: _TagLayout(
                           Offset(
-                            slot * (selected + 0.5),
-                            _DenseBarChart.height -
-                                height(bars[selected].value!),
+                            slot * (held + 0.5),
+                            _DenseBarChart.height - height(bars[held].value!),
                           ),
                         ),
-                        child: _Tag(bars[selected].valueLabel!),
+                        child: _Tag(bars[held]._tag!),
                       ),
                     ),
                 ],
@@ -819,6 +861,76 @@ class _DenseBarChartState extends State<_DenseBarChart> {
       ),
     );
   }
+}
+
+/// Press-and-hold on a bar chart: the held bar's index while a finger is
+/// down, moving with it from bar to bar.
+mixin _Held<T extends StatefulWidget> on State<T> {
+  int? _held;
+
+  List<ChartBar> get _bars;
+
+  /// The other bars while one is held: their colour at a quarter.
+  Color _faded(Color color) => color.withValues(alpha: color.a * 0.25);
+
+  void _hold(int? index) {
+    final bars = _bars;
+    final next = index == null || bars.isEmpty
+        ? null
+        : index.clamp(0, bars.length - 1);
+    final held = next != null && bars[next]._tag != null ? next : null;
+    if (held == _held) return;
+    if (held != null) HapticFeedback.selectionClick();
+    setState(() => _held = held);
+  }
+
+  @override
+  void didUpdateWidget(T old) {
+    super.didUpdateWidget(old);
+    final held = _held;
+    if (held != null && (held >= _bars.length || _bars[held]._tag == null)) {
+      _held = null;
+    }
+  }
+
+  /// [chart] taking the hold; [indexAt] finds the bar under an x.
+  Widget _holdable(int Function(double x) indexAt, Widget chart) =>
+      GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPressStart: (d) => _hold(indexAt(d.localPosition.dx)),
+        onLongPressMoveUpdate: (d) => _hold(indexAt(d.localPosition.dx)),
+        onLongPressEnd: (_) => _hold(null),
+        onLongPressCancel: () => _hold(null),
+        child: chart,
+      );
+
+  /// The chart named for screen readers, with one node per bar that reads
+  /// what holding it shows.
+  Widget _semantics(String label, Widget chart) => Semantics(
+    container: true,
+    explicitChildNodes: true,
+    label: label,
+    child: Stack(
+      children: [
+        ExcludeSemantics(child: chart),
+        Positioned.fill(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final bar in _bars)
+                Expanded(
+                  child: Semantics(
+                    container: true,
+                    label: bar._spoken,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _GoalPainter extends CustomPainter {

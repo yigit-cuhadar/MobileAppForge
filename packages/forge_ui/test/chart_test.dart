@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 import 'package:forge_ui/src/widgets/card_frame.dart';
@@ -199,37 +200,157 @@ void main() {
       expect(find.text('Day 15'), findsNothing);
     });
 
-    testWidgets('a tap shows that bar in a tag, in accent', (tester) async {
-      await pump(tester, dense());
-      final box = tester.getRect(find.bySemanticsLabel('Count over 30 days'));
-      await tester.tapAt(
-        Offset(box.left + box.width * 10.5 / 30, box.bottom - 2),
-      );
-      await tester.pump();
-      expect(find.text('[VALUE] · Day 10'), findsOneWidget);
+    Finder denseBars() => find.descendant(
+      of: find.byType(Chart),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration is BoxDecoration &&
+            (w.decoration! as BoxDecoration).borderRadius ==
+                const BorderRadius.all(Radius.circular(2)),
+      ),
+    );
 
-      final bars = find.descendant(
-        of: find.byType(Chart),
-        matching: find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration! as BoxDecoration).borderRadius ==
-                  const BorderRadius.all(Radius.circular(2)),
-        ),
-      );
-      Color fill(int i) =>
-          (tester.widget<Container>(bars.at(i)).decoration! as BoxDecoration)
-              .color!;
+    Color fill(WidgetTester tester, int i) =>
+        (tester.widget<Container>(denseBars().at(i)).decoration!
+                as BoxDecoration)
+            .color!;
+
+    Offset barAt(WidgetTester tester, double i) {
+      final box = tester.getRect(find.bySemanticsLabel('Count over 30 days'));
+      return Offset(box.left + box.width * (i + 0.5) / 30, box.bottom - 2);
+    }
+
+    testWidgets('a tap shows nothing; today in accent, the rest at 55%', (
+      tester,
+    ) async {
+      await pump(tester, dense());
+      await tester.tapAt(barAt(tester, 10));
+      await tester.pump();
+      expect(find.textContaining('[VALUE] ·'), findsNothing);
+
       final c = colors(tester);
-      expect(fill(10), c.accent);
-      expect(fill(29), c.accent);
-      expect(fill(9), c.accent.withValues(alpha: 0.55));
+      expect(fill(tester, 29), c.accent);
+      expect(fill(tester, 9), c.accent.withValues(alpha: 0.55));
       // 2px apart.
       expect(
-        tester.getRect(bars.at(11)).left - tester.getRect(bars.at(10)).right,
+        tester.getRect(denseBars().at(11)).left -
+            tester.getRect(denseBars().at(10)).right,
         closeTo(2, 0.01),
       );
+    });
+
+    testWidgets('holding a bar darkens it, fades the rest and shows its tag; '
+        'dragging moves it and letting go hides it', (tester) async {
+      await pump(tester, dense());
+      final gesture = await tester.startGesture(barAt(tester, 10));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      expect(find.text('[VALUE] · Day 10'), findsOneWidget);
+      final c = colors(tester);
+      expect(fill(tester, 10), c.accent);
+      expect(fill(tester, 29), c.accent.withValues(alpha: 0.25));
+      expect(fill(tester, 9), c.accent.withValues(alpha: 0.25));
+
+      // The tag sits above the held bar.
+      final tag = tester.getRect(find.text('[VALUE] · Day 10'));
+      final bar = tester.getRect(denseBars().at(10));
+      expect(tag.bottom, lessThan(bar.top));
+      expect(tag.center.dx, closeTo(bar.center.dx, 1));
+      // The bars stand on the chart's floor.
+      final chart = tester.getRect(find.bySemanticsLabel('Count over 30 days'));
+      expect(bar.bottom, chart.bottom);
+
+      await gesture.moveTo(barAt(tester, 20));
+      await tester.pump();
+      expect(find.text('[VALUE] · Day 10'), findsNothing);
+      expect(find.text('[VALUE] · Day 20'), findsOneWidget);
+      expect(fill(tester, 20), c.accent);
+
+      await gesture.up();
+      await tester.pump();
+      expect(find.textContaining('[VALUE] ·'), findsNothing);
+      expect(fill(tester, 29), c.accent);
+      expect(fill(tester, 20), c.accent.withValues(alpha: 0.55));
+    });
+
+    testWidgets('screen readers hear each bar', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pump(tester, dense());
+      expect(find.bySemanticsLabel('Day 10, [VALUE] · Day 10'), findsOneWidget);
+      expect(find.bySemanticsLabel('Count over 30 days'), findsOneWidget);
+      semantics.dispose();
+    });
+  });
+
+  group('Chart.bar holding', () {
+    Widget week() => const Chart.bar(
+      title: 'Count · this week',
+      bars: [
+        ChartBar(
+          label: 'M',
+          value: 8.2,
+          valueLabel: '8.2k',
+          tooltip: '8,200 · Mon',
+        ),
+        ChartBar(
+          label: 'T',
+          value: 6.2,
+          valueLabel: '6.2k',
+          tooltip: '6,200 · Tue',
+        ),
+        ChartBar(label: 'W'),
+      ],
+      current: 1,
+      semanticLabel: 'Count this week',
+    );
+
+    testWidgets('shows the tooltip over the held bar, none on an empty one', (
+      tester,
+    ) async {
+      await pump(tester, week());
+      final chart = tester.getRect(find.bySemanticsLabel('Count this week'));
+      Offset bar(int i) =>
+          Offset(chart.left + chart.width * (i + 0.5) / 3, chart.top + 100);
+
+      final gesture = await tester.startGesture(bar(0));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      expect(find.text('8,200 · Mon'), findsOneWidget);
+
+      await gesture.moveTo(bar(2));
+      await tester.pump();
+      expect(find.text('8,200 · Mon'), findsNothing);
+      expect(find.text('6,200 · Tue'), findsNothing);
+
+      await gesture.moveTo(bar(1));
+      await tester.pump();
+      expect(find.text('6,200 · Tue'), findsOneWidget);
+      await gesture.up();
+      await tester.pump();
+      expect(find.text('6,200 · Tue'), findsNothing);
+    });
+
+    testWidgets('screen readers hear each bar\'s tooltip, or its label and '
+        'value', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pump(
+        tester,
+        const Chart.bar(
+          title: 'Count · this week',
+          bars: [
+            ChartBar(label: 'M', value: 8.2, valueLabel: '8.2k'),
+            ChartBar(
+              label: 'T',
+              value: 6.2,
+              valueLabel: '6.2k',
+              tooltip: '6,200 · Tue',
+            ),
+          ],
+          semanticLabel: 'Count this week',
+        ),
+      );
+      expect(find.bySemanticsLabel('M, 8.2k'), findsOneWidget);
+      expect(find.bySemanticsLabel('6,200 · Tue'), findsOneWidget);
+      semantics.dispose();
     });
   });
 
