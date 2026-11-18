@@ -63,4 +63,11 @@ abstract interface class AuthRepository {
   /// sheet, and with Firebase's code (e.g. `user-mismatch` for another
   /// account) otherwise.
   Future<Result<void>> reauthenticateWithProvider(SocialProvider provider);
+
+  /// Signs the user in again with Apple, so the sign-in is recent, and
+  /// revokes the app's Apple tokens, which the App Store requires when an
+  /// account is deleted. Fails like [reauthenticateWithProvider], and with
+  /// Firebase's code when the revocation fails (the project needs Apple's
+  /// code flow key for it).
+  Future<Result<void>> revokeAppleSignIn();
 }

@@ -307,4 +307,60 @@ void main() {
       );
     });
   });
+
+  group('revokeAppleSignIn', () {
+    late MockUserCredential credential;
+
+    setUp(() {
+      when(() => auth.currentUser).thenReturn(user);
+      final providers = [provider('apple.com')];
+      when(() => user.providerData).thenReturn(providers);
+      credential = credentialFor(user);
+      when(() => credential.additionalUserInfo).thenReturn(
+        AdditionalUserInfo(isNewUser: false, authorizationCode: 'c1'),
+      );
+      when(() => user.reauthenticateWithProvider(any()))
+          .thenAnswer((_) async => credential);
+      when(() => auth.revokeTokenWithAuthorizationCode(any()))
+          .thenAnswer((_) async {});
+    });
+
+    test('signs in again with Apple and revokes with its code', () async {
+      expect((await repository.revokeAppleSignIn()).isOk, isTrue);
+      final used = verify(() => user.reauthenticateWithProvider(captureAny()))
+          .captured
+          .single;
+      expect(used, isA<AppleAuthProvider>());
+      verify(() => auth.revokeTokenWithAuthorizationCode('c1')).called(1);
+    });
+
+    test('fails without Apple linked, revoking nothing', () async {
+      final providers = [provider('google.com')];
+      when(() => user.providerData).thenReturn(providers);
+      expect(
+        (await repository.revokeAppleSignIn()).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', notLinkedCode),
+      );
+      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
+    });
+
+    test('a closed sheet is cancelled, revoking nothing', () async {
+      when(() => user.reauthenticateWithProvider(any()))
+          .thenThrow(FirebaseAuthException(code: 'canceled'));
+      expect(
+        (await repository.revokeAppleSignIn()).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode),
+      );
+      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
+    });
+
+    test('a failed revocation is a failure', () async {
+      when(() => auth.revokeTokenWithAuthorizationCode(any()))
+          .thenThrow(FirebaseAuthException(code: 'invalid-credential'));
+      expect(
+        (await repository.revokeAppleSignIn()).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'invalid-credential'),
+      );
+    });
+  });
 }
