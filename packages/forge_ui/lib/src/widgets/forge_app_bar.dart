@@ -102,45 +102,50 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _valueBar(BuildContext context, String value) {
     final style = ForgeStyle.of(context);
-    return SizedBox(
-      height: valueHeight,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.md, Gap.xs, Gap.xs),
-        child: Row(
-          spacing: Gap.xs,
-          children: [
-            leading!,
-            Expanded(
-              child: Semantics(
-                header: true,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: style.dataLg.copyWith(
-                        fontSize: 28,
-                        height: 32 / 28,
+    // The bar keeps its height, which the two lines already fill, so its
+    // text and actions stay at their drawn size as text grows.
+    return MediaQuery.withNoTextScaling(
+      child: SizedBox(
+        height: valueHeight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.md, Gap.xs, Gap.xs),
+          child: Row(
+            spacing: Gap.xs,
+            children: [
+              leading!,
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: style.dataLg.copyWith(
+                          fontSize: 28,
+                          height: 32 / 28,
+                        ),
                       ),
-                    ),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: style.colors.inkMuted,
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium!
+                            .copyWith(
+                              fontWeight: FontWeight.w400,
+                              color: style.colors.inkMuted,
+                            ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            ...actions,
-          ],
+              ...actions,
+            ],
+          ),
         ),
       ),
     );

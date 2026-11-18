@@ -255,9 +255,11 @@ void main() {
           )
           .first,
     );
-    final ring = (pill.foregroundDecoration! as BoxDecoration).border!;
+    final ring =
+        ((pill.foregroundDecoration! as ShapeDecoration).shape as StadiumBorder)
+            .side;
     expect(
-      ring.top.color,
+      ring.color,
       ForgeTheme.light().extension<ForgeStyle>()!.colors.danger,
     );
     expect(find.byType(Text), findsNWidgets(2));

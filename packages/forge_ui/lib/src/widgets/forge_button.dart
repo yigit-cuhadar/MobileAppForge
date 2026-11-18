@@ -85,6 +85,8 @@ class ForgeButton extends StatelessWidget {
     final p = style.colors;
     final text = Theme.of(context).textTheme;
     final enabled = onPressed != null;
+    // Larger text wraps the label and grows the button past its height.
+    final scaled = MediaQuery.textScalerOf(context).scale(1) > 1;
     final (height, padding, labelStyle, iconSize) = switch (size) {
       ForgeButtonSize.regular => (
         ForgeTheme.buttonHeight,
@@ -114,8 +116,11 @@ class ForgeButton extends StatelessWidget {
         return Opacity(
           opacity: look.opacity,
           child: Container(
-            height: height,
-            padding: EdgeInsets.symmetric(horizontal: padding),
+            constraints: BoxConstraints(minHeight: height),
+            padding: EdgeInsets.symmetric(
+              horizontal: padding,
+              vertical: Gap.xs,
+            ),
             decoration: BoxDecoration(
               color: look.fill,
               borderRadius: const BorderRadius.all(
@@ -142,8 +147,9 @@ class ForgeButton extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: scaled ? null : 1,
+                    overflow: scaled ? null : TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: labelStyle.copyWith(color: look.ink),
                   ),
                 ),
@@ -248,6 +254,7 @@ class ForgeAddButton extends StatelessWidget {
     final style = ForgeStyle.of(context);
     final p = style.colors;
     final ink = onPressed == null ? p.lineStrong : p.ink;
+    final scaled = MediaQuery.textScalerOf(context).scale(1) > 1;
     return Semantics(
       button: true,
       enabled: onPressed != null,
@@ -263,7 +270,8 @@ class ForgeAddButton extends StatelessWidget {
             gap: 3,
           ),
           child: Container(
-            height: ForgeTheme.tapMin,
+            constraints: const BoxConstraints(minHeight: ForgeTheme.tapMin),
+            padding: const EdgeInsets.symmetric(vertical: Gap.xs),
             width: double.infinity,
             decoration: BoxDecoration(
               color: pressed ? Color.lerp(p.surface, p.ink, 0.08) : p.surface,
@@ -277,8 +285,9 @@ class ForgeAddButton extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: scaled ? null : 1,
+                    overflow: scaled ? null : TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.labelLarge!
                         .copyWith(color: ink),
                   ),

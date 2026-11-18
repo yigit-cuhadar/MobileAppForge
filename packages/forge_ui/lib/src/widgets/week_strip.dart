@@ -63,11 +63,15 @@ class WeekStrip extends StatelessWidget {
                     child: Column(
                       spacing: Gap.xs,
                       children: [
-                        Text(
-                          day.weekday,
-                          style: text.labelMedium!.copyWith(
-                            color: style.colors.inkMuted,
-                            fontWeight: FontWeight.w400,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            day.weekday,
+                            maxLines: 1,
+                            style: text.labelMedium!.copyWith(
+                              color: style.colors.inkMuted,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ),
                         DayCircle(state: day.state, number: day.number),

@@ -212,27 +212,31 @@ class _StepperFieldState extends State<StepperField> {
               cursorWidth: 2,
             ),
           )
-        : Text(
-            value == null
-                ? (widget.hint == null ? '—' : _text(widget.hint!))
-                : _text(value),
-            style: value == null
-                ? valueStyle.copyWith(color: colors.inkSubtle)
-                : valueStyle,
+        : FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value == null
+                  ? (widget.hint == null ? '—' : _text(widget.hint!))
+                  : _text(value),
+              maxLines: 1,
+              style: value == null
+                  ? valueStyle.copyWith(color: colors.inkSubtle)
+                  : valueStyle,
+            ),
           );
 
+    // Larger text grows the pill past its height.
     final pill = Container(
-      height: height,
+      constraints: BoxConstraints(minHeight: height),
       padding: EdgeInsets.symmetric(horizontal: widget.compact ? 5 : Gap.sm),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: colors.surfaceSunken,
-        borderRadius: BorderRadius.circular(height / 2),
+        shape: const StadiumBorder(),
       ),
       foregroundDecoration: ring == null
           ? null
-          : BoxDecoration(
-              borderRadius: BorderRadius.circular(height / 2),
-              border: Border.all(color: ring, width: 2),
+          : ShapeDecoration(
+              shape: StadiumBorder(side: BorderSide(color: ring, width: 2)),
             ),
       child: Row(
         children: [
@@ -254,20 +258,27 @@ class _StepperFieldState extends State<StepperField> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: enabled && !_typing ? _startTyping : null,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    shown,
-                    Text(
-                      widget.unit,
-                      style: text.labelSmall!.copyWith(
-                        fontSize: 10,
-                        height: 12 / 10,
-                        fontWeight: FontWeight.w400,
-                        color: colors.inkMuted,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      shown,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.unit,
+                          maxLines: 1,
+                          style: text.labelSmall!.copyWith(
+                            fontSize: 10,
+                            height: 12 / 10,
+                            fontWeight: FontWeight.w400,
+                            color: colors.inkMuted,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
