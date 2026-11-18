@@ -11,6 +11,13 @@ const accountExistsCode = 'account-exists';
 /// sign-in (a guest, or Google or Apple only).
 const noPasswordCode = 'no-password';
 
+/// [AuthFailure.code] when [AuthRepository.reauthenticateWithProvider] has
+/// nobody signed in, or the user has not linked that provider.
+const notLinkedCode = 'not-linked';
+
+/// [AuthFailure.code] when the user closes a provider's sign-in sheet.
+const cancelledCode = 'cancelled';
+
 abstract interface class AuthRepository {
   /// Emits the signed-in user, or null when signed out.
   Stream<AuthUser?> watchUser();
@@ -49,4 +56,11 @@ abstract interface class AuthRepository {
   /// signed in or the user has no email and password sign-in, and with
   /// Firebase's code (e.g. `invalid-credential`) for a wrong password.
   Future<Result<void>> reauthenticate(String password);
+
+  /// Signs the signed-in user in again with [provider], so the sign-in is
+  /// recent. Fails with [notLinkedCode] when nobody is signed in or the
+  /// provider is not linked, with [cancelledCode] when the user closes the
+  /// sheet, and with Firebase's code (e.g. `user-mismatch` for another
+  /// account) otherwise.
+  Future<Result<void>> reauthenticateWithProvider(SocialProvider provider);
 }

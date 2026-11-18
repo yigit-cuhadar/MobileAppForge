@@ -249,4 +249,62 @@ void main() {
       );
     });
   });
+
+  group('reauthenticateWithProvider', () {
+    setUp(() {
+      when(() => auth.currentUser).thenReturn(user);
+      final providers = [provider('google.com')];
+      when(() => user.providerData).thenReturn(providers);
+      when(() => user.reauthenticateWithProvider(any()))
+          .thenAnswer((_) async => credentialFor(user));
+    });
+
+    test('signs in again with the linked provider', () async {
+      final result = await repository.reauthenticateWithProvider(
+        SocialProvider.google,
+      );
+      expect(result.isOk, isTrue);
+      final used = verify(() => user.reauthenticateWithProvider(captureAny()))
+          .captured
+          .single;
+      expect(used, isA<GoogleAuthProvider>());
+    });
+
+    Future<void> expectNotLinked(SocialProvider provider) async {
+      expect(
+        (await repository.reauthenticateWithProvider(provider)).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', notLinkedCode),
+      );
+      verifyNever(() => user.reauthenticateWithProvider(any()));
+    }
+
+    test('fails with nobody signed in', () async {
+      when(() => auth.currentUser).thenReturn(null);
+      await expectNotLinked(SocialProvider.google);
+    });
+
+    test('fails for a provider the user has not linked', () async {
+      await expectNotLinked(SocialProvider.apple);
+    });
+
+    test('a closed sheet is cancelled', () async {
+      when(() => user.reauthenticateWithProvider(any()))
+          .thenThrow(FirebaseAuthException(code: 'web-context-cancelled'));
+      expect(
+        (await repository.reauthenticateWithProvider(SocialProvider.google))
+            .failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode),
+      );
+    });
+
+    test('another account keeps Firebase\'s code', () async {
+      when(() => user.reauthenticateWithProvider(any()))
+          .thenThrow(FirebaseAuthException(code: 'user-mismatch'));
+      expect(
+        (await repository.reauthenticateWithProvider(SocialProvider.google))
+            .failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'user-mismatch'),
+      );
+    });
+  });
 }

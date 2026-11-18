@@ -10,3 +10,4 @@ export 'src/presentation/auth_form_cubit.dart';
 export 'src/presentation/auth_page.dart';
 export 'src/presentation/auth_strings.dart';
 export 'src/presentation/link_account_sheet.dart';
+export 'src/presentation/provider_mark.dart';

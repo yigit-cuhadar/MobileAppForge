@@ -234,6 +234,38 @@ void main() {
         lessThan(tester.getRect(find.byType(FilledButton)).top),
       );
     });
+    testWidgets('puts the alternative 16px under the action, over Cancel', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        (context) => showForgeDialog<void>(
+          context: context,
+          builder: (context) => ForgeDialog(
+            title: 'Confirm it is you',
+            field: const TextField(),
+            action: FilledButton(onPressed: () {}, child: const Text('Delete')),
+            alternative: const OrDivider(label: 'or'),
+            cancel: ElevatedButton(
+              onPressed: () {},
+              child: const Text('Cancel'),
+            ),
+          ),
+        ),
+      );
+      await open(tester);
+
+      final alternative = tester.getRect(find.byType(OrDivider));
+      expect(
+        alternative.top - tester.getRect(find.byType(FilledButton)).bottom,
+        Gap.md,
+      );
+      expect(
+        alternative.bottom,
+        lessThan(tester.getRect(find.byType(ElevatedButton)).top),
+      );
+    });
+
     testWidgets('without a message, the buttons follow the title', (
       tester,
     ) async {
