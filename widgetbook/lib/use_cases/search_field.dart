@@ -78,3 +78,29 @@ class _FocusedByPageState extends State<_FocusedByPage> {
     ),
   );
 }
+
+@widgetbook.UseCase(name: 'Hero flight', type: ForgeSearchField)
+Widget heroFlight(BuildContext context) => _padded(
+  ForgeSearchField.tapOnly(
+    hint: 'Search',
+    heroTag: heroFlight,
+    onTap: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => Scaffold(
+          appBar: const ForgeAppBar(title: 'Items'),
+          body: Padding(
+            padding: const EdgeInsets.all(Gap.md),
+            child: ForgeSearchField(
+              hint: 'Search',
+              clearLabel: 'Clear',
+              onChanged: (_) {},
+              onFilters: () {},
+              filtersLabel: 'Filters',
+              heroTag: heroFlight,
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+);

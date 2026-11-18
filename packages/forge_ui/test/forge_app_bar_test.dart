@@ -140,7 +140,7 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('a toggled icon is ink outline off and filled accent on', (
+  testWidgets('a toggled icon is ink-muted outline off and filled accent on', (
     tester,
   ) async {
     Future<ForgeIcon> pumpToggled(bool on) async {
@@ -163,7 +163,7 @@ void main() {
 
     final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
     final off = await pumpToggled(false);
-    expect((off.color, off.filled), (colors.ink, false));
+    expect((off.color, off.filled), (colors.inkMuted, false));
     expect(
       tester.getSemantics(find.bySemanticsLabel('Favourite')),
       isSemantics(

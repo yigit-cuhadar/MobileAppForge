@@ -100,4 +100,42 @@ void main() {
     expect(opacity.opacity, 0.4);
     semantics.dispose();
   });
+
+  testWidgets('a toggled icon is a muted outline off and filled accent on', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    var taps = 0;
+    for (final on in [false, true]) {
+      await pump(
+        tester,
+        ForgeIconButton(
+          icon: ForgeIcons.star,
+          label: 'Favourite',
+          toggled: on,
+          onPressed: () => taps++,
+        ),
+      );
+      final p = colors(tester);
+      expect((
+        icon(tester).color,
+        icon(tester).filled,
+      ), on ? (p.accent, true) : (p.inkMuted, false));
+      expect(
+        tester.getSemantics(find.byType(ForgeIconButton)),
+        matchesSemantics(
+          label: 'Favourite',
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+          hasToggledState: true,
+          isToggled: on,
+        ),
+      );
+      await tester.tap(find.byType(ForgeIconButton));
+    }
+    expect(taps, 2);
+    semantics.dispose();
+  });
 }

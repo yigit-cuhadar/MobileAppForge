@@ -59,3 +59,29 @@ Widget disabledIconButton(BuildContext context) => _row(const [
     variant: ForgeIconButtonVariant.ink,
   ),
 ]);
+
+@widgetbook.UseCase(name: 'Toggled', type: ForgeIconButton)
+Widget toggledIconButtons(BuildContext context) => const _Toggled();
+
+/// Off and on side by side; each switches when tapped.
+class _Toggled extends StatefulWidget {
+  const _Toggled();
+
+  @override
+  State<_Toggled> createState() => _ToggledState();
+}
+
+class _ToggledState extends State<_Toggled> {
+  final _on = [false, true];
+
+  @override
+  Widget build(BuildContext context) => _row([
+    for (final (i, on) in _on.indexed)
+      ForgeIconButton(
+        icon: ForgeIcons.star,
+        label: 'Favourite',
+        toggled: on,
+        onPressed: () => setState(() => _on[i] = !on),
+      ),
+  ]);
+}
