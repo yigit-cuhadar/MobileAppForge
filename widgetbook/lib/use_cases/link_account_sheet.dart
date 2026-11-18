@@ -3,28 +3,7 @@ import 'package:forge_ui/forge_ui.dart';
 import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
-/// A placeholder provider mark; forge_auth passes the real ones.
-class _ProviderMark extends StatelessWidget {
-  const _ProviderMark({required this.filled});
-
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = ForgeStyle.of(context).colors;
-    return Container(
-      width: 18,
-      height: 18,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: filled ? colors.surface : null,
-        border: filled
-            ? null
-            : Border.all(color: colors.lineStrong, width: 1.5),
-      ),
-    );
-  }
-}
+import '../provider_mark.dart';
 
 LinkAccountSheet _sheet(BuildContext context, {SignInOption? running}) =>
     LinkAccountSheet(
@@ -36,12 +15,12 @@ LinkAccountSheet _sheet(BuildContext context, {SignInOption? running}) =>
             'device. Your data stays as it is.',
       ),
       apple: SignInProvider(
-        mark: const _ProviderMark(filled: true),
+        mark: const PlaceholderProviderMark(filled: true),
         label: 'Continue with Apple',
         onPressed: () {},
       ),
       google: SignInProvider(
-        mark: const _ProviderMark(filled: false),
+        mark: const PlaceholderProviderMark(filled: false),
         label: 'Continue with Google',
         onPressed: () {},
       ),

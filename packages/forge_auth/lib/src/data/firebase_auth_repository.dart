@@ -52,10 +52,7 @@ class FirebaseAuthRepository implements AuthRepository {
     SocialProvider provider, {
     bool replaceGuest = false,
   }) {
-    final authProvider = switch (provider) {
-      SocialProvider.google => GoogleAuthProvider(),
-      SocialProvider.apple => AppleAuthProvider(),
-    };
+    final authProvider = _authProvider(provider);
     final guest = replaceGuest ? null : _guest;
     if (guest == null) {
       return _credential(() => _auth.signInWithProvider(authProvider));
@@ -107,6 +104,48 @@ class FirebaseAuthRepository implements AuthRepository {
       EmailAuthProvider.credential(email: email, password: password),
     );
   }, mapper: mapFirebaseError);
+
+  @override
+  Future<Result<void>> reauthenticateWithProvider(
+    SocialProvider provider,
+  ) => guard(
+    () async {
+      final user = _auth.currentUser;
+      final authProvider = _authProvider(provider);
+      final linked =
+          user?.providerData.any(
+            (info) => info.providerId == authProvider.providerId,
+          ) ??
+          false;
+      if (user == null || !linked) {
+        throw AuthFailure('${provider.name} not linked', code: notLinkedCode);
+      }
+      await user.reauthenticateWithProvider(authProvider);
+    },
+    mapper: (error) =>
+        error is FirebaseAuthException && _cancelledCodes.contains(error.code)
+        ? AuthFailure(
+            error.message ?? error.code,
+            code: cancelledCode,
+            cause: error,
+          )
+        : mapFirebaseError(error),
+  );
+
+  /// What Firebase reports when the user closes the provider's sheet, by
+  /// platform and provider.
+  static const _cancelledCodes = {
+    'web-context-cancelled',
+    'web-context-canceled',
+    'canceled',
+    'cancelled',
+  };
+
+  static AuthProvider _authProvider(SocialProvider provider) =>
+      switch (provider) {
+        SocialProvider.google => GoogleAuthProvider(),
+        SocialProvider.apple => AppleAuthProvider(),
+      };
 
   User? get _guest {
     final user = _auth.currentUser;

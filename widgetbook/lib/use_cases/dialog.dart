@@ -3,6 +3,8 @@ import 'package:forge_ui/forge_ui.dart';
 import 'package:widgetbook/widgetbook.dart';
 import 'package:widgetbook_annotation/widgetbook_annotation.dart' as widgetbook;
 
+import '../provider_mark.dart';
+
 /// [dialog] over the scrim, as [showForgeDialog] shows it.
 Widget _shown(BuildContext context, ForgeDialog dialog) =>
     ColoredBox(color: Theme.of(context).colorScheme.scrim, child: dialog);
@@ -58,6 +60,57 @@ Widget fieldDialog(BuildContext context) => _shown(
       ),
     ),
     action: ForgeButton(label: 'Save', onPressed: () {}),
+    cancel: _cancel,
+  ),
+);
+
+Widget get _providers => SignInProviderButtons(
+  apple: SignInProvider(
+    mark: const PlaceholderProviderMark(filled: true),
+    label: 'Continue with Apple',
+    onPressed: () {},
+  ),
+  google: SignInProvider(
+    mark: const PlaceholderProviderMark(filled: false),
+    label: 'Continue with Google',
+    onPressed: () {},
+  ),
+  signingInLabel: 'Signing in…',
+);
+
+/// No password to ask for: the provider buttons are the action.
+@widgetbook.UseCase(name: 'Confirm with sign-in', type: ForgeDialog)
+Widget signInDialog(BuildContext context) => _shown(
+  context,
+  ForgeDialog(
+    title: "Confirm it's you",
+    message: 'Sign in again to continue.',
+    action: _providers,
+    cancel: _cancel,
+  ),
+);
+
+/// A password and linked providers: either confirms.
+@widgetbook.UseCase(name: 'Password or sign-in', type: ForgeDialog)
+Widget passwordOrSignInDialog(BuildContext context) => _shown(
+  context,
+  ForgeDialog(
+    title: "Confirm it's you",
+    message: 'Enter your password to continue.',
+    field: const ForgeTextField(label: 'Password', obscure: true),
+    action: ForgeButton(
+      label: 'Delete',
+      onPressed: () {},
+      variant: ForgeButtonVariant.danger,
+    ),
+    alternative: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: Gap.md,
+      children: [
+        const OrDivider(label: 'or'),
+        _providers,
+      ],
+    ),
     cancel: _cancel,
   ),
 );

@@ -91,3 +91,12 @@ class Reauthenticate implements UseCase<void, String> {
   Future<Result<void>> call(String params) =>
       _repository.reauthenticate(params);
 }
+
+class ReauthenticateWithProvider implements UseCase<void, SocialProvider> {
+  const ReauthenticateWithProvider(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<void>> call(SocialProvider params) =>
+      _repository.reauthenticateWithProvider(params);
+}

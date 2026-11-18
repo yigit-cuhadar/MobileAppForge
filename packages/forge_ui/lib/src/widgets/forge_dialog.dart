@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'list_row.dart';
+import 'or_divider.dart';
 
 /// Shows a [ForgeDialog] over a scrim.
 Future<T?> showForgeDialog<T>({
@@ -20,6 +21,7 @@ class ForgeDialog extends StatelessWidget {
     this.message,
     this.field,
     required this.action,
+    this.alternative,
     required this.cancel,
   }) : list = null;
 
@@ -34,7 +36,8 @@ class ForgeDialog extends StatelessWidget {
     required this.action,
     required this.cancel,
   }) : message = null,
-       field = null;
+       field = null,
+       alternative = null;
 
   final String title;
   final String? message;
@@ -43,6 +46,10 @@ class ForgeDialog extends StatelessWidget {
   final Widget? field;
   final List<Widget>? list;
   final Widget action;
+
+  /// Another way to do [action], between it and [cancel]: an [OrDivider]
+  /// over sign-in buttons.
+  final Widget? alternative;
   final Widget cancel;
 
   static const double maxWidth = 320;
@@ -58,6 +65,10 @@ class ForgeDialog extends StatelessWidget {
     final buttons = [
       const SizedBox(height: 20),
       action,
+      if (alternative case final alternative?) ...[
+        const SizedBox(height: Gap.md),
+        alternative,
+      ],
       const SizedBox(height: Gap.sm),
       cancel,
     ];
