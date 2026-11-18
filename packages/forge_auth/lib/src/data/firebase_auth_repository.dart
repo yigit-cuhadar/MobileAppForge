@@ -1,13 +1,29 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_firebase/forge_firebase.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../domain/auth_repository.dart';
 import '../domain/auth_user.dart';
 
+/// Asks Apple for a credential natively, embedding the hashed `nonce` in
+/// its identity token.
+typedef AppleIdRequest = Future<AuthorizationCredentialAppleID> Function({
+  required List<AppleIDAuthorizationScopes> scopes,
+  String? nonce,
+});
+
 class FirebaseAuthRepository implements AuthRepository {
-  const FirebaseAuthRepository(this._auth);
+  const FirebaseAuthRepository(
+    this._auth, {
+    this._requestAppleId = SignInWithApple.getAppleIDCredential,
+  });
   final FirebaseAuth _auth;
+  final AppleIdRequest _requestAppleId;
 
   /// Firebase codes meaning the linked credential belongs to another account.
   static const _accountExistsCodes = {
@@ -109,39 +125,69 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<Result<void>> reauthenticateWithProvider(SocialProvider provider) =>
       guard(() => _reauthenticate(provider), mapper: _reauthError);
 
+  /// Apple's authorization code is single use, and the one FlutterFire's
+  /// provider flow hands back is refused by the revocation endpoint. So this
+  /// asks Apple natively for a fresh code and identity token, signs in again
+  /// with the token and revokes with the unused code.
   @override
   Future<Result<void>> revokeAppleSignIn() => guard(() async {
-    final code = (await _reauthenticate(SocialProvider.apple))
-        .additionalUserInfo
-        ?.authorizationCode;
-    if (code == null) {
-      throw const AuthFailure('no Apple authorization code');
+    final user = _linkedUser(SocialProvider.apple);
+    final rawNonce = _nonce();
+    final apple = await _requestAppleId(
+      scopes: const [],
+      nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+    );
+    final idToken = apple.identityToken;
+    if (idToken == null) {
+      throw const AuthFailure('no Apple identity token');
     }
-    await _auth.revokeTokenWithAuthorizationCode(code);
+    await user.reauthenticateWithCredential(
+      OAuthProvider(AppleAuthProvider.PROVIDER_ID)
+          .credential(idToken: idToken, rawNonce: rawNonce),
+    );
+    await _auth.revokeTokenWithAuthorizationCode(apple.authorizationCode);
   }, mapper: _reauthError);
 
-  Future<UserCredential> _reauthenticate(SocialProvider provider) async {
+  static String _nonce() {
+    const chars =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return String.fromCharCodes(
+      Iterable.generate(
+        32,
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
+      ),
+    );
+  }
+
+  Future<void> _reauthenticate(SocialProvider provider) async {
+    await _linkedUser(provider)
+        .reauthenticateWithProvider(_authProvider(provider));
+  }
+
+  User _linkedUser(SocialProvider provider) {
     final user = _auth.currentUser;
-    final authProvider = _authProvider(provider);
+    final providerId = _authProvider(provider).providerId;
     final linked =
-        user?.providerData.any(
-          (info) => info.providerId == authProvider.providerId,
-        ) ??
+        user?.providerData.any((info) => info.providerId == providerId) ??
         false;
     if (user == null || !linked) {
       throw AuthFailure('${provider.name} not linked', code: notLinkedCode);
     }
-    return user.reauthenticateWithProvider(authProvider);
+    return user;
   }
 
-  static Failure? _reauthError(Object error) =>
-      error is FirebaseAuthException && _cancelledCodes.contains(error.code)
-      ? AuthFailure(
-          error.message ?? error.code,
-          code: cancelledCode,
-          cause: error,
-        )
-      : mapFirebaseError(error);
+  static Failure? _reauthError(Object error) => switch (error) {
+    FirebaseAuthException(:final code, :final message)
+        when _cancelledCodes.contains(code) =>
+      AuthFailure(message ?? code, code: cancelledCode, cause: error),
+    SignInWithAppleAuthorizationException(
+      code: AuthorizationErrorCode.canceled,
+      :final message,
+    ) =>
+      AuthFailure(message, code: cancelledCode, cause: error),
+    _ => mapFirebaseError(error),
+  };
 
   /// What Firebase reports when the user closes the provider's sheet, by
   /// platform and provider.
