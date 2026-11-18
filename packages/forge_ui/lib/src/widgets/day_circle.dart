@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'chart_paint.dart';
 
@@ -84,15 +85,24 @@ class DayCircle extends StatelessWidget {
         color: fill,
         border: ring == null ? null : Border.all(color: ring, width: ringWidth),
       ),
+      // Larger text scales the number down to fit the circle.
       child: number == null
           ? null
-          : Text(
-              number,
-              maxLines: 1,
-              style: style.data.copyWith(
-                fontSize: 13,
-                color: disabled ? p.lineStrong : ink,
-                fontWeight: state == DayState.today ? FontWeight.w600 : null,
+          : Padding(
+              padding: const EdgeInsets.all(Gap.xs),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  number,
+                  maxLines: 1,
+                  style: style.data.copyWith(
+                    fontSize: 13,
+                    color: disabled ? p.lineStrong : ink,
+                    fontWeight: state == DayState.today
+                        ? FontWeight.w600
+                        : null,
+                  ),
+                ),
               ),
             ),
     );

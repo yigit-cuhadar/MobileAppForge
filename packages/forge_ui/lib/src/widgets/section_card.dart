@@ -6,6 +6,7 @@ import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'error_line.dart';
+import 'header_layout.dart';
 import 'tap_band.dart';
 import 'skeleton.dart';
 
@@ -160,18 +161,10 @@ class SectionCard extends StatelessWidget {
         spacing: Gap.md,
         children: [
           LayoutBuilder(
-            builder: (context, constraints) => Row(
-              spacing: Gap.sm,
-              children: [
-                if (note case final note?) ...[
-                  // The title takes what it needs, up to half; the note
-                  // the rest, whole.
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: constraints.maxWidth / 2,
-                    ),
-                    child: Text(title, style: text.titleMedium),
-                  ),
+            builder: (context, constraints) {
+              final titleText = Text(title, style: text.titleMedium);
+              final trailing = [
+                if (note case final note?)
                   Expanded(
                     child: Text(
                       note,
@@ -182,8 +175,6 @@ class SectionCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ] else
-                  Expanded(child: Text(title, style: text.titleMedium)),
                 if (detail != null)
                   // A long detail ends in an ellipsis at half the header.
                   ConstrainedBox(
@@ -220,8 +211,24 @@ class SectionCard extends StatelessWidget {
                     size: 18,
                     color: colors.inkMuted,
                   ),
-              ],
-            ),
+              ];
+              if (trailing.isEmpty) return titleText;
+              return HeaderLayout(
+                // The note is drawn whole, so the title keeps at most half.
+                halfTitle: note != null,
+                gap: Gap.sm,
+                children: [
+                  titleText,
+                  Row(
+                    mainAxisSize: note != null
+                        ? MainAxisSize.max
+                        : MainAxisSize.min,
+                    spacing: Gap.sm,
+                    children: trailing,
+                  ),
+                ],
+              );
+            },
           ),
           ?body,
         ],
