@@ -44,6 +44,23 @@ Widget numberPickerRuler(BuildContext context) => _card(
   ),
 );
 
+@widgetbook.UseCase(name: 'Ruler with a marker', type: NumberPicker)
+Widget numberPickerRulerMarker(BuildContext context) => _card(
+  _Live(
+    value: 69,
+    builder: (value, onChanged) => NumberPicker.ruler(
+      label: 'Amount',
+      unit: '[UNIT]',
+      min: 30,
+      max: 200,
+      step: 0.1,
+      value: value,
+      onChanged: onChanged,
+      marker: (value: 70, label: 'Now [VALUE]'),
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Ruler, value tappable', type: NumberPicker)
 Widget numberPickerRulerTappable(BuildContext context) => _card(
   _Live(
