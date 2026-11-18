@@ -167,7 +167,10 @@ void main() {
     await tester.pump();
 
     expect(changes, isEmpty);
-    expect(find.byType(TextField), findsNothing);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus,
+      isFalse,
+    );
     expect(
       tester
           .widget<Opacity>(
@@ -296,5 +299,177 @@ void main() {
       tester.getSize(find.byType(SkeletonBar)),
       const Size(200, StepperField.height),
     );
+  });
+
+  group('a row typed one after another', () {
+    late FocusNode weight;
+    late FocusNode reps;
+    late List<String> log;
+
+    setUp(() {
+      weight = FocusNode();
+      reps = FocusNode();
+      log = [];
+    });
+
+    tearDown(() {
+      weight.dispose();
+      reps.dispose();
+    });
+
+    Future<void> pumpRow(
+      WidgetTester tester, {
+      bool bar = true,
+      double scale = 1,
+    }) async {
+      var values = <String, double?>{'kg': 100, 'reps': 10};
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          builder: (context, page) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(scale)),
+            child: page!,
+          ),
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: [
+                  const SizedBox(height: 100, child: Text('Elsewhere')),
+                  Row(
+                    spacing: Gap.sm,
+                    children: [
+                      for (final (unit, node, next) in [
+                        ('kg', weight, reps),
+                        ('reps', reps, null),
+                      ])
+                        Expanded(
+                          child: StepperField(
+                            value: values[unit],
+                            unit: unit,
+                            step: 1,
+                            focusNode: node,
+                            nextLabel: bar ? 'Next' : null,
+                            onNext: next == null || !bar
+                                ? null
+                                : () {
+                                    log.add('next');
+                                    next.requestFocus();
+                                  },
+                            doneLabel: bar ? 'Done' : null,
+                            onChanged: (v) {
+                              log.add('$unit $v');
+                              setState(() => values = {...values, unit: v});
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    TextField box(WidgetTester tester, int i) =>
+        tester.widget<TextField>(find.byType(TextField).at(i));
+
+    testWidgets('the app can start the typing', (tester) async {
+      await pumpRow(tester);
+      weight.requestFocus();
+      await tester.pump();
+
+      expect(box(tester, 0).controller!.text, '100');
+      expect(
+        box(tester, 0).controller!.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 3),
+      );
+      expect(find.text('Done'), findsOneWidget);
+    });
+
+    testWidgets('one tap on the next value moves the typing there and '
+        'keeps what was typed', (tester) async {
+      await pumpRow(tester, bar: false);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField).at(0), '102');
+      await tester.pump();
+
+      await tester.tap(find.text('10'));
+      await tester.pump();
+      expect(weight.hasFocus, isFalse);
+      expect(reps.hasFocus, isTrue);
+      expect(find.text('102'), findsOneWidget);
+      expect(log, ['kg 102.0']);
+    });
+
+    testWidgets('a tap elsewhere ends the typing', (tester) async {
+      await pumpRow(tester);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+      expect(weight.hasFocus, isTrue);
+
+      await tester.tap(find.text('Elsewhere'));
+      await tester.pump();
+      expect(weight.hasFocus, isFalse);
+      expect(find.text('Done'), findsNothing);
+    });
+
+    testWidgets('Next moves on, Done closes the keyboard', (tester) async {
+      await pumpRow(tester);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+
+      final bar = tester.getRect(
+        find.ancestor(of: find.text('Done'), matching: find.byType(Container)),
+      );
+      expect(bar.height, StepperField.barHeight);
+      expect(bar.bottom, tester.getRect(find.byType(Scaffold)).bottom);
+      expect(
+        tester.getCenter(find.text('Next')).dx,
+        lessThan(tester.getCenter(find.text('Done')).dx),
+      );
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(log, ['next']);
+      expect(reps.hasFocus, isTrue);
+      expect(find.text('Done'), findsOneWidget);
+
+      // The last field has no next: Next is greyed and does nothing.
+      final colors = ForgeStyle.of(tester.element(find.text('Next'))).colors;
+      expect(
+        tester.widget<Text>(find.text('Next')).style!.color,
+        colors.lineStrong,
+      );
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+      expect(log, ['next']);
+
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      expect(reps.hasFocus, isFalse);
+      expect(find.text('Done'), findsNothing);
+    });
+
+    testWidgets('without a Done label there is no bar', (tester) async {
+      await pumpRow(tester, bar: false);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+      expect(weight.hasFocus, isTrue);
+      expect(find.text('Done'), findsNothing);
+    });
+
+    for (final scale in [1.0, 2.0, 3.0]) {
+      testWidgets('the bar lays out at ${scale}x text', (tester) async {
+        await pumpRow(tester, scale: scale);
+        weight.requestFocus();
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(find.text('Next'), findsOneWidget);
+      });
+    }
   });
 }
