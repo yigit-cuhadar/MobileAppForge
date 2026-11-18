@@ -13,7 +13,9 @@ import 'bare_decoration.dart';
 /// [onFilters], a round filter button sits beside it, with a badge counting
 /// the [activeFilters]. Two fields with the same [heroTag] on two routes
 /// fly between them: only the pill flies, its width easing from one end to
-/// the other, while the filter button moves with its page.
+/// the other, while the filter button moves with its page. A [summary]
+/// (a chip naming the filters scrolled away) sits between the pill and the
+/// filter button.
 class ForgeSearchField extends StatefulWidget {
   const ForgeSearchField({
     super.key,
@@ -26,6 +28,7 @@ class ForgeSearchField extends StatefulWidget {
     this.filtersLabel,
     this.activeFilters = 0,
     this.heroTag,
+    this.summary,
   }) : assert(onFilters == null || filtersLabel != null),
        onTap = null;
 
@@ -42,7 +45,8 @@ class ForgeSearchField extends StatefulWidget {
        focusNode = null,
        onFilters = null,
        filtersLabel = null,
-       activeFilters = 0;
+       activeFilters = 0,
+       summary = null;
 
   final String hint;
 
@@ -60,6 +64,7 @@ class ForgeSearchField extends StatefulWidget {
   final int activeFilters;
   final VoidCallback? onTap;
   final Object? heroTag;
+  final Widget? summary;
 
   @override
   State<ForgeSearchField> createState() => _ForgeSearchFieldState();
@@ -200,59 +205,62 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
         ),
       ),
     );
-    if (widget.onFilters == null) return pill;
+    final summary = widget.summary;
+    if (widget.onFilters == null && summary == null) return pill;
     return Row(
       spacing: Gap.sm,
       children: [
         Expanded(child: pill),
-        Semantics(
-          button: true,
-          label: widget.filtersLabel,
-          value: widget.activeFilters > 0 ? '${widget.activeFilters}' : null,
-          child: GestureDetector(
-            onTap: widget.onFilters,
-            child: Container(
-              width: ForgeTheme.tapMin,
-              height: ForgeTheme.tapMin,
-              decoration: BoxDecoration(
-                color: p.surfaceSunken,
-                shape: BoxShape.circle,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  ForgeIcon(ForgeIcons.filterList, size: 18, color: p.ink),
-                  if (widget.activeFilters > 0)
-                    PositionedDirectional(
-                      top: Gap.xs,
-                      end: Gap.xs,
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 16),
-                        height: 16,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: p.accent,
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(ForgeRadii.button),
+        ?summary,
+        if (widget.onFilters != null)
+          Semantics(
+            button: true,
+            label: widget.filtersLabel,
+            value: widget.activeFilters > 0 ? '${widget.activeFilters}' : null,
+            child: GestureDetector(
+              onTap: widget.onFilters,
+              child: Container(
+                width: ForgeTheme.tapMin,
+                height: ForgeTheme.tapMin,
+                decoration: BoxDecoration(
+                  color: p.surfaceSunken,
+                  shape: BoxShape.circle,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ForgeIcon(ForgeIcons.filterList, size: 18, color: p.ink),
+                    if (widget.activeFilters > 0)
+                      PositionedDirectional(
+                        top: Gap.xs,
+                        end: Gap.xs,
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 16),
+                          height: 16,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: p.accent,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(ForgeRadii.button),
+                            ),
                           ),
-                        ),
-                        child: ExcludeSemantics(
-                          child: Text(
-                            '${widget.activeFilters}',
-                            style: style.data.copyWith(
-                              fontSize: 10,
-                              height: 1,
-                              color: p.onAccent,
+                          child: ExcludeSemantics(
+                            child: Text(
+                              '${widget.activeFilters}',
+                              style: style.data.copyWith(
+                                fontSize: 10,
+                                height: 1,
+                                color: p.onAccent,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
