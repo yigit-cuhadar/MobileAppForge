@@ -144,4 +144,62 @@ void main() {
     expect(decoration.enabledBorder, InputBorder.none);
     expect(decoration.focusedBorder, InputBorder.none);
   });
+
+  testWidgets('with a heroTag only the pill flies, easing its width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: ForgeSearchField.tapOnly(
+                hint: 'Search',
+                heroTag: 'search',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => Scaffold(
+                      body: Padding(
+                        padding: const EdgeInsets.all(Gap.md),
+                        child: ForgeSearchField(
+                          hint: 'Search',
+                          clearLabel: 'Clear',
+                          onChanged: changes.add,
+                          onFilters: () {},
+                          filtersLabel: 'Filters',
+                          heroTag: 'search',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    Finder pill() => find
+        .ancestor(of: find.text('Search'), matching: find.byType(Container))
+        .first;
+    final filter = find.byWidgetPredicate(
+      (widget) => widget is ForgeIcon && widget.icon == ForgeIcons.filterList,
+    );
+    final start = tester.getRect(pill()).width;
+
+    await tester.tap(find.text('Search'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final shuttle = pill();
+    final mid = tester.getRect(shuttle).width;
+    expect(filter, findsOneWidget);
+    expect(find.descendant(of: shuttle, matching: filter), findsNothing);
+
+    await tester.pumpAndSettle();
+    final end = tester.getRect(find.byType(TextField)).width;
+    expect(end, lessThan(start));
+    expect(mid, inExclusiveRange(end, start));
+  });
 }

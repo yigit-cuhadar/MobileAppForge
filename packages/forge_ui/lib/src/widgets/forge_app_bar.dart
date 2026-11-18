@@ -187,8 +187,8 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// An action in a [ForgeAppBar]: a text action in accent, or a 44px icon
 /// with an optional accent count while it is in effect (filters on). A
-/// [toggled] icon is an ink outline while off and filled accent while on
-/// (a favourite).
+/// [toggled] icon is an ink-muted outline while off and filled accent while
+/// on (a favourite), like a toggled ForgeIconButton.
 class ForgeAppBarAction extends StatelessWidget {
   /// Fades to 40% while [onPressed] is null (a form missing a field).
   const ForgeAppBarAction.text({
@@ -255,7 +255,11 @@ class ForgeAppBarAction extends StatelessWidget {
               ForgeIcon(
                 icon,
                 size: 22,
-                color: toggled ?? false ? colors.accent : colors.ink,
+                color: switch (toggled) {
+                  null => colors.ink,
+                  true => colors.accent,
+                  false => colors.inkMuted,
+                },
                 filled: toggled ?? false,
               ),
               if (count != null)
