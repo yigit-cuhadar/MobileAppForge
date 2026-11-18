@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_auth/src/data/firebase_auth_repository.dart';
@@ -5,6 +8,7 @@ import 'package:forge_auth/src/domain/auth_repository.dart';
 import 'package:forge_auth/src/domain/auth_user.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 
@@ -309,47 +313,101 @@ void main() {
   });
 
   group('revokeAppleSignIn', () {
-    late MockUserCredential credential;
+    late List<String?> nonces;
+    late Object? appleError;
+
+    Future<AuthorizationCredentialAppleID> requestAppleId({
+      required List<AppleIDAuthorizationScopes> scopes,
+      String? nonce,
+    }) async {
+      nonces.add(nonce);
+      if (appleError case final error?) throw error;
+      return const AuthorizationCredentialAppleID(
+        userIdentifier: 'a1',
+        givenName: null,
+        familyName: null,
+        email: null,
+        authorizationCode: 'fresh-code',
+        identityToken: 'id-token',
+        state: null,
+      );
+    }
 
     setUp(() {
+      nonces = [];
+      appleError = null;
+      repository = FirebaseAuthRepository(auth, requestAppleId: requestAppleId);
       when(() => auth.currentUser).thenReturn(user);
       final providers = [provider('apple.com')];
       when(() => user.providerData).thenReturn(providers);
-      credential = credentialFor(user);
-      when(() => credential.additionalUserInfo).thenReturn(
-        AdditionalUserInfo(isNewUser: false, authorizationCode: 'c1'),
-      );
-      when(() => user.reauthenticateWithProvider(any()))
-          .thenAnswer((_) async => credential);
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
       when(() => auth.revokeTokenWithAuthorizationCode(any()))
           .thenAnswer((_) async {});
     });
 
-    test('signs in again with Apple and revokes with its code', () async {
+    test('signs in again with a native Apple token and revokes with its '
+        'fresh code', () async {
       expect((await repository.revokeAppleSignIn()).isOk, isTrue);
-      final used = verify(() => user.reauthenticateWithProvider(captureAny()))
-          .captured
-          .single;
-      expect(used, isA<AppleAuthProvider>());
-      verify(() => auth.revokeTokenWithAuthorizationCode('c1')).called(1);
+
+      final credential =
+          verify(() => user.reauthenticateWithCredential(captureAny()))
+                  .captured
+                  .single
+              as OAuthCredential;
+      expect(credential.providerId, 'apple.com');
+      expect(credential.idToken, 'id-token');
+      final rawNonce = credential.rawNonce!;
+      expect(nonces.single, sha256.convert(utf8.encode(rawNonce)).toString());
+      verify(() => auth.revokeTokenWithAuthorizationCode('fresh-code'))
+          .called(1);
+      verifyNever(() => user.reauthenticateWithProvider(any()));
     });
 
-    test('fails without Apple linked, revoking nothing', () async {
+    test('fails without Apple linked, asking Apple nothing', () async {
       final providers = [provider('google.com')];
       when(() => user.providerData).thenReturn(providers);
       expect(
         (await repository.revokeAppleSignIn()).failureOrNull,
         isA<AuthFailure>().having((f) => f.code, 'code', notLinkedCode),
       );
+      expect(nonces, isEmpty);
       verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
     });
 
-    test('a closed sheet is cancelled, revoking nothing', () async {
-      when(() => user.reauthenticateWithProvider(any()))
-          .thenThrow(FirebaseAuthException(code: 'canceled'));
+    test('a closed Apple sheet is cancelled, revoking nothing', () async {
+      appleError = const SignInWithAppleAuthorizationException(
+        code: AuthorizationErrorCode.canceled,
+        message: 'canceled',
+      );
       expect(
         (await repository.revokeAppleSignIn()).failureOrNull,
         isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode),
+      );
+      verifyNever(() => user.reauthenticateWithCredential(any()));
+      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
+    });
+
+    test('another Apple error is a failure, not a cancel', () async {
+      appleError = const SignInWithAppleAuthorizationException(
+        code: AuthorizationErrorCode.failed,
+        message: 'failed',
+      );
+      final failure = (await repository.revokeAppleSignIn()).failureOrNull;
+      expect(failure, isNotNull);
+      expect(
+        failure,
+        isNot(isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode)),
+      );
+      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
+    });
+
+    test('a failed sign-in revokes nothing', () async {
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenThrow(FirebaseAuthException(code: 'user-mismatch'));
+      expect(
+        (await repository.revokeAppleSignIn()).failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'user-mismatch'),
       );
       verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
     });

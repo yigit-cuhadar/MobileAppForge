@@ -66,8 +66,9 @@ abstract interface class AuthRepository {
 
   /// Signs the user in again with Apple, so the sign-in is recent, and
   /// revokes the app's Apple tokens, which the App Store requires when an
-  /// account is deleted. Fails like [reauthenticateWithProvider], and with
-  /// Firebase's code when the revocation fails (the project needs Apple's
-  /// code flow key for it).
+  /// account is deleted. iOS only: it uses the native Apple sheet, so the
+  /// app needs the Sign in with Apple capability. Fails like
+  /// [reauthenticateWithProvider], and with Firebase's code when the
+  /// revocation fails (the project needs Apple's code flow key for it).
   Future<Result<void>> revokeAppleSignIn();
 }
