@@ -30,8 +30,18 @@ Widget barChart(BuildContext context) => _page(
     title: 'Count · this week',
     detail: 'goal [VALUE]',
     bars: const [
-      ChartBar(label: 'M', value: 8.2, valueLabel: '8.2k'),
-      ChartBar(label: 'T', value: 11.4, valueLabel: '11.4k'),
+      ChartBar(
+        label: 'M',
+        value: 8.2,
+        valueLabel: '8.2k',
+        tooltip: '[VALUE] · [DAY 1]',
+      ),
+      ChartBar(
+        label: 'T',
+        value: 11.4,
+        valueLabel: '11.4k',
+        tooltip: '[VALUE] · [DAY 2]',
+      ),
       ChartBar(label: 'W', value: 6.9, valueLabel: '6.9k'),
       ChartBar(label: 'T', value: 10.3, valueLabel: '10.3k'),
       ChartBar(label: 'F', value: 6.2, valueLabel: '6.2k'),
@@ -116,7 +126,7 @@ Widget denseBarChart(BuildContext context) => _page(
         ChartBar(
           label: '[DATE ${i + 1}]',
           value: 6 + (i * 7919 % 60) / 10,
-          valueLabel: '[VALUE] · [DATE ${i + 1}]',
+          tooltip: '[VALUE] · [DATE ${i + 1}]',
         ),
     ],
     current: 29,

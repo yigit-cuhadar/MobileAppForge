@@ -239,3 +239,52 @@ Widget stepperFieldRowError(BuildContext context) => ListView(
     ),
   ],
 );
+
+@widgetbook.UseCase(name: 'A row, Next and Done', type: StepperField)
+Widget stepperFieldKeyboardBar(BuildContext context) => const _TypedRow();
+
+/// Two fields typed one after the other: Next on the keyboard bar moves
+/// from the first to the second, Done closes the keyboard.
+class _TypedRow extends StatefulWidget {
+  const _TypedRow();
+
+  @override
+  State<_TypedRow> createState() => _TypedRowState();
+}
+
+class _TypedRowState extends State<_TypedRow> {
+  final _first = FocusNode();
+  final _second = FocusNode();
+  double? _amount = 82.5;
+  double? _count = 8;
+
+  @override
+  void dispose() {
+    _first.dispose();
+    _second.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _panel([
+    StepperField(
+      value: _amount,
+      unit: '[UNIT]',
+      step: 2.5,
+      focusNode: _first,
+      nextLabel: 'Next',
+      onNext: _second.requestFocus,
+      doneLabel: 'Done',
+      onChanged: (value) => setState(() => _amount = value),
+    ),
+    StepperField(
+      value: _count,
+      unit: 'count',
+      step: 1,
+      focusNode: _second,
+      nextLabel: 'Next',
+      doneLabel: 'Done',
+      onChanged: (value) => setState(() => _count = value),
+    ),
+  ]);
+}

@@ -341,4 +341,79 @@ void main() {
       );
     });
   });
+
+  group('ListRowDateBox', () {
+    Widget rows() => Column(
+      children: [
+        for (final state in [
+          DayState.none,
+          DayState.done,
+          DayState.missed,
+          DayState.planned,
+          DayState.today,
+        ])
+          ListRow(
+            title: 'Item title',
+            detail: '52 min · 23 sets',
+            leading: ListRowDateBox(weekday: 'Wed', day: '28', state: state),
+            end: ListRowEnd.chevron,
+            onTap: () {},
+          ),
+      ],
+    );
+
+    for (final scale in scales) {
+      testWidgets('lays out at ${scale}x', (tester) async {
+        await pump(tester, scale, rows());
+      });
+    }
+
+    testWidgets('keeps 40×44 at normal text', (tester) async {
+      await pump(tester, 1, rows());
+      for (final box in tester.widgetList(find.byType(ListRowDateBox))) {
+        expect(
+          tester.getSize(
+            find
+                .descendant(
+                  of: find.byWidget(box),
+                  matching: find.byType(Container),
+                )
+                .first,
+          ),
+          const Size(40, 44),
+        );
+      }
+    });
+
+    testWidgets('grows with its text at 3x', (tester) async {
+      await pump(tester, 3, rows());
+      final day = tester.getRect(find.text('28').first);
+      final box = tester.getRect(find.byType(ListRowDateBox).first);
+      expect(box.height, greaterThan(44));
+      expect(day.top, greaterThanOrEqualTo(box.top), reason: '$day in $box');
+      expect(day.bottom, lessThanOrEqualTo(box.bottom), reason: '$day in $box');
+    });
+  });
+
+  group('MiniBar', () {
+    Widget bar() => MiniBar(
+      icon: ForgeIcons.timer,
+      title: 'Ongoing task',
+      detail: '1:45 left',
+      onTap: () {},
+    );
+
+    for (final scale in scales) {
+      testWidgets('lays out at ${scale}x', (tester) async {
+        await pump(tester, scale, bar());
+      });
+    }
+
+    testWidgets('keeps 56px at normal text and grows at 3x', (tester) async {
+      await pump(tester, 1, bar());
+      expect(height(tester, find.byType(MiniBar)), 56);
+      await pump(tester, 3, bar());
+      expect(height(tester, find.byType(MiniBar)), greaterThan(56));
+    });
+  });
 }

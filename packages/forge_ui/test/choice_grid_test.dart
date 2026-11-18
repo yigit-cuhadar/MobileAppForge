@@ -236,5 +236,85 @@ void main() {
         ),
       );
     });
+
+    group('info button', () {
+      late List<String> infos;
+
+      Future<void> pumpInfo(
+        WidgetTester tester,
+        ChoiceListForm form, {
+        double scale = 1,
+      }) {
+        infos = [];
+        return tester.pumpWidget(
+          MaterialApp(
+            theme: ForgeTheme.light(),
+            builder: (context, page) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: page!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: SizedBox(
+                  width: 390,
+                  child: ChoiceGrid.list(
+                    form: form,
+                    options: [
+                      for (final label in ['Option one', 'Option two'])
+                        ChoiceOption(
+                          label: label,
+                          onInfo: () => infos.add(label),
+                          infoLabel: 'Details of $label',
+                        ),
+                    ],
+                    selected: 1,
+                    onSelected: picks.add,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      testWidgets('sits at the row end and opens without picking', (
+        tester,
+      ) async {
+        await pumpInfo(tester, ChoiceListForm.inline);
+
+        final buttons = find.byType(ForgeIconButton);
+        expect(buttons, findsNWidgets(2));
+        final row = tester.getRect(rowOf('Option one'));
+        final button = tester.getRect(buttons.first);
+        expect(row.right - button.right, Gap.xs);
+        expect(tester.getSize(rowOf('Option one')).height, 44);
+
+        await tester.tap(buttons.first);
+        expect(infos, ['Option one']);
+        expect(picks, isEmpty);
+
+        await tester.tap(find.text('Option one'));
+        expect(picks, [0]);
+        expect(infos, ['Option one']);
+      });
+
+      testWidgets('reads as its own labelled button', (tester) async {
+        final semantics = tester.ensureSemantics();
+        await pumpInfo(tester, ChoiceListForm.stacked);
+
+        expect(find.bySemanticsLabel('Details of Option two'), findsOneWidget);
+        semantics.dispose();
+      });
+
+      for (final scale in [1.0, 2.0, 3.0]) {
+        testWidgets('lays out at ${scale}x text', (tester) async {
+          for (final form in ChoiceListForm.values) {
+            await pumpInfo(tester, form, scale: scale);
+            expect(tester.takeException(), isNull, reason: '$form');
+          }
+        });
+      }
+    });
   });
 }

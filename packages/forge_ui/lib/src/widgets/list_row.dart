@@ -583,15 +583,16 @@ class ListRowDateBox extends StatelessWidget {
       DayState.today => (p.surface, p.ink, p.ink, 2.5),
       _ => (p.surfaceSunken, p.ink, null, 0.0),
     };
+    // Larger text grows the box past 40×44.
     final box = Container(
-      width: 40,
-      height: 44,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 44),
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(radius),
         border: ring == null ? null : Border.all(color: ring, width: ringWidth),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(

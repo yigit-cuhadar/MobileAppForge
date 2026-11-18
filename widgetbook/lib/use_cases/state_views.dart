@@ -117,6 +117,51 @@ Widget compactEmptyView(BuildContext context) => _inCard(
   ),
 );
 
+@widgetbook.UseCase(name: 'Empty · card', type: EmptyView)
+Widget cardEmptyView(BuildContext context) => _page(
+  const EmptyView(
+    icon: ForgeIcons.search,
+    title: 'No items match',
+    message: 'Try another search or fewer filters.',
+    card: true,
+  ),
+);
+
+@widgetbook.UseCase(name: 'Empty · compact card', type: EmptyView)
+Widget compactCardEmptyView(BuildContext context) => _page(
+  Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const SectionLabel('Section title'),
+      EmptyView(
+        icon: ForgeIcons.event,
+        title: 'Nothing on this day',
+        message: 'Items you add show up here.',
+        actions: [
+          ForgeButton(
+            label: 'Add item',
+            onPressed: () {},
+            variant: ForgeButtonVariant.secondary,
+          ),
+        ],
+        compact: true,
+        card: true,
+      ),
+    ],
+  ),
+);
+
+@widgetbook.UseCase(name: 'Error · card', type: ErrorView)
+Widget cardErrorView(BuildContext context) => _page(
+  ErrorView(
+    retryLabel: 'Retry',
+    title: "Couldn't load this",
+    message: 'Check your connection and try again.',
+    onRetry: () {},
+    card: true,
+  ),
+);
+
 @widgetbook.UseCase(name: 'Working', type: WorkingView)
 Widget workingView(BuildContext context) => _page(
   const WorkingView(

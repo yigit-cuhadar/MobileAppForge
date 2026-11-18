@@ -31,6 +31,7 @@ class NumberPicker extends StatefulWidget {
   }) : unit = null,
        parts = null,
        onValueTap = null,
+       marker = null,
        _format = null,
        _loop = false;
 
@@ -40,7 +41,8 @@ class NumberPicker extends StatefulWidget {
   /// is written as numbers each followed by its small unit ("5 ft 11 in")
   /// while the ruler keeps counting [value]. With [onValueTap] the value is
   /// underlined and a tap on it calls [onValueTap] (the app opens a field to
-  /// type the value).
+  /// type the value). A [marker] pins a short accent-soft tag ("Now 70 kg")
+  /// to a value on the ruler, such as the one the user starts from.
   const NumberPicker.ruler({
     super.key,
     required this.label,
@@ -53,6 +55,7 @@ class NumberPicker extends StatefulWidget {
     required this.onChanged,
     this.grouped = true,
     this.onValueTap,
+    this.marker,
   }) : assert(
          (unit == null) != (parts == null),
          'Give the ruler a unit or parts.',
@@ -78,6 +81,7 @@ class NumberPicker extends StatefulWidget {
        unit = null,
        parts = null,
        onValueTap = null,
+       marker = null,
        grouped = false;
 
   /// What screen readers call the picker; it is not drawn.
@@ -96,6 +100,9 @@ class NumberPicker extends StatefulWidget {
   /// Groups the thousands ("1,000"); false for a value such as a year.
   final bool grouped;
   final VoidCallback? onValueTap;
+
+  /// A value tagged on the ruler; screen readers hear the [label] as a hint.
+  final ({double value, String label})? marker;
   final String Function(int index)? _format;
   final bool _loop;
 
@@ -238,6 +245,7 @@ class _NumberPickerState extends State<NumberPicker>
         onIncrease: () => _jump(_wrap(_index + 1), report: true),
         onDecrease: () => _jump(_wrap(_index - 1), report: true),
         onTap: widget.onValueTap,
+        hint: widget.marker?.label,
         child: child,
       ),
       child: ExcludeSemantics(child: picker),
@@ -370,6 +378,12 @@ class _NumberPickerState extends State<NumberPicker>
                         height: 1.2,
                         color: colors.inkMuted,
                       ),
+                      marker: widget.marker,
+                      markerFill: colors.accentSoft,
+                      markerStyle: text.labelSmall!.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.onAccentSoft,
+                      ),
                     ),
                   ),
                 ),
@@ -408,6 +422,9 @@ class _RulerPainter extends CustomPainter {
     required this.minor,
     required this.pointer,
     required this.labelStyle,
+    required this.marker,
+    required this.markerFill,
+    required this.markerStyle,
   }) : super(repaint: position);
 
   final Animation<double> position;
@@ -418,8 +435,16 @@ class _RulerPainter extends CustomPainter {
   final Color minor;
   final Color pointer;
   final TextStyle labelStyle;
+  final ({double value, String label})? marker;
+  final Color markerFill;
+  final TextStyle markerStyle;
 
   static const _tickBottom = 14.0;
+  static const _markerHeight = 20.0;
+  static const _markerPadding = 6.0;
+
+  /// The marker tag's gap to its value's tick.
+  static const _markerGap = 6.0;
   static const _majorHeight = 22.0;
   static const _minorHeight = 12.0;
   static const _pointerBottom = 12.0;
@@ -462,6 +487,32 @@ class _RulerPainter extends CustomPainter {
         label.dispose();
       }
     }
+    if (marker case final marker?) {
+      // The tag ends just before its value's tick, or starts just after it
+      // where the ruler has no room on the left.
+      final x = centre + (marker.value - value) * unit;
+      final label = TextPainter(
+        text: TextSpan(text: marker.label, style: markerStyle),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+      final width = label.width + 2 * _markerPadding;
+      final left = x - _markerGap - width >= 0
+          ? x - _markerGap - width
+          : x + _markerGap;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(left, 0, width, _markerHeight),
+          const Radius.circular(6),
+        ),
+        Paint()..color = markerFill,
+      );
+      label.paint(
+        canvas,
+        Offset(left + _markerPadding, (_markerHeight - label.height) / 2),
+      );
+      label.dispose();
+    }
     paint.color = pointer;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -493,7 +544,10 @@ class _RulerPainter extends CustomPainter {
       old.major != major ||
       old.minor != minor ||
       old.pointer != pointer ||
-      old.labelStyle != labelStyle;
+      old.labelStyle != labelStyle ||
+      old.marker != marker ||
+      old.markerFill != markerFill ||
+      old.markerStyle != markerStyle;
 }
 
 /// Shows a [ForgeTimeWheel] over a scrim; a tap outside closes it.

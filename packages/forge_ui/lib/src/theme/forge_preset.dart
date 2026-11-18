@@ -92,7 +92,7 @@ class ForgePreset {
       onAccentSoft: Color(0xFFEEF1F5),
       featured: Color(0xFF222B38),
       onFeatured: Color(0xFFEEF1F5),
-      featuredBorder: Color(0xFFEEF1F5),
+      featuredBorder: Color(0xFF6B7689),
       featuredAction: Color(0xFFEEF1F5),
       onFeaturedAction: Color(0xFF101213),
       success: Color(0xFF79B597),

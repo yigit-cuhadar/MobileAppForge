@@ -2,15 +2,26 @@ import 'dart:ui' show SemanticsRole;
 
 import 'package:flutter/material.dart';
 
+import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
+import 'forge_icon_button.dart';
 import 'radio_mark.dart';
 
 /// One answer of a [ChoiceGrid].
 class ChoiceOption {
-  const ChoiceOption({required this.label, this.hint, this.enabled = true});
+  const ChoiceOption({
+    required this.label,
+    this.hint,
+    this.enabled = true,
+    this.onInfo,
+    this.infoLabel,
+  }) : assert(
+         (onInfo == null) == (infoLabel == null),
+         'Give the info button a label and an action together.',
+       );
 
   final String label;
 
@@ -19,6 +30,13 @@ class ChoiceOption {
 
   /// A disabled row fades to 40%, takes no taps and reads as disabled.
   final bool enabled;
+
+  /// Shows a muted info button at the row's end; the app opens what the
+  /// option holds. A tap elsewhere on the row still picks it.
+  final VoidCallback? onInfo;
+
+  /// What screen readers call the info button ("Details of [OPTION]").
+  final String? infoLabel;
 }
 
 /// How the rows of a [ChoiceGrid.list] are drawn.
@@ -192,6 +210,12 @@ class _ChoiceRowState extends State<_ChoiceRow> {
       style: role.copyWith(fontWeight: FontWeight.w400, color: colors.inkMuted),
     );
     final onTap = widget.onTap;
+    final info = widget.option.onInfo;
+    final start = switch (widget.form) {
+      null => Gap.md,
+      ChoiceListForm.inline => 10.0,
+      ChoiceListForm.stacked => 14.0,
+    };
     return Semantics(
       inMutuallyExclusiveGroup: true,
       checked: selected,
@@ -218,12 +242,9 @@ class _ChoiceRowState extends State<_ChoiceRow> {
               constraints: widget.form == ChoiceListForm.stacked
                   ? const BoxConstraints(minHeight: 60)
                   : null,
-              padding: EdgeInsets.symmetric(
-                horizontal: switch (widget.form) {
-                  null => Gap.md,
-                  ChoiceListForm.inline => 10,
-                  ChoiceListForm.stacked => 14,
-                },
+              padding: EdgeInsetsDirectional.only(
+                start: start,
+                end: info == null ? start : Gap.xs,
               ),
               decoration: BoxDecoration(
                 color: selected ? colors.accentSoft : colors.surface,
@@ -256,6 +277,12 @@ class _ChoiceRowState extends State<_ChoiceRow> {
                       ),
                     },
                   ),
+                  if (info != null)
+                    ForgeIconButton(
+                      icon: ForgeIcons.info,
+                      label: widget.option.infoLabel!,
+                      onPressed: info,
+                    ),
                 ],
               ),
             ),

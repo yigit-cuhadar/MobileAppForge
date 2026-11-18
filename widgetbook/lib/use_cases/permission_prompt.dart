@@ -39,6 +39,57 @@ Widget askFullPage(BuildContext context) => PermissionPrompt.ask(
   page: true,
 );
 
+@widgetbook.UseCase(name: 'Consent · full page', type: PermissionPrompt)
+Widget consentFullPage(BuildContext context) => PermissionPrompt.consent(
+  icon: ForgeIcons.barChart,
+  title: 'Help improve [APP NAME]?',
+  message:
+      'Share usage statistics and crash reports from this device. You can '
+      'change this any time in [SETTINGS].',
+  allowLabel: 'Allow',
+  onAllow: () {},
+  declineLabel: "Don't allow",
+  onDecline: () {},
+  page: true,
+);
+
+@widgetbook.UseCase(name: 'Consent · in a card', type: PermissionPrompt)
+Widget consentInCard(BuildContext context) => _page(
+  PermissionPrompt.consent(
+    icon: ForgeIcons.barChart,
+    title: 'Help improve [APP NAME]?',
+    message: 'Share usage statistics from this device.',
+    allowLabel: 'Allow',
+    onAllow: () {},
+    declineLabel: "Don't allow",
+    onDecline: () {},
+  ),
+);
+
+@widgetbook.UseCase(name: 'Dialog', type: PermissionPrompt)
+Widget dialogPrompt(BuildContext context) => ColoredBox(
+  color: Theme.of(context).colorScheme.scrim,
+  child: Center(
+    child: PermissionPrompt.dialog(
+      icon: ForgeIcons.notifications,
+      title: context.knobs.string(
+        label: 'Title',
+        initialValue: 'Allow notifications?',
+      ),
+      message: context.knobs.string(
+        label: 'Message',
+        initialValue:
+            'Reminders are notifications, so [APP NAME] needs your '
+            'permission to send them.',
+      ),
+      allowLabel: 'Allow',
+      onAllow: () {},
+      notNowLabel: 'Not now',
+      onNotNow: () {},
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Refused', type: PermissionPrompt)
 Widget refusedPrompt(BuildContext context) {
   final canAskAgain = context.knobs.boolean(

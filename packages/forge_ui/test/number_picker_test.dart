@@ -295,6 +295,86 @@ void main() {
       handle.dispose();
     });
 
+    group('marker', () {
+      NumberPicker marked(double at) => NumberPicker.ruler(
+        label: 'Amount',
+        unit: '[UNIT]',
+        min: 30,
+        max: 300,
+        step: 0.1,
+        value: 80,
+        onChanged: changes.add,
+        marker: (value: at, label: 'Now [VALUE]'),
+      );
+
+      RenderObject rulerOf(WidgetTester tester) => tester.renderObject(
+        find.byWidgetPredicate(
+          (w) =>
+              w is CustomPaint &&
+              w.painter.runtimeType.toString() == '_RulerPainter',
+        ),
+      );
+
+      // The test font draws each glyph as wide as its size: 11 × 11px, and
+      // 6px either side.
+      const tag = 11.0 * 11 + 12;
+
+      PaintPattern tagAt(double left, [Color? color]) => paints
+        ..something(
+          (method, args) =>
+              method == #drawRRect &&
+              args[0] ==
+                  RRect.fromRectAndRadius(
+                    Rect.fromLTWH(left, 0, tag, 20),
+                    const Radius.circular(6),
+                  ) &&
+              (color == null ||
+                  (args[1] as Paint).color.toARGB32() == color.toARGB32()),
+        );
+
+      testWidgets('tags its value just left of the tick', (tester) async {
+        await pump(tester, marked(81));
+        final colors = ForgeStyle.of(tester.element(find.byType(NumberPicker)))
+            .colors;
+        // 81 sits one whole number right of the centred 80.
+        const tick = width / 2 + unit;
+        expect(rulerOf(tester), tagAt(tick - 6 - tag, colors.accentSoft));
+      });
+
+      testWidgets('flips right of the tick near the left edge', (tester) async {
+        await pump(tester, marked(78));
+        const tick = width / 2 - 2 * unit;
+        expect(rulerOf(tester), tagAt(tick + 6));
+      });
+
+      testWidgets('reads its label as a hint', (tester) async {
+        final handle = tester.ensureSemantics();
+        await pump(tester, marked(81));
+        expect(
+          tester.getSemantics(find.byType(NumberPicker)),
+          matchesSemantics(
+            isSlider: true,
+            label: 'Amount',
+            hint: 'Now [VALUE]',
+            value: '80.0',
+            increasedValue: '80.1',
+            decreasedValue: '79.9',
+            hasIncreaseAction: true,
+            hasDecreaseAction: true,
+          ),
+        );
+        handle.dispose();
+      });
+
+      testWidgets('stays put while the ruler is dragged', (tester) async {
+        await pump(tester, marked(81));
+        await drag(tester, const Offset(-unit, 0));
+        expect(changes.last, closeTo(81, 1e-9));
+        // Now centred, the tag ends 6px left of the centre.
+        expect(rulerOf(tester), tagAt(width / 2 - 6 - tag));
+      });
+    });
+
     testWidgets('a ruler in parts reads them out', (tester) async {
       final handle = tester.ensureSemantics();
       await pump(

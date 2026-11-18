@@ -58,6 +58,7 @@ class ErrorView extends StatelessWidget {
     required this.onRetry,
     required this.retryLabel,
     this.compact = false,
+    this.card = false,
   });
 
   final String title;
@@ -67,6 +68,10 @@ class ErrorView extends StatelessWidget {
 
   /// The tighter form inside a card (a chart, a plan list): 8px apart.
   final bool compact;
+
+  /// On its own card: in place of a page's content, or with [compact] for
+  /// one section of a page.
+  final bool card;
 
   @override
   Widget build(BuildContext context) => _Message(
@@ -82,6 +87,7 @@ class ErrorView extends StatelessWidget {
       ),
     ],
     compact: compact,
+    card: card,
   );
 }
 
@@ -95,6 +101,7 @@ class EmptyView extends StatelessWidget {
     required this.message,
     this.actions = const [],
     this.compact = false,
+    this.card = false,
   });
 
   final ForgeIconData icon;
@@ -105,6 +112,10 @@ class EmptyView extends StatelessWidget {
   /// The tighter form inside a card (a chart, a plan list): 8px apart.
   final bool compact;
 
+  /// On its own card: in place of a page's content, or with [compact] for
+  /// one section of a page.
+  final bool card;
+
   @override
   Widget build(BuildContext context) => _Message(
     icon: icon,
@@ -113,6 +124,7 @@ class EmptyView extends StatelessWidget {
     message: message,
     actions: actions,
     compact: compact,
+    card: card,
   );
 }
 
@@ -149,6 +161,7 @@ class _Message extends StatelessWidget {
     required this.message,
     required this.actions,
     required this.compact,
+    required this.card,
   });
 
   final ForgeIconData icon;
@@ -157,6 +170,7 @@ class _Message extends StatelessWidget {
   final String message;
   final List<Widget> actions;
   final bool compact;
+  final bool card;
 
   static const _circle = 44.0;
 
@@ -176,6 +190,7 @@ class _Message extends StatelessWidget {
     message: message,
     actions: actions,
     compact: compact,
+    card: card,
   );
 }
 
@@ -186,6 +201,7 @@ class _Centred extends StatelessWidget {
     required this.message,
     this.actions = const [],
     this.compact = false,
+    this.card = false,
   });
 
   final Widget top;
@@ -193,16 +209,19 @@ class _Centred extends StatelessWidget {
   final String message;
   final List<Widget> actions;
   final bool compact;
+  final bool card;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final gap = compact ? Gap.sm : Gap.md;
-    return Center(
+    final view = Center(
       child: Padding(
-        padding: compact
-            ? const EdgeInsets.symmetric(vertical: Gap.sm)
-            : const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.lg),
+        padding: switch ((compact, card)) {
+          (true, true) => const EdgeInsets.all(Gap.md),
+          (true, false) => const EdgeInsets.symmetric(vertical: Gap.sm),
+          _ => const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.lg),
+        },
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -218,12 +237,16 @@ class _Centred extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 spacing: Gap.sm,
-                children: actions,
+                // At large text the labels wrap rather than overflow.
+                children: [
+                  for (final action in actions) Flexible(child: action),
+                ],
               ),
             ],
           ],
         ),
       ),
     );
+    return card ? CardFrame(child: view) : view;
   }
 }

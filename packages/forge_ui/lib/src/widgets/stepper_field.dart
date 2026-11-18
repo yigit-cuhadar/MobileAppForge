@@ -22,6 +22,13 @@ import 'bare_decoration.dart';
 ///
 /// When one message covers a row of fields, each wrong field is [invalid]
 /// (the ring alone) and the app places a [StepperFieldError] under the row.
+///
+/// A row of fields types one after another: with a [focusNode] the app can
+/// start typing in a field ([FocusNode.requestFocus]), and a tap on another
+/// field's value moves the typing there at once, keeping the keyboard up.
+/// With a [doneLabel], a bar above the keyboard holds [nextLabel] at its
+/// start, calling [onNext] (the app focuses the next field; without it Next
+/// is greyed), and [doneLabel] at its end, which closes the keyboard.
 class StepperField extends StatefulWidget {
   const StepperField({
     super.key,
@@ -38,7 +45,15 @@ class StepperField extends StatefulWidget {
     this.signed = false,
     this.invalid = false,
     this.compact = false,
-  });
+    this.focusNode,
+    this.nextLabel,
+    this.onNext,
+    this.doneLabel,
+  }) : assert(
+         nextLabel == null || doneLabel != null,
+         'Next sits on the keyboard bar, which needs a Done label.',
+       ),
+       assert(onNext == null || nextLabel != null);
 
   final double? value;
   final String unit;
@@ -62,6 +77,15 @@ class StepperField extends StatefulWidget {
   /// The 40px form with 30px buttons, for a row under the main fields.
   final bool compact;
 
+  /// Typing in the field holds this node's focus.
+  final FocusNode? focusNode;
+  final String? nextLabel;
+  final VoidCallback? onNext;
+  final String? doneLabel;
+
+  /// The keyboard bar's height.
+  static const double barHeight = 44;
+
   static const double height = 50;
   static const double buttonSize = 36;
   static const double compactHeight = 40;
@@ -76,10 +100,13 @@ class StepperField extends StatefulWidget {
 }
 
 class _StepperFieldState extends State<StepperField> {
-  final _focus = FocusNode();
+  FocusNode? _ownFocus;
   final _controller = TextEditingController();
+  final _bar = OverlayPortalController();
 
   bool _typing = false;
+
+  FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
   String _text(double v) {
     final text = formatNumber(v, decimalsOf(v), grouped: widget.grouped);
@@ -92,29 +119,52 @@ class _StepperFieldState extends State<StepperField> {
   @override
   void initState() {
     super.initState();
-    _focus.addListener(() {
-      if (!_focus.hasFocus && _typing) setState(() => _typing = false);
-    });
+    _focus.addListener(_focusChanged);
+  }
+
+  @override
+  void didUpdateWidget(StepperField old) {
+    super.didUpdateWidget(old);
+    if (old.focusNode == widget.focusNode) return;
+    (old.focusNode ?? _ownFocus)?.removeListener(_focusChanged);
+    if (widget.focusNode != null) {
+      _ownFocus?.dispose();
+      _ownFocus = null;
+    }
+    _focus.addListener(_focusChanged);
   }
 
   @override
   void dispose() {
-    _focus.dispose();
+    _focus.removeListener(_focusChanged);
+    _ownFocus?.dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _startTyping() {
+  /// Typing follows the focus, whoever moves it: a tap, the app or Next.
+  void _focusChanged() {
+    final typing = _focus.hasFocus;
+    if (typing == _typing) return;
     final value = widget.value;
-    _controller.value = TextEditingValue(
-      text: value == null ? '' : _typedText(value),
-      selection: TextSelection(
-        baseOffset: 0,
-        extentOffset: value == null ? 0 : _typedText(value).length,
-      ),
-    );
-    setState(() => _typing = true);
+    _controller.value = !typing || value == null
+        ? TextEditingValue.empty
+        : TextEditingValue(
+            text: _typedText(value),
+            selection: TextSelection(
+              baseOffset: 0,
+              extentOffset: _typedText(value).length,
+            ),
+          );
+    setState(() => _typing = typing);
+    if (typing && widget.doneLabel != null) {
+      _bar.show();
+    } else if (_bar.isShowing) {
+      _bar.hide();
+    }
   }
+
+  void _startTyping() => _focus.requestFocus();
 
   void _typed(String text) =>
       widget.onChanged(double.tryParse(text.trim().replaceAll(',', '.')));
@@ -194,25 +244,13 @@ class _StepperFieldState extends State<StepperField> {
       );
     }
 
-    final shown = _typing
-        ? SizedBox(
-            width: double.infinity,
-            child: TextField(
-              controller: _controller,
-              focusNode: _focus,
-              autofocus: true,
-              onChanged: _typed,
-              onTapOutside: (_) => _focus.unfocus(),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              textAlign: TextAlign.center,
-              style: valueStyle,
-              decoration: bareDecoration(),
-              cursorWidth: 2,
-            ),
-          )
-        : FittedBox(
+    // The box stays built so that focus can reach it from outside; it
+    // shows only while typing, in place of the value.
+    final shown = Stack(
+      alignment: Alignment.center,
+      children: [
+        if (!_typing)
+          FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               value == null
@@ -223,7 +261,35 @@ class _StepperFieldState extends State<StepperField> {
                   ? valueStyle.copyWith(color: colors.inkSubtle)
                   : valueStyle,
             ),
-          );
+          ),
+        Opacity(
+          opacity: _typing ? 1 : 0,
+          child: IgnorePointer(
+            ignoring: !_typing,
+            child: ExcludeSemantics(
+              excluding: !_typing,
+              child: SizedBox(
+                width: double.infinity,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  enabled: enabled,
+                  onChanged: _typed,
+                  onTapOutside: (_) => _focus.unfocus(),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: valueStyle,
+                  decoration: bareDecoration(),
+                  cursorWidth: 2,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
 
     // Larger text grows the pill past its height.
     final pill = Container(
@@ -255,29 +321,33 @@ class _StepperFieldState extends State<StepperField> {
               onIncrease: enabled && !_atMax ? () => _move(1) : null,
               onDecrease: enabled && !_atMin ? () => _move(-1) : null,
               onTap: enabled && !_typing ? _startTyping : null,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: enabled && !_typing ? _startTyping : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      shown,
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          widget.unit,
-                          maxLines: 1,
-                          style: text.labelSmall!.copyWith(
-                            fontSize: 10,
-                            height: 12 / 10,
-                            fontWeight: FontWeight.w400,
-                            color: colors.inkMuted,
+              // A tap here while another field types is no tap outside it:
+              // the typing moves here without the keyboard closing.
+              child: TextFieldTapRegion(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: enabled && !_typing ? _startTyping : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        shown,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            widget.unit,
+                            maxLines: 1,
+                            style: text.labelSmall!.copyWith(
+                              fontSize: 10,
+                              height: 12 / 10,
+                              fontWeight: FontWeight.w400,
+                              color: colors.inkMuted,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -288,7 +358,7 @@ class _StepperFieldState extends State<StepperField> {
       ),
     );
 
-    return Opacity(
+    final field = Opacity(
       opacity: enabled ? 1 : 0.4,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -305,6 +375,67 @@ class _StepperFieldState extends State<StepperField> {
               ),
             ),
         ],
+      ),
+    );
+    if (widget.doneLabel == null) return field;
+    return OverlayPortal(
+      controller: _bar,
+      overlayChildBuilder: _keyboardBar,
+      child: field,
+    );
+  }
+
+  /// The Next / Done bar, sitting on the keyboard.
+  Widget _keyboardBar(BuildContext context) {
+    final colors = ForgeStyle.of(context).colors;
+    final label = Theme.of(context).textTheme.bodyLarge!.copyWith(fontSize: 16);
+    Widget action(String text, VoidCallback? onTap, FontWeight weight) =>
+        Semantics(
+          button: true,
+          enabled: onTap != null,
+          child: Pressable(
+            onTap: onTap,
+            height: StepperField.barHeight,
+            builder: (context, pressed) => Opacity(
+              opacity: pressed ? 0.6 : 1,
+              child: Text(
+                text,
+                style: label.copyWith(
+                  fontWeight: weight,
+                  color: onTap == null ? colors.lineStrong : colors.accent,
+                ),
+              ),
+            ),
+          ),
+        );
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: MediaQuery.viewInsetsOf(context).bottom,
+      // Part of the field: its taps do not end the typing.
+      child: TextFieldTapRegion(
+        child: Container(
+          constraints: const BoxConstraints(minHeight: StepperField.barHeight),
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+          decoration: BoxDecoration(
+            color: colors.surfaceBar,
+            border: Border(top: BorderSide(color: colors.line)),
+          ),
+          child: Row(
+            children: [
+              if (widget.nextLabel case final next?)
+                Flexible(child: action(next, widget.onNext, FontWeight.w500)),
+              const Spacer(),
+              Flexible(
+                child: action(
+                  widget.doneLabel!,
+                  _focus.unfocus,
+                  FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

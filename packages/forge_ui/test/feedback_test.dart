@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_ui/forge_ui.dart';
 import 'package:forge_ui/src/widgets/busy_ring.dart';
+import 'package:forge_ui/src/widgets/card_frame.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
@@ -287,6 +288,103 @@ void main() {
 
       expect(tester.hasRunningAnimations, isFalse);
     });
+
+    testWidgets('the card form pads 24/16 in place of a page', (tester) async {
+      await pump(
+        tester,
+        const Column(
+          children: [
+            EmptyView(
+              title: 'Nothing here yet',
+              message: 'Items you add show up here.',
+              card: true,
+            ),
+          ],
+        ),
+      );
+
+      final card = tester.getRect(find.byType(CardFrame));
+      final icon = tester.getRect(
+        find.descendant(
+          of: find.byType(EmptyView),
+          matching: find.byType(ForgeIcon),
+        ),
+      );
+      final line = tester.getRect(find.text('Items you add show up here.'));
+      // The 44px circle around the 22px icon starts 24 below the card.
+      expect(icon.top - card.top, 24 + 11);
+      expect(card.bottom - line.bottom, 24);
+      expect(card.width, tester.getSize(find.byType(Column).first).width);
+    });
+
+    testWidgets('the compact card pads 16 for a section', (tester) async {
+      var retries = 0;
+      await pump(
+        tester,
+        Column(
+          children: [
+            ErrorView(
+              title: "Couldn't load this",
+              message: 'Check your connection and try again.',
+              retryLabel: 'Retry',
+              onRetry: () => retries++,
+              compact: true,
+              card: true,
+            ),
+          ],
+        ),
+      );
+
+      final card = tester.getRect(find.byType(CardFrame));
+      final retry = tester.getRect(find.byType(ForgeButton));
+      // The 40px button in its 44px tap band.
+      expect(card.bottom - retry.bottom, 16);
+      await tester.tap(find.text('Retry'));
+      expect(retries, 1);
+    });
+
+    for (final scale in [1.0, 2.0, 3.0]) {
+      testWidgets('the card forms lay out at ${scale}x text', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ForgeTheme.light(),
+            builder: (context, page) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: page!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: SizedBox(
+                  width: 390,
+                  child: Column(
+                    children: [
+                      EmptyView(
+                        title: 'No items match',
+                        message: 'Try another search or fewer filters.',
+                        actions: [
+                          ForgeButton(label: 'Add item', onPressed: () {}),
+                        ],
+                        card: true,
+                      ),
+                      ErrorView(
+                        title: "Couldn't load this",
+                        message: 'Check your connection and try again.',
+                        retryLabel: 'Retry',
+                        onRetry: () {},
+                        compact: true,
+                        card: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('NoticeBanner', () {

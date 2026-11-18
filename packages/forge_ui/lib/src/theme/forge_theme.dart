@@ -96,6 +96,13 @@ abstract final class ForgeTheme {
           data: _mono(preset, p, 12, 16, FontWeight.w400),
           dataLg: _mono(preset, p, 22, 26, FontWeight.w400),
           buttonLg: _sans(preset, p, 15, 20, FontWeight.w600),
+          heading: _sans(
+            preset,
+            p,
+            22,
+            28,
+            FontWeight.w600,
+          ).copyWith(letterSpacing: -0.44),
         ),
       ],
       iconTheme: IconThemeData(color: p.ink, size: 24),
