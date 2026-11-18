@@ -426,6 +426,11 @@ void main() {
         find.ancestor(of: find.text('Done'), matching: find.byType(Container)),
       );
       expect(bar.height, StepperField.barHeight);
+      final colors = ForgeStyle.of(tester.element(find.text('Done'))).colors;
+      final frame = tester.widget<Container>(
+        find.ancestor(of: find.text('Done'), matching: find.byType(Container)),
+      );
+      expect((frame.decoration! as BoxDecoration).color, colors.surfaceBar);
       expect(bar.bottom, tester.getRect(find.byType(Scaffold)).bottom);
       expect(
         tester.getCenter(find.text('Next')).dx,
@@ -439,7 +444,6 @@ void main() {
       expect(find.text('Done'), findsOneWidget);
 
       // The last field has no next: Next is greyed and does nothing.
-      final colors = ForgeStyle.of(tester.element(find.text('Next'))).colors;
       expect(
         tester.widget<Text>(find.text('Next')).style!.color,
         colors.lineStrong,

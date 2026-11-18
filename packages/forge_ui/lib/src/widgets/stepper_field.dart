@@ -418,7 +418,7 @@ class _StepperFieldState extends State<StepperField> {
           constraints: const BoxConstraints(minHeight: StepperField.barHeight),
           padding: const EdgeInsets.symmetric(horizontal: Gap.md),
           decoration: BoxDecoration(
-            color: colors.ground,
+            color: colors.surfaceBar,
             border: Border(top: BorderSide(color: colors.line)),
           ),
           child: Row(
