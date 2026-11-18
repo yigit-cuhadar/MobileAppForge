@@ -125,3 +125,21 @@ Widget choiceListDisabled(BuildContext context) => ListView(
     ),
   ],
 );
+
+@widgetbook.UseCase(name: 'List, info buttons', type: ChoiceGrid)
+Widget choiceListInfo(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    _LiveList(
+      form: _formKnob(context),
+      options: [
+        for (final label in ['Option one', 'Option two', 'Option three'])
+          ChoiceOption(
+            label: label,
+            onInfo: () {},
+            infoLabel: 'Details of $label',
+          ),
+      ],
+    ),
+  ],
+);
