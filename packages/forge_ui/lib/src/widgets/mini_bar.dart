@@ -5,7 +5,7 @@ import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 
-/// A 56px accent-soft strip right above the navigation bar while something
+/// A 56px accent-soft strip (taller at large text) right above the navigation bar while something
 /// runs: its [icon], [title], a mono [detail] that counts, and an up
 /// chevron. A tap opens what runs.
 class MiniBar extends StatelessWidget {
@@ -33,17 +33,21 @@ class MiniBar extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
+        // Larger text grows the strip past its height.
         child: Container(
-          height: height,
+          constraints: const BoxConstraints(minHeight: height),
           color: style.colors.accentSoft,
-          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md,
+            vertical: Gap.xs,
+          ),
           child: Row(
             spacing: Gap.md,
             children: [
               ForgeIcon(icon, size: 20, color: ink),
               Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -53,7 +57,12 @@ class MiniBar extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelLarge!
                           .copyWith(color: ink),
                     ),
-                    Text(detail, style: style.data.copyWith(color: ink)),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: style.data.copyWith(color: ink),
+                    ),
                   ],
                 ),
               ),
