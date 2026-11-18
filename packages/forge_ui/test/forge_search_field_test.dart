@@ -202,4 +202,44 @@ void main() {
     expect(end, lessThan(start));
     expect(mid, inExclusiveRange(end, start));
   });
+
+  testWidgets('a summary sits between the pill and the filter button', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(Gap.md),
+            child: ForgeSearchField(
+              hint: 'Search',
+              clearLabel: 'Clear',
+              onChanged: changes.add,
+              onFilters: () {},
+              filtersLabel: 'Filters',
+              summary: ForgeChip(
+                label: '5 filters',
+                selected: true,
+                showCheck: false,
+                onPressed: () => taps++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final pill = tester.getRect(find.byType(TextField));
+    final chip = tester.getRect(find.byType(ForgeChip));
+    final filter = tester.getRect(
+      find.byWidgetPredicate(
+        (widget) => widget is ForgeIcon && widget.icon == ForgeIcons.filterList,
+      ),
+    );
+    expect(chip.left, greaterThan(pill.right));
+    expect(chip.right, lessThan(filter.left));
+    await tester.tap(find.text('5 filters'));
+    expect(taps, 1);
+  });
 }

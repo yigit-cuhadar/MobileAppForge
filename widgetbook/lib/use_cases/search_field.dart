@@ -104,3 +104,21 @@ Widget heroFlight(BuildContext context) => _padded(
     ),
   ),
 );
+
+@widgetbook.UseCase(name: 'With summary', type: ForgeSearchField)
+Widget withSummary(BuildContext context) => _padded(
+  ForgeSearchField(
+    hint: 'Search',
+    clearLabel: 'Clear',
+    onChanged: (_) {},
+    onFilters: () {},
+    filtersLabel: 'Filters',
+    activeFilters: 5,
+    summary: ForgeChip(
+      label: '5 filters',
+      selected: true,
+      showCheck: false,
+      onPressed: () {},
+    ),
+  ),
+);
