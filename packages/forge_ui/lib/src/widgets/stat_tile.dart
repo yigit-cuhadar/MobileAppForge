@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../icons/forge_icon.dart';
 import '../icons/forge_icons.dart';
 import '../spacing.dart';
+import '../theme/forge_palette.dart';
 import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
@@ -10,9 +11,10 @@ import 'progress.dart';
 import 'skeleton.dart';
 
 /// A figure in a tile: the SectionCard title row ([title], [detail],
-/// chevron; the tile opens its page) with the [figure], its [unit] and a
-/// [caption] under it, and an optional bar at the bottom filled to
-/// [progress], from 0 to 1.
+/// chevron; the tile opens its page) with the [figure], its [unit] and
+/// either a [caption] or a [change] line under it, and an optional bar at
+/// the bottom filled to [progress], from 0 to 1. The change line is drawn
+/// as in [StatTile.compact].
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
@@ -21,11 +23,15 @@ class StatTile extends StatelessWidget {
     required VoidCallback this.onTap,
     required String this.figure,
     this.unit,
-    required String this.caption,
+    this.caption,
+    this.change,
+    this.changeIsGood,
     this.progress,
-  }) : _form = _Form.tile,
-       change = null,
-       changeIsGood = null,
+  }) : assert(
+         (caption == null) != (change == null),
+         'A tile has a caption or a change, not both.',
+       ),
+       _form = _Form.tile,
        message = null,
        onRetry = null,
        retryLabel = null;
@@ -234,11 +240,7 @@ class StatTile extends StatelessWidget {
                 compact ? _minus(line) : line,
                 style: style.data.copyWith(
                   fontSize: 11,
-                  color: switch (compact ? changeIsGood : null) {
-                    true => colors.success,
-                    false => colors.danger,
-                    null => colors.inkMuted,
-                  },
+                  color: compact ? _changeColor(colors) : colors.inkMuted,
                 ),
               ),
           ];
@@ -270,7 +272,17 @@ class StatTile extends StatelessWidget {
           children: [
             if (_form == _Form.tile) _titleRow(context),
             _figureRow(context, Text(figure!, style: _figureStyle(text))),
-            Text(caption!, style: small),
+            if (change case final change?)
+              Text(
+                _minus(change),
+                style: style.data.copyWith(
+                  fontSize: small.fontSize,
+                  height: small.height,
+                  color: _changeColor(colors),
+                ),
+              )
+            else
+              Text(caption!, style: small),
             if (progress != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -326,6 +338,14 @@ class StatTile extends StatelessWidget {
         letterSpacing: -0.72,
         color: color,
       );
+
+  /// Success when the change goes the way the app calls good, danger when
+  /// not, ink-muted when neither.
+  Color _changeColor(ForgePalette colors) => switch (changeIsGood) {
+    true => colors.success,
+    false => colors.danger,
+    null => colors.inkMuted,
+  };
 
   /// A hyphen-minus in a change becomes the true minus sign.
   static String _minus(String change) => change.replaceAll('-', '−');

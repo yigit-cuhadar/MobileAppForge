@@ -47,6 +47,28 @@ Widget tileStatTile(BuildContext context) => _grid([
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Tile with a change', type: StatTile)
+Widget changeLineStatTile(BuildContext context) => _grid([
+  StatTile(
+    title: 'Metric A',
+    detail: '[DETAIL]',
+    onTap: () {},
+    figure: '138.5',
+    unit: '[UNIT]',
+    change: '+5 [UNIT] in 4 weeks',
+    changeIsGood: true,
+  ),
+  StatTile(
+    title: 'Metric B',
+    detail: '[DETAIL]',
+    onTap: () {},
+    figure: '92.5',
+    unit: '[UNIT]',
+    change: '-2.5 [UNIT] in 3 weeks',
+    changeIsGood: false,
+  ),
+]);
+
 @widgetbook.UseCase(name: 'Compact', type: StatTile)
 Widget compactStatTile(BuildContext context) => _grid(const [
   StatTile.compact(

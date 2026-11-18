@@ -832,6 +832,48 @@ void main() {
       expect(taps, 1);
     });
 
+    testWidgets('a tile change is coloured by the way that is good', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        Column(
+          children: [
+            StatTile(
+              title: 'Metric A',
+              onTap: () {},
+              figure: '138.5',
+              unit: '[UNIT]',
+              change: '+5 [UNIT] in 4 weeks',
+              changeIsGood: true,
+            ),
+            StatTile(
+              title: 'Metric B',
+              onTap: () {},
+              figure: '92.5',
+              unit: '[UNIT]',
+              change: '-2.5 [UNIT] in 3 weeks',
+              changeIsGood: false,
+            ),
+          ],
+        ),
+      );
+      final c = colors(tester);
+      final up = tester.widget<Text>(find.text('+5 [UNIT] in 4 weeks'));
+      expect(up.style?.color, c.success);
+      expect(
+        up.style?.fontFamily,
+        ForgeStyle.of(tester.element(find.byType(StatTile).first))
+            .data
+            .fontFamily,
+      );
+      // A true minus sign, not a hyphen.
+      expect(
+        tester.widget<Text>(find.text('−2.5 [UNIT] in 3 weeks')).style?.color,
+        c.danger,
+      );
+    });
+
     testWidgets('the figure form is not a tap target', (tester) async {
       await pump(
         tester,
