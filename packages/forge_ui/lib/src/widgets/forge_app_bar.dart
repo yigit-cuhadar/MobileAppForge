@@ -7,6 +7,7 @@ import '../spacing.dart';
 import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
+import 'header_layout.dart';
 
 /// The page's top bar: a centred title on every page, tab roots too. A page
 /// that can go back shows back on the left; a full-screen dialog route (a
@@ -24,7 +25,9 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// In place of the title, a large mono [value] (a running timer) at the
   /// left with the [subtitle] under it, after the [leading] action (a down
   /// chevron that minimises the page). Actions here are a small Button,
-  /// which shows its loading state while its work runs, and ⋯.
+  /// which shows its loading state while its work runs, and ⋯. Larger text
+  /// grows the bar: the subtitle wraps, and when the actions no longer fit
+  /// beside the value they go under it, at the end.
   const ForgeAppBar.value({
     super.key,
     required Widget this.leading,
@@ -48,12 +51,16 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   static const double height = 52;
 
-  /// The height of the value form.
+  /// The value form's height at normal text, and its least.
   static const double valueHeight = 68;
+
+  /// The value form's preferred size: no cap, so a Scaffold lets it take
+  /// the height it lays out at. A widget wrapping the form passes it on.
+  static const valuePreferredSize = Size.fromHeight(double.maxFinite);
 
   @override
   Size get preferredSize =>
-      Size.fromHeight(value == null ? height : valueHeight);
+      value == null ? const Size.fromHeight(height) : valuePreferredSize;
 
   @override
   Widget build(BuildContext context) {
@@ -102,51 +109,60 @@ class ForgeAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _valueBar(BuildContext context, String value) {
     final style = ForgeStyle.of(context);
-    // The bar keeps its height, which the two lines already fill, so its
-    // text and actions stay at their drawn size as text grows.
-    return MediaQuery.withNoTextScaling(
-      child: SizedBox(
-        height: valueHeight,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.md, Gap.xs, Gap.xs),
-          child: Row(
-            spacing: Gap.xs,
+    // Larger text wraps the subtitle instead of cutting it, and moves the
+    // actions under the value when they no longer fit beside it.
+    final scaled = MediaQuery.textScalerOf(context).scale(1) > 1;
+    final valueRow = <Widget>[
+      leading!,
+      Expanded(
+        child: Semantics(
+          header: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              leading!,
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: style.dataLg.copyWith(
-                          fontSize: 28,
-                          height: 32 / 28,
-                        ),
-                      ),
-                      Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelMedium!
-                            .copyWith(
-                              fontWeight: FontWeight.w400,
-                              color: style.colors.inkMuted,
-                            ),
-                      ),
-                    ],
-                  ),
+              // A timer never breaks; it scales down where it must.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: style.dataLg.copyWith(fontSize: 28, height: 32 / 28),
                 ),
               ),
-              ...actions,
+              Text(
+                subtitle!,
+                maxLines: scaled ? null : 1,
+                overflow: scaled ? null : TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                  fontWeight: FontWeight.w400,
+                  color: style.colors.inkMuted,
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    ];
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: valueHeight),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.md, Gap.xs, Gap.xs),
+        // At normal text the cut subtitle leaves the actions beside it.
+        child: !scaled || actions.isEmpty
+            ? Row(spacing: Gap.xs, children: [...valueRow, ...actions])
+            : HeaderLayout(
+                gap: Gap.xs,
+                children: [
+                  Row(spacing: Gap.xs, children: valueRow),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: Gap.xs,
+                    children: actions,
+                  ),
+                ],
+              ),
       ),
     );
   }

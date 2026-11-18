@@ -104,13 +104,13 @@ void main() {
   });
 
   group('ForgeAppBar.value', () {
-    Widget bar() => ForgeAppBar.value(
+    ForgeAppBar bar() => ForgeAppBar.value(
       leading: ForgeAppBarAction.icon(
         icon: ForgeIcons.expandMore,
         label: 'Minimise',
         onPressed: () {},
       ),
-      value: '1:24:16',
+      value: '24:16',
       subtitle: 'Item title · 1 of 6',
       actions: [
         ForgeButton(
@@ -127,12 +127,70 @@ void main() {
     );
 
     for (final scale in scales) {
-      testWidgets('keeps its height at ${scale}x', (tester) async {
+      testWidgets('lays out at ${scale}x', (tester) async {
         await pump(tester, scale, bar());
 
-        expect(height(tester, find.byType(ForgeAppBar)), 68);
+        final height = tester.getSize(find.byType(ForgeAppBar)).height;
+        if (scale == 1) {
+          expect(height, ForgeAppBar.valueHeight);
+        } else {
+          expect(height, greaterThan(ForgeAppBar.valueHeight));
+        }
       });
     }
+
+    testWidgets('keeps its actions beside the value at normal text', (
+      tester,
+    ) async {
+      await pump(tester, 1, bar());
+
+      expect(
+        tester.getRect(find.text('Finish')).top,
+        lessThan(tester.getRect(find.text('24:16')).bottom),
+      );
+    });
+
+    testWidgets('puts its actions under the value at large text', (
+      tester,
+    ) async {
+      await pump(tester, 3, bar());
+
+      final finish = tester.getRect(find.text('Finish'));
+      expect(
+        finish.top,
+        greaterThan(tester.getRect(find.text('Item title · 1 of 6')).bottom),
+      );
+      // At the end of the bar.
+      expect(
+        tester.getRect(find.byType(ForgeAppBarAction).last).right,
+        tester.getRect(find.byType(ForgeAppBar)).right - Gap.xs,
+      );
+    });
+
+    testWidgets('grows a Scaffold\'s app bar and the page starts under it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          builder: (context, page) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(3)),
+            child: page!,
+          ),
+          home: Center(
+            child: SizedBox(
+              width: 390,
+              child: Scaffold(appBar: bar(), body: const Text('Body')),
+            ),
+          ),
+        ),
+      );
+
+      final barRect = tester.getRect(find.byType(ForgeAppBar));
+      expect(barRect.height, greaterThan(ForgeAppBar.valueHeight));
+      expect(tester.getRect(find.text('Body')).top, barRect.bottom);
+    });
   });
 
   group('StepperField', () {
