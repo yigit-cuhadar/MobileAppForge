@@ -94,7 +94,8 @@ class SubscriptionMessage {
   final _MessageKind _kind;
 }
 
-/// The paywall page: close on the left of an untitled bar, the [title] and
+/// The paywall page: close (unless [onClose] is null) on the left of an
+/// untitled bar, the [title] and
 /// a checked [BenefitList] of [benefits], the [plans] in the given [layout]
 /// at the bottom of the scrolling part, then the footer: the main button,
 /// the chosen plan's terms, Restore and the Terms and Privacy links. The
@@ -108,7 +109,7 @@ class SubscriptionMessage {
 class SubscriptionPlans extends StatelessWidget {
   const SubscriptionPlans({
     super.key,
-    required this.onClose,
+    this.onClose,
     required this.title,
     required this.benefits,
     required this.layout,
@@ -134,7 +135,9 @@ class SubscriptionPlans extends StatelessWidget {
          'Give the single layout\'s link a label and an action together.',
        );
 
-  final VoidCallback onClose;
+  /// Null hides the close button (a paywall that cannot be dismissed);
+  /// the bar keeps its height.
+  final VoidCallback? onClose;
   final String title;
   final List<String> benefits;
   final SubscriptionLayout layout;
@@ -191,14 +194,17 @@ class SubscriptionPlans extends StatelessWidget {
               height: ForgeAppBar.height,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: ForgeAppBarAction.icon(
-                    icon: ForgeIcons.close,
-                    label: MaterialLocalizations.of(context).closeButtonTooltip,
-                    onPressed: onClose,
-                  ),
-                ),
+                child: onClose == null
+                    ? null
+                    : Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: ForgeAppBarAction.icon(
+                          icon: ForgeIcons.close,
+                          label: MaterialLocalizations.of(context)
+                              .closeButtonTooltip,
+                          onPressed: onClose,
+                        ),
+                      ),
               ),
             ),
             Expanded(

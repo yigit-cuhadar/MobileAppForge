@@ -38,8 +38,9 @@ void main() {
     String? purchasing,
     String? restoring,
     SubscriptionMessage? message,
+    bool closable = true,
   }) => SubscriptionPlans(
-    onClose: () => taps.add('close'),
+    onClose: closable ? () => taps.add('close') : null,
     title: '[APP NAME] Premium',
     benefits: const ['[PREMIUM FEATURE ONE]'],
     layout: layout,
@@ -99,6 +100,13 @@ void main() {
       'privacy',
       'close',
     ]);
+  });
+
+  testWidgets('without onClose there is no close button', (tester) async {
+    await pump(tester, paywall([], closable: false));
+
+    expect(find.bySemanticsLabel('Close'), findsNothing);
+    expect(find.text('[APP NAME] Premium'), findsOneWidget);
   });
 
   testWidgets('the selected tile reads as selected', (tester) async {
