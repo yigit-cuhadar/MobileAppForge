@@ -299,11 +299,15 @@ class _StepperFieldState extends State<StepperField> {
         color: colors.surfaceSunken,
         shape: const StadiumBorder(),
       ),
-      foregroundDecoration: ring == null
-          ? null
-          : ShapeDecoration(
-              shape: StadiumBorder(side: BorderSide(color: ring, width: 2)),
-            ),
+      // Always set: adding it when the typing starts would rebuild the box
+      // under it and close the keyboard the tap just opened.
+      foregroundDecoration: ShapeDecoration(
+        shape: StadiumBorder(
+          side: ring == null
+              ? BorderSide.none
+              : BorderSide(color: ring, width: 2),
+        ),
+      ),
       child: Row(
         children: [
           ExcludeSemantics(child: button(ForgeIcons.remove, -1, _atMin)),
@@ -378,7 +382,10 @@ class _StepperFieldState extends State<StepperField> {
       ),
     );
     if (widget.doneLabel == null) return field;
+    // The root overlay covers the whole view, so the bar can sit on the
+    // keyboard however the routes and tabs in between are laid out.
     return OverlayPortal(
+      overlayLocation: OverlayChildLocation.rootOverlay,
       controller: _bar,
       overlayChildBuilder: _keyboardBar,
       child: field,
@@ -408,10 +415,7 @@ class _StepperFieldState extends State<StepperField> {
             ),
           ),
         );
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: MediaQuery.viewInsetsOf(context).bottom,
+    return _OnKeyboard(
       // Part of the field: its taps do not end the typing.
       child: TextFieldTapRegion(
         child: Container(
@@ -437,6 +441,46 @@ class _StepperFieldState extends State<StepperField> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Places [child] across the bottom of the overlay, right on top of the
+/// keyboard. The keyboard's height comes from the view: a Scaffold takes
+/// it out of the MediaQuery its body (and so the field) sees.
+class _OnKeyboard extends StatefulWidget {
+  const _OnKeyboard({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_OnKeyboard> createState() => _OnKeyboardState();
+}
+
+class _OnKeyboardState extends State<_OnKeyboard> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final view = View.of(context);
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: view.viewInsets.bottom / view.devicePixelRatio,
+      child: widget.child,
     );
   }
 }

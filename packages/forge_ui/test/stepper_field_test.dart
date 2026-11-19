@@ -389,6 +389,45 @@ void main() {
       expect(find.text('Done'), findsOneWidget);
     });
 
+    testWidgets('one tap types the value with the keyboard open', (
+      tester,
+    ) async {
+      await pumpRow(tester);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+
+      expect(weight.hasFocus, isTrue);
+      expect(tester.testTextInput.hasAnyClients, isTrue);
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(find.text('Done'), findsOneWidget);
+    });
+
+    testWidgets('the bar sits on the keyboard, which the Scaffold hides '
+        'from the field', (tester) async {
+      addTearDown(tester.view.resetViewInsets);
+      await pumpRow(tester);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 900);
+      await tester.pump();
+
+      final keyboardTop =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio -
+          900 / tester.view.devicePixelRatio;
+      expect(
+        tester
+            .getRect(
+              find.ancestor(
+                of: find.text('Done'),
+                matching: find.byType(Container),
+              ),
+            )
+            .bottom,
+        keyboardTop,
+      );
+      expect(weight.hasFocus, isTrue);
+    });
+
     testWidgets('one tap on the next value moves the typing there and '
         'keeps what was typed', (tester) async {
       await pumpRow(tester, bar: false);
