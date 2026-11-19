@@ -36,6 +36,9 @@ class FakePurchasesRepository implements PurchasesRepository {
   /// Returned by [configure], [identify] and [reset] until cleared.
   Failure? sessionFailure;
 
+  /// The offering's metadata, as a store setup would give it.
+  Map<String, Object?> metadata = const {};
+
   final _channel = EntitlementChannel();
   var _anonymousCount = 0;
   String? _user;
@@ -73,7 +76,7 @@ class FakePurchasesRepository implements PurchasesRepository {
     final eligible = !_trialUsers.contains(_user);
     return Offering([
       for (final plan in _plans) eligible ? plan : _withoutOffers(plan),
-    ]);
+    ], metadata: metadata);
   });
 
   @override

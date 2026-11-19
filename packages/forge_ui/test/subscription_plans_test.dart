@@ -38,8 +38,9 @@ void main() {
     String? purchasing,
     String? restoring,
     SubscriptionMessage? message,
+    bool closable = true,
   }) => SubscriptionPlans(
-    onClose: () => taps.add('close'),
+    onClose: closable ? () => taps.add('close') : null,
     title: '[APP NAME] Premium',
     benefits: const ['[PREMIUM FEATURE ONE]'],
     layout: layout,
@@ -99,6 +100,13 @@ void main() {
       'privacy',
       'close',
     ]);
+  });
+
+  testWidgets('without onClose there is no close button', (tester) async {
+    await pump(tester, paywall([], closable: false));
+
+    expect(find.bySemanticsLabel('Close'), findsNothing);
+    expect(find.text('[APP NAME] Premium'), findsOneWidget);
   });
 
   testWidgets('the selected tile reads as selected', (tester) async {
@@ -249,6 +257,25 @@ void main() {
     await tester.tap(find.text('Start 7-day free trial'));
     await tester.tap(find.text('Got it'));
     expect(taps, ['ok']);
+  });
+
+  testWidgets('waiting for approval without an action has no button', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      paywall(
+        [],
+        closable: false,
+        message: const SubscriptionMessage.pending(
+          title: 'Waiting for approval',
+          message: 'Premium unlocks as soon as it is approved.',
+        ),
+      ),
+    );
+
+    expect(find.text('Waiting for approval'), findsOneWidget);
+    expect(find.text('Got it'), findsNothing);
   });
 
   testWidgets('the footer is pinned while it takes at most half the page', (

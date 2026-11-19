@@ -47,6 +47,7 @@ export 'src/widgets/or_divider.dart';
 export 'src/widgets/period_selector.dart';
 export 'src/widgets/permission_prompt.dart';
 export 'src/widgets/photo_tile.dart' show PhotoTile;
+export 'src/widgets/plan_card.dart';
 export 'src/widgets/profile_header.dart';
 export 'src/widgets/progress.dart';
 export 'src/widgets/radio_mark.dart';

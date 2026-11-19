@@ -74,6 +74,16 @@ void main() {
   List<MethodCall> callsTo(String method) =>
       calls.where((c) => c.method == method).toList();
 
+  test("the offering carries the current offering's metadata", () async {
+    answers['getOfferings'] = (_) => offeringsJson(
+      [packageJson(productId: 'pro:yearly')],
+      metadata: {'dismissible': false},
+    );
+    expect((await repository.offering()).valueOrNull!.metadata, {
+      'dismissible': false,
+    });
+  });
+
   test('a cold start with a cached user logs out on reset', () async {
     expect((await repository.reset()).isOk, isTrue);
     expect(callsTo('logOut'), hasLength(1));

@@ -64,10 +64,11 @@ SubscriptionPlans _paywall(
   String? purchasing,
   String? restoring,
   SubscriptionMessage? message,
+  bool closable = true,
 }) {
   final single = layout == SubscriptionLayout.single;
   return SubscriptionPlans(
-    onClose: () {},
+    onClose: closable ? () {} : null,
     title: '[APP NAME] Premium',
     benefits: const [
       '[PREMIUM FEATURE ONE]',
@@ -114,6 +115,11 @@ Widget tilesPaywall(BuildContext context) =>
 @widgetbook.UseCase(name: 'C · single plan', type: SubscriptionPlans)
 Widget singlePaywall(BuildContext context) =>
     _paywall(context, layout: SubscriptionLayout.single);
+
+/// A paywall the store setup marks as not dismissible: no close button.
+@widgetbook.UseCase(name: 'Not dismissible', type: SubscriptionPlans)
+Widget hardPaywall(BuildContext context) =>
+    _paywall(context, layout: _layout(context), closable: false);
 
 /// At 3x text the footer outgrows half the page and scrolls with it.
 @widgetbook.UseCase(name: 'Large text', type: SubscriptionPlans)
@@ -187,6 +193,23 @@ Widget pendingPaywall(BuildContext context) => _paywall(
         "it's approved.",
     actionLabel: 'Got it',
     onAction: () {},
+  ),
+);
+
+/// A paywall that cannot be dismissed waits for the approval.
+@widgetbook.UseCase(
+  name: 'Waiting for approval, not dismissible',
+  type: SubscriptionPlans,
+)
+Widget hardPendingPaywall(BuildContext context) => _paywall(
+  context,
+  layout: SubscriptionLayout.rows,
+  closable: false,
+  message: const SubscriptionMessage.pending(
+    title: 'Waiting for approval',
+    message:
+        "Your purchase is waiting for approval. Premium unlocks as soon as "
+        "it's approved.",
   ),
 );
 

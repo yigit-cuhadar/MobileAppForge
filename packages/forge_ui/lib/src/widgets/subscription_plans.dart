@@ -58,8 +58,8 @@ class SubscriptionPlan {
 
 enum _MessageKind { failed, unavailable, pending }
 
-/// A card in the place of the plans, with one button. The main button is
-/// off while it shows.
+/// A card in the place of the plans, with one button (a pending one may
+/// have none). The main button is off while it shows.
 class SubscriptionMessage {
   /// The prices could not be loaded: the card sits under the header, and
   /// the main button shows without the terms.
@@ -79,22 +79,28 @@ class SubscriptionMessage {
        _kind = _MessageKind.unavailable;
 
   /// A purchase waits for approval (Ask to Buy); [onAction] ("Got it") lets
-  /// the user go on.
+  /// the user go on. Without them the card has no button: a paywall that
+  /// cannot be dismissed waits for the approval.
   const SubscriptionMessage.pending({
     required String this.title,
     required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  }) : _kind = _MessageKind.pending;
+    this.actionLabel,
+    this.onAction,
+  }) : assert(
+         (actionLabel == null) == (onAction == null),
+         'Give the action a label and a callback together.',
+       ),
+       _kind = _MessageKind.pending;
 
   final String? title;
   final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   final _MessageKind _kind;
 }
 
-/// The paywall page: close on the left of an untitled bar, the [title] and
+/// The paywall page: close (unless [onClose] is null) on the left of an
+/// untitled bar, the [title] and
 /// a checked [BenefitList] of [benefits], the [plans] in the given [layout]
 /// at the bottom of the scrolling part, then the footer: the main button,
 /// the chosen plan's terms, Restore and the Terms and Privacy links. The
@@ -108,7 +114,7 @@ class SubscriptionMessage {
 class SubscriptionPlans extends StatelessWidget {
   const SubscriptionPlans({
     super.key,
-    required this.onClose,
+    this.onClose,
     required this.title,
     required this.benefits,
     required this.layout,
@@ -134,7 +140,9 @@ class SubscriptionPlans extends StatelessWidget {
          'Give the single layout\'s link a label and an action together.',
        );
 
-  final VoidCallback onClose;
+  /// Null hides the close button (a paywall that cannot be dismissed);
+  /// the bar keeps its height.
+  final VoidCallback? onClose;
   final String title;
   final List<String> benefits;
   final SubscriptionLayout layout;
@@ -191,14 +199,17 @@ class SubscriptionPlans extends StatelessWidget {
               height: ForgeAppBar.height,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: ForgeAppBarAction.icon(
-                    icon: ForgeIcons.close,
-                    label: MaterialLocalizations.of(context).closeButtonTooltip,
-                    onPressed: onClose,
-                  ),
-                ),
+                child: onClose == null
+                    ? null
+                    : Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: ForgeAppBarAction.icon(
+                          icon: ForgeIcons.close,
+                          label: MaterialLocalizations.of(context)
+                              .closeButtonTooltip,
+                          onPressed: onClose,
+                        ),
+                      ),
               ),
             ),
             Expanded(
@@ -757,11 +768,12 @@ class _MessageCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: text.titleMedium,
               ),
-            ForgeButton(
-              label: message.actionLabel,
-              onPressed: message.onAction,
-              variant: variant,
-            ),
+            if (message.actionLabel case final label?)
+              ForgeButton(
+                label: label,
+                onPressed: message.onAction,
+                variant: variant,
+              ),
           ],
         ),
       ),
