@@ -99,11 +99,14 @@ Map<String, Object?> packageJson({
   },
 };
 
-Map<String, Object?> offeringsJson(List<Map<String, Object?>> packages) {
+Map<String, Object?> offeringsJson(
+  List<Map<String, Object?>> packages, {
+  Map<String, Object> metadata = const {},
+}) {
   final offering = {
     'identifier': 'default',
     'serverDescription': '',
-    'metadata': <String, Object>{},
+    'metadata': metadata,
     'availablePackages': packages,
   };
   return {

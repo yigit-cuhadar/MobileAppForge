@@ -30,6 +30,7 @@ class PaywallState extends Equatable {
   const PaywallState({
     this.status = PaywallStatus.loading,
     this.plans = const [],
+    this.metadata = const {},
     this.selected,
     this.loadFailure,
     this.outcome,
@@ -38,6 +39,9 @@ class PaywallState extends Equatable {
 
   final PaywallStatus status;
   final List<Plan> plans;
+
+  /// The loaded offering's [Offering.metadata].
+  final Map<String, Object?> metadata;
   final Plan? selected;
 
   /// Why the offering could not be loaded ([PaywallStatus.loadFailed]).
@@ -60,6 +64,7 @@ class PaywallState extends Equatable {
   }) => PaywallState(
     status: status ?? this.status,
     plans: plans,
+    metadata: metadata,
     selected: selected ?? this.selected,
     loadFailure: loadFailure,
     outcome: outcome,
@@ -70,6 +75,7 @@ class PaywallState extends Equatable {
   List<Object?> get props => [
     status,
     plans,
+    metadata,
     selected,
     loadFailure,
     outcome,
@@ -100,6 +106,7 @@ class PaywallCubit extends Cubit<PaywallState> {
         (offering) => PaywallState(
           status: PaywallStatus.ready,
           plans: offering.plans,
+          metadata: offering.metadata,
           selected: offering.plans.first,
         ),
         (failure) => PaywallState(

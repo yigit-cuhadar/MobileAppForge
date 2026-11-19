@@ -229,6 +229,26 @@ void main() {
     );
 
     blocTest<PaywallCubit, PaywallState>(
+      "keeps the offering's metadata",
+      setUp: () => when(() => repository.offering()).thenAnswer(
+        (_) async => const Ok(
+          Offering([monthly, yearly], metadata: {'dismissible': false}),
+        ),
+      ),
+      build: build,
+      act: (cubit) => cubit.load(),
+      expect: () => const [
+        PaywallState(),
+        PaywallState(
+          status: PaywallStatus.ready,
+          plans: [monthly, yearly],
+          metadata: {'dismissible': false},
+          selected: monthly,
+        ),
+      ],
+    );
+
+    blocTest<PaywallCubit, PaywallState>(
       'a failed load can be retried',
       setUp: () =>
           when(() => repository.offering())

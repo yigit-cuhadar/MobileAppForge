@@ -87,9 +87,8 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
   }
 
   Future<Offering> _loadOffering() async {
-    final packages =
-        (await rc.Purchases.getOfferings()).current?.availablePackages ??
-        const <rc.Package>[];
+    final current = (await rc.Purchases.getOfferings()).current;
+    final packages = current?.availablePackages ?? const <rc.Package>[];
     final eligible = await _introEligibleProducts(packages);
     final plans = <Plan>[];
     _packages.clear();
@@ -106,7 +105,7 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
         'No current offering with monthly, yearly or lifetime packages',
       );
     }
-    return Offering(plans);
+    return Offering(plans, metadata: current?.metadata ?? const {});
   }
 
   /// Google Play lists only offers the user is eligible for; the App Store

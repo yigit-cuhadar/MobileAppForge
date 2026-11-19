@@ -339,4 +339,15 @@ void main() {
       const Offering([monthly, yearly, lifetime]),
     );
   });
+
+  test('offering carries the metadata set on the fake', () async {
+    repository.metadata = const {'dismissible': false};
+    expect(
+      (await repository.offering()).valueOrNull,
+      const Offering(
+        [monthly, yearly, lifetime],
+        metadata: {'dismissible': false},
+      ),
+    );
+  });
 }
