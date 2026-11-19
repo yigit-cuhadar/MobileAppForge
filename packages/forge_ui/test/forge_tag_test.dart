@@ -75,6 +75,28 @@ void main() {
     );
   });
 
+  testWidgets('the strong tag is filled accent with an on-accent label', (
+    tester,
+  ) async {
+    await pump(tester, const ForgeTag('Label', kind: ForgeTagKind.strong));
+
+    final colors = ForgeTheme.light().extension<ForgeStyle>()!.colors;
+    final box = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(ForgeTag),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((box.decoration! as BoxDecoration).color, colors.accent);
+    expect(
+      tester.widget<Text>(find.text('Label')).style!.color,
+      colors.onAccent,
+    );
+    expect(find.byType(ForgeIcon), findsNothing);
+  });
+
   testWidgets('the plain tag has no fill and an ink-muted label', (
     tester,
   ) async {
