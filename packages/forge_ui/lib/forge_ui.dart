@@ -22,6 +22,7 @@ export 'src/widgets/forge_app_bar.dart';
 export 'src/widgets/forge_bottom_action_bar.dart';
 export 'src/widgets/forge_bottom_sheet.dart';
 export 'src/widgets/forge_check_sheet.dart';
+export 'src/widgets/forge_grabber.dart';
 export 'src/widgets/forge_button.dart';
 export 'src/widgets/forge_chip.dart';
 export 'src/widgets/forge_dialog.dart';

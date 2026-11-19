@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../spacing.dart';
-import '../theme/forge_style.dart';
 import '../theme/forge_theme.dart';
+import 'forge_grabber.dart';
 
 /// Shows a [ForgeBottomSheet] over a scrim on the root navigator, so it
 /// covers a shell's tab bar; a swipe down or a tap on the scrim closes it.
@@ -44,7 +44,6 @@ class ForgeBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = ForgeStyle.of(context).colors;
     final media = MediaQuery.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -58,16 +57,7 @@ class ForgeBottomSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: Gap.md,
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.lineStrong.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
+          const ForgeGrabber(),
           ConstrainedBox(
             constraints: const BoxConstraints(minHeight: ForgeTheme.tapMin),
             child: Row(
