@@ -58,8 +58,8 @@ class SubscriptionPlan {
 
 enum _MessageKind { failed, unavailable, pending }
 
-/// A card in the place of the plans, with one button. The main button is
-/// off while it shows.
+/// A card in the place of the plans, with one button (a pending one may
+/// have none). The main button is off while it shows.
 class SubscriptionMessage {
   /// The prices could not be loaded: the card sits under the header, and
   /// the main button shows without the terms.
@@ -79,18 +79,23 @@ class SubscriptionMessage {
        _kind = _MessageKind.unavailable;
 
   /// A purchase waits for approval (Ask to Buy); [onAction] ("Got it") lets
-  /// the user go on.
+  /// the user go on. Without them the card has no button: a paywall that
+  /// cannot be dismissed waits for the approval.
   const SubscriptionMessage.pending({
     required String this.title,
     required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  }) : _kind = _MessageKind.pending;
+    this.actionLabel,
+    this.onAction,
+  }) : assert(
+         (actionLabel == null) == (onAction == null),
+         'Give the action a label and a callback together.',
+       ),
+       _kind = _MessageKind.pending;
 
   final String? title;
   final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   final _MessageKind _kind;
 }
 
@@ -763,11 +768,12 @@ class _MessageCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: text.titleMedium,
               ),
-            ForgeButton(
-              label: message.actionLabel,
-              onPressed: message.onAction,
-              variant: variant,
-            ),
+            if (message.actionLabel case final label?)
+              ForgeButton(
+                label: label,
+                onPressed: message.onAction,
+                variant: variant,
+              ),
           ],
         ),
       ),

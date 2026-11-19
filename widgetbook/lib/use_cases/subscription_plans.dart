@@ -196,6 +196,23 @@ Widget pendingPaywall(BuildContext context) => _paywall(
   ),
 );
 
+/// A paywall that cannot be dismissed waits for the approval.
+@widgetbook.UseCase(
+  name: 'Waiting for approval, not dismissible',
+  type: SubscriptionPlans,
+)
+Widget hardPendingPaywall(BuildContext context) => _paywall(
+  context,
+  layout: SubscriptionLayout.rows,
+  closable: false,
+  message: const SubscriptionMessage.pending(
+    title: 'Waiting for approval',
+    message:
+        "Your purchase is waiting for approval. Premium unlocks as soon as "
+        "it's approved.",
+  ),
+);
+
 /// The app's snackbar after Restore found nothing; the plans stay.
 @widgetbook.UseCase(name: 'Nothing to restore', type: SubscriptionPlans)
 Widget nothingToRestorePaywall(BuildContext context) => Stack(

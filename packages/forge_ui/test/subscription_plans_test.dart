@@ -259,6 +259,25 @@ void main() {
     expect(taps, ['ok']);
   });
 
+  testWidgets('waiting for approval without an action has no button', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      paywall(
+        [],
+        closable: false,
+        message: const SubscriptionMessage.pending(
+          title: 'Waiting for approval',
+          message: 'Premium unlocks as soon as it is approved.',
+        ),
+      ),
+    );
+
+    expect(find.text('Waiting for approval'), findsOneWidget);
+    expect(find.text('Got it'), findsNothing);
+  });
+
   testWidgets('the footer is pinned while it takes at most half the page', (
     tester,
   ) async {
