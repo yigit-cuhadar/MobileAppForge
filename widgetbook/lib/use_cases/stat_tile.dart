@@ -69,6 +69,42 @@ Widget changeLineStatTile(BuildContext context) => _grid([
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Tile with a chart', type: StatTile)
+Widget chartStatTile(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    StatTile(
+      title: 'Metric A',
+      detail: '[DETAIL]',
+      onTap: () {},
+      figure: '133.5',
+      unit: '[UNIT]',
+      change: '+3 [UNIT] in 8 weeks',
+      changeIsGood: true,
+      chart: const TrendLine(
+        values: [118, 119, 120, 119.5, 124, 126, 125.5, 130, 133.5],
+      ),
+    ),
+    const SizedBox(height: Gap.sm),
+    StatTile(
+      title: 'Metric B',
+      detail: '[DETAIL]',
+      onTap: () {},
+      figure: '8.4',
+      unit: '[UNIT]',
+      caption: '2 entries · 74 min',
+      chart: DayBars(
+        days: [
+          for (final (i, label) in ['M', 'T', 'W', 'T', 'F', 'S', 'S'].indexed)
+            (label: label, value: const <double>[0, 44, 0, 0, 30, 0, 0][i]),
+        ],
+        color: ForgeStyle.of(context).colors.accent,
+        semanticLabel: '[VALUE] per day',
+      ),
+    ),
+  ],
+);
+
 @widgetbook.UseCase(name: 'Compact', type: StatTile)
 Widget compactStatTile(BuildContext context) => _grid(const [
   StatTile.compact(
