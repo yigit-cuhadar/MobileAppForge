@@ -65,10 +65,10 @@ abstract interface class AuthRepository {
   Future<Result<void>> reauthenticateWithProvider(SocialProvider provider);
 
   /// Signs the user in again with Apple, so the sign-in is recent, and
-  /// revokes the app's Apple tokens, which the App Store requires when an
-  /// account is deleted. iOS only: it uses the native Apple sheet, so the
-  /// app needs the Sign in with Apple capability. Fails like
-  /// [reauthenticateWithProvider], and with Firebase's code when the
-  /// revocation fails (the project needs Apple's code flow key for it).
-  Future<Result<void>> revokeAppleSignIn();
+  /// returns a fresh Apple authorization code for the app's server to
+  /// exchange and revoke at Apple, which the App Store requires when an
+  /// account is deleted. The code is single use and expires in five
+  /// minutes. iOS only: it uses the native Apple sheet, so the app needs the
+  /// Sign in with Apple capability. Fails like [reauthenticateWithProvider].
+  Future<Result<String>> reauthenticateWithAppleCode();
 }
