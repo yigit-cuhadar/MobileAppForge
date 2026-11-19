@@ -36,6 +36,10 @@ Widget source(BuildContext context) =>
 Widget premium(BuildContext context) =>
     _tag(context, 'Premium', ForgeTagKind.premium);
 
+@widgetbook.UseCase(name: 'Strong', type: ForgeTag)
+Widget strong(BuildContext context) =>
+    _tag(context, 'Active', ForgeTagKind.strong);
+
 @widgetbook.UseCase(name: 'Record with an icon', type: ForgeTag)
 Widget recordIcon(BuildContext context) =>
     _tag(context, 'Best', ForgeTagKind.record, icon: ForgeIcons.emojiEvents);

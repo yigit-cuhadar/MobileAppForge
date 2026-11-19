@@ -21,6 +21,10 @@ enum ForgeTagKind {
   /// Filled accent with a lock, the same everywhere.
   premium,
 
+  /// Filled accent with no icon: a state that stands out, such as the
+  /// one in use.
+  strong,
+
   /// No fill, the label in ink-muted.
   plain,
 }
@@ -52,7 +56,7 @@ class ForgeTag extends StatelessWidget {
       ForgeTagKind.category => (p.accentSoft, p.onAccentSoft),
       ForgeTagKind.record => tint(p.success, 0.16),
       ForgeTagKind.source => tint(p.info, 0.14),
-      ForgeTagKind.premium => (p.accent, p.onAccent),
+      ForgeTagKind.premium || ForgeTagKind.strong => (p.accent, p.onAccent),
       ForgeTagKind.plain => (null, p.inkMuted),
     };
     final premium = kind == ForgeTagKind.premium;
