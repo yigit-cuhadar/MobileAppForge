@@ -127,14 +127,22 @@ class _ForgeSearchFieldState extends State<ForgeSearchField> {
   );
 
   /// [pill] in a Hero under [ForgeSearchField.heroTag], flying as the bare
-  /// pill on a straight path so it never sweeps over a neighbour.
+  /// pill on a straight path so it never sweeps over a neighbour. The
+  /// pill keeps its height from its top edge: the flight's box is pinned to
+  /// the navigator's size when it starts, and a keyboard opening or closing
+  /// resizes that navigator mid-flight, squashing or stretching the box.
   Widget _hero(Widget pill) {
     final tag = widget.heroTag;
     if (tag == null) return pill;
     return Hero(
       tag: tag,
       createRectTween: (begin, end) => RectTween(begin: begin, end: end),
-      flightShuttleBuilder: (_, _, _, _, _) => _HintPill(widget.hint),
+      flightShuttleBuilder: (_, _, _, _, _) => OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: ForgeTheme.tapMin,
+        maxHeight: ForgeTheme.tapMin,
+        child: _HintPill(widget.hint),
+      ),
       child: pill,
     );
   }
