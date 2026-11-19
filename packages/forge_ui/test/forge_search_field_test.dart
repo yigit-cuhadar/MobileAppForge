@@ -203,6 +203,62 @@ void main() {
     expect(mid, inExclusiveRange(end, start));
   });
 
+  testWidgets('the flying pill keeps its height while the navigator resizes', (
+    tester,
+  ) async {
+    // A keyboard opening shrinks the navigator mid-flight.
+    final height = ValueNotifier<double>(600);
+    await tester.pumpWidget(
+      ValueListenableBuilder(
+        valueListenable: height,
+        builder: (_, value, child) => Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(width: 400, height: value, child: child),
+        ),
+        child: MaterialApp(
+          theme: ForgeTheme.light(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: ForgeSearchField.tapOnly(
+                  hint: 'Search',
+                  heroTag: 'search',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => Scaffold(
+                        body: Padding(
+                          padding: const EdgeInsets.all(Gap.md),
+                          child: ForgeSearchField(
+                            hint: 'Search',
+                            clearLabel: 'Clear',
+                            onChanged: changes.add,
+                            heroTag: 'search',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Search'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    height.value = 300;
+    await tester.pump(const Duration(milliseconds: 100));
+    final shuttle = find
+        .ancestor(of: find.text('Search'), matching: find.byType(Container))
+        .first;
+    expect(tester.getRect(shuttle).height, ForgeTheme.tapMin);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('a summary sits between the pill and the filter button', (
     tester,
   ) async {
