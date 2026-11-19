@@ -12,9 +12,10 @@ import 'skeleton.dart';
 
 /// A figure in a tile: the SectionCard title row ([title], [detail],
 /// chevron; the tile opens its page) with the [figure], its [unit] and
-/// either a [caption] or a [change] line under it, and an optional bar at
-/// the bottom filled to [progress], from 0 to 1. The change line is drawn
-/// as in [StatTile.compact].
+/// either a [caption] or a [change] line under it, an optional [chart] at
+/// their right (a [TrendLine], [DayBars]) and an optional bar at the
+/// bottom filled to [progress], from 0 to 1. The change line is drawn as
+/// in [StatTile.compact].
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
@@ -27,6 +28,7 @@ class StatTile extends StatelessWidget {
     this.change,
     this.changeIsGood,
     this.progress,
+    this.chart,
   }) : assert(
          (caption == null) != (change == null),
          'A tile has a caption or a change, not both.',
@@ -44,6 +46,7 @@ class StatTile extends StatelessWidget {
     this.unit,
     required String this.caption,
   }) : _form = _Form.figure,
+       chart = null,
        title = null,
        detail = null,
        onTap = null,
@@ -64,6 +67,7 @@ class StatTile extends StatelessWidget {
     this.change,
     this.changeIsGood,
   }) : _form = _Form.compact,
+       chart = null,
        title = label,
        detail = null,
        onTap = null,
@@ -82,6 +86,7 @@ class StatTile extends StatelessWidget {
     required String this.change,
     required String fromTo,
   }) : _form = _Form.change,
+       chart = null,
        title = label,
        caption = fromTo,
        detail = null,
@@ -97,6 +102,7 @@ class StatTile extends StatelessWidget {
   /// A [StatTile.compact] loading: two shimmering bars.
   const StatTile.compactLoading({super.key})
     : _form = _Form.compactLoading,
+      chart = null,
       title = null,
       detail = null,
       onTap = null,
@@ -113,6 +119,7 @@ class StatTile extends StatelessWidget {
   /// A [StatTile.change] loading: two shimmering bars.
   const StatTile.changeLoading({super.key})
     : _form = _Form.changeLoading,
+      chart = null,
       title = null,
       detail = null,
       onTap = null,
@@ -133,6 +140,7 @@ class StatTile extends StatelessWidget {
     this.detail,
     required VoidCallback this.onTap,
   }) : _form = _Form.loading,
+       chart = null,
        figure = null,
        unit = null,
        caption = null,
@@ -151,6 +159,7 @@ class StatTile extends StatelessWidget {
     required VoidCallback this.onTap,
     required String this.message,
   }) : _form = _Form.empty,
+       chart = null,
        figure = null,
        unit = null,
        caption = null,
@@ -171,6 +180,7 @@ class StatTile extends StatelessWidget {
     required VoidCallback this.onRetry,
     required String this.retryLabel,
   }) : _form = _Form.error,
+       chart = null,
        figure = null,
        unit = null,
        caption = null,
@@ -187,6 +197,9 @@ class StatTile extends StatelessWidget {
 
   /// How far the bar under the caption is filled, from 0 to 1.
   final double? progress;
+
+  /// A small chart at the right of the figure, 140px wide.
+  final Widget? chart;
 
   /// Written with a true minus sign.
   final String? change;
@@ -267,22 +280,41 @@ class StatTile extends StatelessWidget {
           child: column,
         );
       case _Form.tile || _Form.figure:
+        final figureLines = [
+          _figureRow(context, Text(figure!, style: _figureStyle(text))),
+          if (change case final change?)
+            Text(
+              _minus(change),
+              style: style.data.copyWith(
+                fontSize: small.fontSize,
+                height: small.height,
+                color: _changeColor(colors),
+              ),
+            )
+          else
+            Text(caption!, style: small),
+        ];
         return _frame(
           gap: Gap.xs,
           children: [
             if (_form == _Form.tile) _titleRow(context),
-            _figureRow(context, Text(figure!, style: _figureStyle(text))),
-            if (change case final change?)
-              Text(
-                _minus(change),
-                style: style.data.copyWith(
-                  fontSize: small.fontSize,
-                  height: small.height,
-                  color: _changeColor(colors),
-                ),
+            if (chart case final chart?)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                spacing: Gap.md,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: Gap.xs,
+                      children: figureLines,
+                    ),
+                  ),
+                  SizedBox(width: _chartWidth, child: chart),
+                ],
               )
             else
-              Text(caption!, style: small),
+              ...figureLines,
             if (progress != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -330,6 +362,8 @@ class StatTile extends StatelessWidget {
         );
     }
   }
+
+  static const double _chartWidth = 140;
 
   static TextStyle _figureStyle(TextTheme text, [Color? color]) =>
       text.titleMedium!.copyWith(

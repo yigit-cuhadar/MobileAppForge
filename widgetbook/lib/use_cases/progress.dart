@@ -109,6 +109,19 @@ Widget progressTrackGoal(BuildContext context) => _card(
 Widget progressTrackReached(BuildContext context) =>
     _card(const Progress.track(value: 104, goal: 100));
 
+@widgetbook.UseCase(name: 'Segmented', type: Progress)
+Widget progressSegmented(BuildContext context) => _card(
+  Progress.segmented(
+    value: context.knobs.double.slider(label: 'Value', initialValue: 1 / 24),
+    segments: context.knobs.int.slider(
+      label: 'Segments',
+      initialValue: 8,
+      min: 1,
+      max: 16,
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'Indeterminate · under the app bar', type: Progress)
 Widget progressIndeterminate(BuildContext context) => Scaffold(
   appBar: const ForgeAppBar(title: 'Item title'),

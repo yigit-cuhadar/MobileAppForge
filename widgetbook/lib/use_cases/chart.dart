@@ -24,38 +24,51 @@ Widget lineChart(BuildContext context) => _page(
   ),
 );
 
+/// Tap a bar to pin its tag (tap it again or anywhere else to hide it), or
+/// hold and drag across the bars.
 @widgetbook.UseCase(name: 'Bar', type: Chart)
-Widget barChart(BuildContext context) => _page(
-  Chart.bar(
-    title: 'Count · this week',
-    detail: 'goal [VALUE]',
-    bars: const [
-      ChartBar(
-        label: 'M',
-        value: 8.2,
-        valueLabel: '8.2k',
-        tooltip: '[VALUE] · [DAY 1]',
-      ),
-      ChartBar(
-        label: 'T',
-        value: 11.4,
-        valueLabel: '11.4k',
-        tooltip: '[VALUE] · [DAY 2]',
-      ),
-      ChartBar(label: 'W', value: 6.9, valueLabel: '6.9k'),
-      ChartBar(label: 'T', value: 10.3, valueLabel: '10.3k'),
-      ChartBar(label: 'F', value: 6.2, valueLabel: '6.2k'),
-      ChartBar(label: 'S'),
-      ChartBar(label: 'S'),
-    ],
-    current: context.knobs.int.slider(
-      label: 'Current bar',
-      initialValue: 4,
-      max: 6,
+Widget barChart(BuildContext context) => _page(_weekBars(context));
+
+/// The bar chart among other content: the page scrolls over it, and a tap
+/// outside it hides a pinned tag.
+@widgetbook.UseCase(name: 'Bar · on a scrolling page', type: Chart)
+Widget barChartScrolling(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    _weekBars(context),
+    for (var i = 0; i < 12; i++) ListRow(title: '[ROW ${i + 1}]'),
+  ],
+);
+
+Widget _weekBars(BuildContext context) => Chart.bar(
+  title: 'Count · this week',
+  detail: 'goal [VALUE]',
+  bars: const [
+    ChartBar(
+      label: 'M',
+      value: 8.2,
+      valueLabel: '8.2k',
+      tooltip: '[VALUE] · [DAY 1]',
     ),
-    target: 10,
-    semanticLabel: 'Count this week with a goal line',
+    ChartBar(
+      label: 'T',
+      value: 11.4,
+      valueLabel: '11.4k',
+      tooltip: '[VALUE] · [DAY 2]',
+    ),
+    ChartBar(label: 'W', value: 6.9, valueLabel: '6.9k'),
+    ChartBar(label: 'T', value: 10.3, valueLabel: '10.3k'),
+    ChartBar(label: 'F', value: 6.2, valueLabel: '6.2k'),
+    ChartBar(label: 'S'),
+    ChartBar(label: 'S'),
+  ],
+  current: context.knobs.int.slider(
+    label: 'Current bar',
+    initialValue: 4,
+    max: 6,
   ),
+  target: 10,
+  semanticLabel: 'Count this week with a goal line',
 );
 
 const _bandBars = [

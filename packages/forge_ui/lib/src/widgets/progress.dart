@@ -9,7 +9,8 @@ import 'skeleton.dart';
 
 /// Progress toward a goal as a thin bar or a ring on surface-sunken, with
 /// the [figure] and a [caption]. Reaching the [goal] turns the fill and the
-/// caption success. [Progress.track] is the bare bar;
+/// caption success. [Progress.track] is the bare bar,
+/// [Progress.segmented] the bare bar in parts;
 /// [Progress.indeterminate] stands for work of unknown length.
 class Progress extends StatelessWidget {
   /// A 6px bar under the figure, the caption at the right.
@@ -20,6 +21,7 @@ class Progress extends StatelessWidget {
     required String this.figure,
     required String this.caption,
   }) : _form = _Form.bar,
+       segments = null,
        thin = false,
        label = null;
 
@@ -31,12 +33,14 @@ class Progress extends StatelessWidget {
     required String this.figure,
     required String this.caption,
   }) : _form = _Form.ring,
+       segments = null,
        thin = false,
        label = null;
 
   /// The ring while its value loads: a shimmering 136px circle.
   const Progress.ringLoading({super.key})
     : _form = _Form.ringLoading,
+      segments = null,
       value = 0,
       goal = null,
       figure = null,
@@ -53,8 +57,24 @@ class Progress extends StatelessWidget {
     this.goal,
     this.thin = false,
   }) : _form = _Form.track,
+       segments = null,
        figure = null,
        caption = null,
+       label = null;
+
+  /// The bare 6px bar cut into [segments] (a program's weeks), 4px apart,
+  /// filled in accent to [value], from 0 to 1 of the whole: the segments
+  /// before it full, the one it ends in partly.
+  const Progress.segmented({
+    super.key,
+    required this.value,
+    required int this.segments,
+  }) : assert(segments > 0),
+       _form = _Form.segmented,
+       goal = null,
+       figure = null,
+       caption = null,
+       thin = false,
        label = null;
 
   /// A 3px line, full width, an ink-muted runner crossing its track again
@@ -62,6 +82,7 @@ class Progress extends StatelessWidget {
   /// hear [label] ("Saving").
   const Progress.indeterminate({super.key, required String this.label})
     : _form = _Form.indeterminate,
+      segments = null,
       value = 0,
       goal = null,
       figure = null,
@@ -74,6 +95,7 @@ class Progress extends StatelessWidget {
   final String? caption;
   final bool thin;
   final String? label;
+  final int? segments;
   final _Form _form;
 
   static const _barHeight = 6.0;
@@ -95,6 +117,23 @@ class Progress extends StatelessWidget {
       return Semantics(
         label: label,
         child: RunnerLine(color: colors.inkMuted),
+      );
+    }
+    if (segments case final segments?) {
+      final filled = value.clamp(0.0, 1.0) * segments;
+      return Row(
+        spacing: Gap.xs,
+        children: [
+          for (var i = 0; i < segments; i++)
+            Expanded(
+              child: _Track(
+                share: (filled - i).clamp(0.0, 1.0),
+                height: _barHeight,
+                track: colors.surfaceSunken,
+                fill: colors.accent,
+              ),
+            ),
+        ],
       );
     }
     final fill = _reached ? colors.success : colors.accent;
@@ -170,7 +209,7 @@ class Progress extends StatelessWidget {
   }
 }
 
-enum _Form { bar, ring, ringLoading, track, indeterminate }
+enum _Form { bar, ring, ringLoading, track, segmented, indeterminate }
 
 class _Track extends StatelessWidget {
   const _Track({
