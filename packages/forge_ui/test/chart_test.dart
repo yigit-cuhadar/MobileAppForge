@@ -221,10 +221,12 @@ void main() {
       return Offset(box.left + box.width * (i + 0.5) / 30, box.bottom - 2);
     }
 
-    testWidgets('a tap shows nothing; today in accent, the rest at 55%', (
-      tester,
-    ) async {
+    testWidgets('today in accent, the rest at 55%; a tap shows a bar\'s '
+        'tag until the next tap', (tester) async {
       await pump(tester, dense());
+      await tester.tapAt(barAt(tester, 10));
+      await tester.pump();
+      expect(find.text('[VALUE] · Day 10'), findsOneWidget);
       await tester.tapAt(barAt(tester, 10));
       await tester.pump();
       expect(find.textContaining('[VALUE] ·'), findsNothing);
@@ -327,6 +329,63 @@ void main() {
       await gesture.up();
       await tester.pump();
       expect(find.text('6,200 · Tue'), findsNothing);
+    });
+
+    testWidgets('a tap shows the tooltip until a tap on the bar again, '
+        'another bar or outside the chart', (tester) async {
+      await pump(
+        tester,
+        Column(
+          children: [
+            week(),
+            const SizedBox(height: 800, child: Text('Below')),
+          ],
+        ),
+      );
+      final chart = tester.getRect(find.bySemanticsLabel('Count this week'));
+      Offset bar(int i) =>
+          Offset(chart.left + chart.width * (i + 0.5) / 3, chart.top + 100);
+
+      await tester.tapAt(bar(0));
+      await tester.pump();
+      expect(find.text('8,200 · Mon'), findsOneWidget);
+      // It stays after the finger is up.
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('8,200 · Mon'), findsOneWidget);
+
+      await tester.tapAt(bar(1));
+      await tester.pump();
+      expect(find.text('8,200 · Mon'), findsNothing);
+      expect(find.text('6,200 · Tue'), findsOneWidget);
+
+      await tester.tapAt(bar(1));
+      await tester.pump();
+      expect(find.text('6,200 · Tue'), findsNothing);
+
+      await tester.tapAt(bar(0));
+      await tester.pump();
+      await tester.tapAt(Offset(chart.center.dx, chart.bottom + 40));
+      await tester.pump();
+      expect(find.text('8,200 · Mon'), findsNothing);
+
+      // An empty bar has nothing to show.
+      await tester.tapAt(bar(2));
+      await tester.pump();
+      expect(find.text('8,200 · Mon'), findsNothing);
+      expect(find.text('6,200 · Tue'), findsNothing);
+
+      // The page still scrolls over the chart.
+      await tester.tapAt(bar(0));
+      await tester.pump();
+      await tester.drag(
+        find.bySemanticsLabel('Count this week'),
+        const Offset(0, -200),
+      );
+      await tester.pump();
+      expect(
+        tester.getRect(find.bySemanticsLabel('Count this week')).top,
+        lessThan(chart.top),
+      );
     });
 
     testWidgets('screen readers hear each bar\'s tooltip, or its label and '

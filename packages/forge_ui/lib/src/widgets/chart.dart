@@ -39,7 +39,8 @@ class ChartBar {
 /// point, or bars with their values. A goal is a dashed success line.
 /// Pressing and holding a bar darkens it, fades the others and shows its
 /// [ChartBar.tooltip] in a dark tag above it; dragging moves the tag from
-/// bar to bar, and letting go hides it.
+/// bar to bar, and letting go hides it. A tap on a bar shows the same until
+/// a tap on it again or anywhere else.
 class Chart extends StatelessWidget {
   /// A 2px accent line with a dot per point, no grid, [startLabel] and
   /// [endLabel] under its ends. A tap rings the nearest point and shows its
@@ -864,14 +865,26 @@ class _DenseBarChartState extends State<_DenseBarChart>
 }
 
 /// Press-and-hold on a bar chart: the held bar's index while a finger is
-/// down, moving with it from bar to bar.
+/// down, moving with it from bar to bar; or the tapped bar's, until the
+/// next tap.
 mixin _Held<T extends StatefulWidget> on State<T> {
   int? _held;
+
+  /// A finger holds a bar, rather than a tap showing its tag.
+  bool _pressed = false;
 
   List<ChartBar> get _bars;
 
   /// The other bars while one is held: their colour at a quarter.
   Color _faded(Color color) => color.withValues(alpha: color.a * 0.25);
+
+  /// A tap shows [index]'s tag, or hides it when it shows already.
+  void _tap(int index) {
+    final bars = _bars;
+    if (bars.isEmpty) return;
+    final tapped = index.clamp(0, bars.length - 1);
+    _hold(tapped == _held ? null : tapped);
+  }
 
   void _hold(int? index) {
     final bars = _bars;
@@ -893,16 +906,32 @@ mixin _Held<T extends StatefulWidget> on State<T> {
     }
   }
 
-  /// [chart] taking the hold; [indexAt] finds the bar under an x.
-  Widget _holdable(int Function(double x) indexAt, Widget chart) =>
-      GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onLongPressStart: (d) => _hold(indexAt(d.localPosition.dx)),
-        onLongPressMoveUpdate: (d) => _hold(indexAt(d.localPosition.dx)),
-        onLongPressEnd: (_) => _hold(null),
-        onLongPressCancel: () => _hold(null),
-        child: chart,
-      );
+  /// [chart] taking the hold and taps; [indexAt] finds the bar under an
+  /// x. A tap outside the chart hides a tapped bar's tag.
+  Widget _holdable(int Function(double x) indexAt, Widget chart) => TapRegion(
+    onTapOutside: (_) => _hold(null),
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (d) => _tap(indexAt(d.localPosition.dx)),
+      onLongPressStart: (d) {
+        _pressed = true;
+        _hold(indexAt(d.localPosition.dx));
+      },
+      onLongPressMoveUpdate: (d) => _hold(indexAt(d.localPosition.dx)),
+      onLongPressEnd: (_) => _release(),
+      // A tap cancels the long press that never started too; only a held
+      // bar lets go.
+      onLongPressCancel: () {
+        if (_pressed) _release();
+      },
+      child: chart,
+    ),
+  );
+
+  void _release() {
+    _pressed = false;
+    _hold(null);
+  }
 
   /// The chart named for screen readers, with one node per bar that reads
   /// what holding it shows.
