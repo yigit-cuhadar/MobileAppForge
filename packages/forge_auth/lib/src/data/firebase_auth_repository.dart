@@ -125,12 +125,11 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<Result<void>> reauthenticateWithProvider(SocialProvider provider) =>
       guard(() => _reauthenticate(provider), mapper: _reauthError);
 
-  /// Apple's authorization code is single use, and the one FlutterFire's
-  /// provider flow hands back is refused by the revocation endpoint. So this
-  /// asks Apple natively for a fresh code and identity token, signs in again
-  /// with the token and revokes with the unused code.
+  /// Apple's authorization code is single use, so this asks Apple natively
+  /// for a fresh code and identity token, signs in again with the token and
+  /// hands back the unused code.
   @override
-  Future<Result<void>> revokeAppleSignIn() => guard(() async {
+  Future<Result<String>> reauthenticateWithAppleCode() => guard(() async {
     final user = _linkedUser(SocialProvider.apple);
     final rawNonce = _nonce();
     final apple = await _requestAppleId(
@@ -145,7 +144,7 @@ class FirebaseAuthRepository implements AuthRepository {
       OAuthProvider(AppleAuthProvider.PROVIDER_ID)
           .credential(idToken: idToken, rawNonce: rawNonce),
     );
-    await _auth.revokeTokenWithAuthorizationCode(apple.authorizationCode);
+    return apple.authorizationCode;
   }, mapper: _reauthError);
 
   static String _nonce() {

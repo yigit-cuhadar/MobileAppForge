@@ -312,7 +312,7 @@ void main() {
     });
   });
 
-  group('revokeAppleSignIn', () {
+  group('reauthenticateWithAppleCode', () {
     late List<String?> nonces;
     late Object? appleError;
 
@@ -342,13 +342,14 @@ void main() {
       when(() => user.providerData).thenReturn(providers);
       when(() => user.reauthenticateWithCredential(any()))
           .thenAnswer((_) async => credentialFor(user));
-      when(() => auth.revokeTokenWithAuthorizationCode(any()))
-          .thenAnswer((_) async {});
     });
 
-    test('signs in again with a native Apple token and revokes with its '
-        'fresh code', () async {
-      expect((await repository.revokeAppleSignIn()).isOk, isTrue);
+    test('signs in again with a native Apple token and returns its fresh '
+        'code', () async {
+      expect(
+        (await repository.reauthenticateWithAppleCode()).valueOrNull,
+        'fresh-code',
+      );
 
       final credential =
           verify(() => user.reauthenticateWithCredential(captureAny()))
@@ -359,8 +360,6 @@ void main() {
       expect(credential.idToken, 'id-token');
       final rawNonce = credential.rawNonce!;
       expect(nonces.single, sha256.convert(utf8.encode(rawNonce)).toString());
-      verify(() => auth.revokeTokenWithAuthorizationCode('fresh-code'))
-          .called(1);
       verifyNever(() => user.reauthenticateWithProvider(any()));
     });
 
@@ -368,24 +367,22 @@ void main() {
       final providers = [provider('google.com')];
       when(() => user.providerData).thenReturn(providers);
       expect(
-        (await repository.revokeAppleSignIn()).failureOrNull,
+        (await repository.reauthenticateWithAppleCode()).failureOrNull,
         isA<AuthFailure>().having((f) => f.code, 'code', notLinkedCode),
       );
       expect(nonces, isEmpty);
-      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
     });
 
-    test('a closed Apple sheet is cancelled, revoking nothing', () async {
+    test('a closed Apple sheet is cancelled, signing in nothing', () async {
       appleError = const SignInWithAppleAuthorizationException(
         code: AuthorizationErrorCode.canceled,
         message: 'canceled',
       );
       expect(
-        (await repository.revokeAppleSignIn()).failureOrNull,
+        (await repository.reauthenticateWithAppleCode()).failureOrNull,
         isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode),
       );
       verifyNever(() => user.reauthenticateWithCredential(any()));
-      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
     });
 
     test('another Apple error is a failure, not a cancel', () async {
@@ -393,31 +390,21 @@ void main() {
         code: AuthorizationErrorCode.failed,
         message: 'failed',
       );
-      final failure = (await repository.revokeAppleSignIn()).failureOrNull;
+      final failure =
+          (await repository.reauthenticateWithAppleCode()).failureOrNull;
       expect(failure, isNotNull);
       expect(
         failure,
         isNot(isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode)),
       );
-      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
     });
 
-    test('a failed sign-in revokes nothing', () async {
+    test('a failed sign-in keeps Firebase\'s code', () async {
       when(() => user.reauthenticateWithCredential(any()))
           .thenThrow(FirebaseAuthException(code: 'user-mismatch'));
       expect(
-        (await repository.revokeAppleSignIn()).failureOrNull,
+        (await repository.reauthenticateWithAppleCode()).failureOrNull,
         isA<AuthFailure>().having((f) => f.code, 'code', 'user-mismatch'),
-      );
-      verifyNever(() => auth.revokeTokenWithAuthorizationCode(any()));
-    });
-
-    test('a failed revocation is a failure', () async {
-      when(() => auth.revokeTokenWithAuthorizationCode(any()))
-          .thenThrow(FirebaseAuthException(code: 'invalid-credential'));
-      expect(
-        (await repository.revokeAppleSignIn()).failureOrNull,
-        isA<AuthFailure>().having((f) => f.code, 'code', 'invalid-credential'),
       );
     });
   });
