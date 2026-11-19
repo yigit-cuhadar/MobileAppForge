@@ -428,13 +428,21 @@ class _StepperFieldState extends State<StepperField> {
           child: Row(
             children: [
               if (widget.nextLabel case final next?)
-                Flexible(child: action(next, widget.onNext, FontWeight.w500)),
+                Flexible(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: action(next, widget.onNext, FontWeight.w500),
+                  ),
+                ),
               const Spacer(),
               Flexible(
-                child: action(
-                  widget.doneLabel!,
-                  _focus.unfocus,
-                  FontWeight.w600,
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: action(
+                    widget.doneLabel!,
+                    _focus.unfocus,
+                    FontWeight.w600,
+                  ),
                 ),
               ),
             ],

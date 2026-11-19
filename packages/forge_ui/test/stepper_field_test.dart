@@ -428,6 +428,22 @@ void main() {
       expect(weight.hasFocus, isTrue);
     });
 
+    testWidgets('Next sits at the bar\'s start and Done at its end', (
+      tester,
+    ) async {
+      await pumpRow(tester);
+      await tester.tap(find.text('100'));
+      await tester.pump();
+
+      final bar = tester.getRect(
+        find
+            .ancestor(of: find.text('Done'), matching: find.byType(Container))
+            .first,
+      );
+      expect(tester.getTopLeft(find.text('Next')).dx, bar.left + Gap.md);
+      expect(tester.getTopRight(find.text('Done')).dx, bar.right - Gap.md);
+    });
+
     testWidgets('one tap on the next value moves the typing there and '
         'keeps what was typed', (tester) async {
       await pumpRow(tester, bar: false);
