@@ -143,3 +143,21 @@ Widget choiceListInfo(BuildContext context) => ListView(
     ),
   ],
 );
+
+@widgetbook.UseCase(name: 'List, tagged row', type: ChoiceGrid)
+Widget choiceListTagged(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: [
+    _LiveList(
+      form: _formKnob(context),
+      options: const [
+        ChoiceOption(label: 'Option one'),
+        ChoiceOption(
+          label: 'Option two',
+          tag: ForgeTag('[TAG]', kind: ForgeTagKind.record),
+        ),
+        ChoiceOption(label: 'Option three'),
+      ],
+    ),
+  ],
+);

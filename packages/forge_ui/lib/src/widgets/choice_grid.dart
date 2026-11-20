@@ -8,6 +8,7 @@ import '../theme/forge_style.dart';
 import 'card_frame.dart';
 import 'forge_button.dart';
 import 'forge_icon_button.dart';
+import 'forge_tag.dart';
 import 'radio_mark.dart';
 
 /// One answer of a [ChoiceGrid].
@@ -15,6 +16,7 @@ class ChoiceOption {
   const ChoiceOption({
     required this.label,
     this.hint,
+    this.tag,
     this.enabled = true,
     this.onInfo,
     this.infoLabel,
@@ -27,6 +29,9 @@ class ChoiceOption {
 
   /// Without a hint the row shows its label alone, vertically centred.
   final String? hint;
+
+  /// A tag right after the label, such as the option the app recommends.
+  final ForgeTag? tag;
 
   /// A disabled row fades to 40%, takes no taps and reads as disabled.
   final bool enabled;
@@ -192,7 +197,7 @@ class _ChoiceRowState extends State<_ChoiceRow> {
     final text = Theme.of(context).textTheme;
     final selected = widget.selected;
     final radius = BorderRadius.circular(style.radii.md);
-    final label = Text(
+    final labelText = Text(
       widget.option.label,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -200,6 +205,16 @@ class _ChoiceRowState extends State<_ChoiceRow> {
         color: selected ? colors.onAccentSoft : colors.ink,
       ),
     );
+    final tag = widget.option.tag;
+    final label = tag == null
+        ? labelText
+        // The tag moves under the label when they do not fit side by side.
+        : Wrap(
+            spacing: Gap.sm,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [labelText, tag],
+          );
     final hintText = widget.option.hint;
     Widget hint(String hint, TextStyle role) => Text(
       hint,
