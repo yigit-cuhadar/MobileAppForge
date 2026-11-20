@@ -39,6 +39,7 @@ void main() {
     when(() => user.email).thenReturn('a@b.co');
     when(() => user.displayName).thenReturn(null);
     when(() => user.isAnonymous).thenReturn(false);
+    when(() => user.emailVerified).thenReturn(false);
     when(() => user.providerData).thenReturn([]);
     repository = FirebaseAuthRepository(auth);
   });
@@ -106,6 +107,7 @@ void main() {
     when(() => guest.email).thenReturn(null);
     when(() => guest.displayName).thenReturn(null);
     when(() => guest.isAnonymous).thenReturn(true);
+    when(() => guest.emailVerified).thenReturn(false);
     when(() => guest.providerData).thenReturn([]);
     when(() => auth.signInAnonymously())
         .thenAnswer((_) async => credentialFor(guest));
@@ -202,6 +204,80 @@ void main() {
       SignInMethod.google,
       SignInMethod.email,
       SignInMethod.apple,
+    });
+  });
+
+  group('email verification', () {
+    test('an email-only user needs it until verified', () {
+      final password = [provider('password')];
+      when(() => user.providerData).thenReturn(password);
+      when(() => auth.currentUser).thenReturn(user);
+      expect(repository.currentUser?.needsEmailVerification, isTrue);
+
+      when(() => user.emailVerified).thenReturn(true);
+      expect(repository.currentUser?.needsEmailVerification, isFalse);
+    });
+
+    test('Google or Apple next to email counts as verified', () {
+      for (final other in ['google.com', 'apple.com']) {
+        final providers = [provider('password'), provider(other)];
+        when(() => user.providerData).thenReturn(providers);
+        when(() => auth.currentUser).thenReturn(user);
+        expect(repository.currentUser?.needsEmailVerification, isFalse);
+      }
+    });
+
+    test('a guest or a provider-only user does not need it', () {
+      when(() => auth.currentUser).thenReturn(user);
+      final google = [provider('google.com')];
+      when(() => user.providerData).thenReturn(google);
+      expect(repository.currentUser?.needsEmailVerification, isFalse);
+
+      when(() => user.isAnonymous).thenReturn(true);
+      when(() => user.providerData).thenReturn([]);
+      expect(repository.currentUser?.needsEmailVerification, isFalse);
+    });
+
+    test('sendEmailVerification mails the signed-in user', () async {
+      when(() => auth.currentUser).thenReturn(user);
+      when(user.sendEmailVerification).thenAnswer((_) async {});
+
+      expect((await repository.sendEmailVerification()).isOk, isTrue);
+      verify(user.sendEmailVerification).called(1);
+    });
+
+    test('sendEmailVerification keeps Firebase\'s code', () async {
+      when(() => auth.currentUser).thenReturn(user);
+      when(user.sendEmailVerification)
+          .thenThrow(FirebaseAuthException(code: 'too-many-requests'));
+
+      final result = await repository.sendEmailVerification();
+
+      expect(
+        result.failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'too-many-requests'),
+      );
+    });
+
+    test('reloadUser returns the user as Firebase now has it', () async {
+      when(() => auth.currentUser).thenReturn(user);
+      var verifiedNow = false;
+      when(() => user.emailVerified).thenAnswer((_) => verifiedNow);
+      when(user.reload).thenAnswer((_) async => verifiedNow = true);
+
+      final result = await repository.reloadUser();
+
+      expect(result.valueOrNull?.emailVerified, isTrue);
+    });
+
+    test('both fail with nobody signed in', () async {
+      when(() => auth.currentUser).thenReturn(null);
+
+      expect(
+        (await repository.sendEmailVerification()).failureOrNull,
+        isA<AuthFailure>(),
+      );
+      expect((await repository.reloadUser()).failureOrNull, isA<AuthFailure>());
     });
   });
 

@@ -94,6 +94,16 @@ class FirebaseAuthRepository implements AuthRepository {
   );
 
   @override
+  Future<Result<void>> sendEmailVerification() =>
+      guard(() => _signedIn.sendEmailVerification(), mapper: mapFirebaseError);
+
+  @override
+  Future<Result<AuthUser>> reloadUser() => guard(() async {
+    await _signedIn.reload();
+    return _toUser(_auth.currentUser)!;
+  }, mapper: mapFirebaseError);
+
+  @override
   Future<Result<void>> signOut() =>
       guard(_auth.signOut, mapper: mapFirebaseError);
 
@@ -203,6 +213,9 @@ class FirebaseAuthRepository implements AuthRepository {
         SocialProvider.apple => AppleAuthProvider(),
       };
 
+  User get _signedIn =>
+      _auth.currentUser ?? (throw const AuthFailure('nobody signed in'));
+
   User? get _guest {
     final user = _auth.currentUser;
     return user != null && user.isAnonymous ? user : null;
@@ -222,6 +235,7 @@ class FirebaseAuthRepository implements AuthRepository {
           email: user.email,
           displayName: user.displayName,
           isAnonymous: user.isAnonymous,
+          emailVerified: user.emailVerified,
           signInMethods: {
             for (final info in user.providerData) ?_methods[info.providerId],
           },

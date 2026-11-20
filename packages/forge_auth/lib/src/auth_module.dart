@@ -7,6 +7,7 @@ import 'domain/auth_repository.dart';
 import 'domain/auth_usecases.dart';
 import 'presentation/auth_cubit.dart';
 import 'presentation/auth_form_cubit.dart';
+import 'presentation/email_verification_cubit.dart';
 
 /// Registers the auth feature. Call after Firebase is initialized.
 ///
@@ -30,6 +31,8 @@ class AuthModule implements FeatureModule {
       ..registerFactory(() => SignUpWithEmail(sl()))
       ..registerFactory(() => SignInWithProvider(sl()))
       ..registerFactory(() => SendPasswordReset(sl()))
+      ..registerFactory(() => SendEmailVerification(sl()))
+      ..registerFactory(() => ReloadUser(sl()))
       ..registerFactory(() => SignOut(sl()))
       ..registerFactory(() => DeleteAccount(sl()))
       ..registerFactory(() => Reauthenticate(sl()))
@@ -51,6 +54,13 @@ class AuthModule implements FeatureModule {
           sendPasswordReset: sl(),
           getCurrentUser: sl(),
           signInAnonymously: sl(),
+        ),
+      )
+      ..registerFactory(
+        () => EmailVerificationCubit(
+          reloadUser: sl(),
+          sendEmailVerification: sl(),
+          signOut: sl(),
         ),
       );
   }

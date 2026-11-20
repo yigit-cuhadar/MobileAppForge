@@ -44,6 +44,13 @@ abstract interface class AuthRepository {
   });
 
   Future<Result<void>> sendPasswordReset(String email);
+
+  /// Mails the signed-in user a link that verifies their address.
+  Future<Result<void>> sendEmailVerification();
+
+  /// Fetches the signed-in user again, so a verification made in the mail
+  /// app shows; [watchUser] emits the result too.
+  Future<Result<AuthUser>> reloadUser();
   Future<Result<void>> signOut();
 
   /// Deletes the signed-in user. Fails with [AuthFailure] code
