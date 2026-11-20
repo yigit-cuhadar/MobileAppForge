@@ -16,18 +16,21 @@ class ReviewPromptCubit extends Cubit<ReviewPromptState> {
   final ReachReviewMoment _reachMoment;
   final RequestStoreReview _requestStoreReview;
 
-  /// Counts moment [id] and asks when the rules say so; see
-  /// [ReviewMomentParams]. A failure only means not asking.
+  /// Counts event [id] and asks when the rules say so; see [ReviewEvent].
+  /// A failure only means not asking.
   Future<void> moment({
     required String id,
     required bool highlight,
     required bool canAsk,
-  }) async {
-    final ask = await _reachMoment((
-      id: id,
-      highlight: highlight,
-      canAsk: canAsk,
-    ));
+  }) => _reach(ReviewEvent(id: id, highlight: highlight, canAsk: canAsk));
+
+  /// Counts today as a day the app was opened on, and asks when the rules
+  /// say so.
+  Future<void> opened({required bool canAsk}) =>
+      _reach(ReviewAppOpened(canAsk: canAsk));
+
+  Future<void> _reach(ReviewMoment moment) async {
+    final ask = await _reachMoment(moment);
     if (isClosed) return;
     if (ask.valueOrNull ?? false) emit(ReviewPromptState.ask);
   }

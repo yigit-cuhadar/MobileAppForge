@@ -2,17 +2,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_review/forge_review.dart';
 
 void main() {
-  const rules = ReviewRules(firstAfter: 3, cooldown: Duration(days: 30));
+  const rules = ReviewRules(
+    firstAfterEvents: 2,
+    firstAfterDays: 3,
+    cooldown: Duration(days: 30),
+  );
   final now = DateTime(2026, 11, 20, 12);
 
   bool due(ReviewHistory history, {bool highlight = false, String v = '1.1'}) =>
       rules.due(history, highlight: highlight, version: v, now: now);
 
   group('the first ask', () {
-    test('comes once the third moment was counted, highlight or not', () {
-      expect(due(const ReviewHistory(events: 2)), isFalse);
+    test('comes once the second event was counted, highlight or not', () {
+      expect(due(const ReviewHistory(events: 1)), isFalse);
+      expect(due(const ReviewHistory(events: 2)), isTrue);
       expect(due(const ReviewHistory(events: 3)), isTrue);
-      expect(due(const ReviewHistory(events: 4)), isTrue);
+    });
+
+    test('or once the app was opened on the third day, if sooner', () {
+      expect(due(const ReviewHistory(events: 1, openDays: 2)), isFalse);
+      expect(due(const ReviewHistory(openDays: 3)), isTrue);
     });
   });
 
@@ -20,6 +29,7 @@ void main() {
     ReviewHistory askedDaysAgo(int days, {String version = '1.0'}) =>
         ReviewHistory(
           events: 9,
+          openDays: 40,
           askedAt: now.subtract(Duration(days: days)),
           askedVersion: version,
         );

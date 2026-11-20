@@ -1,9 +1,10 @@
 /// Asks happy users for a store review and sends unhappy ones to the app's
 /// feedback form.
 ///
-/// Register `ReviewModule(rules: ReviewRules(...))`. At each moment the app
-/// may ask (such as a finished workout), provide `sl<ReviewPromptCubit>()`,
-/// call `moment(...)`, and when its state turns to `ask`, show
+/// Register `ReviewModule(rules: ReviewRules(...))`. Where the app may ask,
+/// provide `sl<ReviewPromptCubit>()` and call `moment(...)` at an event
+/// (such as a finished workout) or `opened(...)` when the app is opened,
+/// and when its state turns to `ask`, show
 /// `showReviewPrompt` with the app's strings: on `liked` call `rate()`,
 /// on `writeToUs` open the app's feedback form. The history lives on the
 /// device, so a reinstall starts it again.

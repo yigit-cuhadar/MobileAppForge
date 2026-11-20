@@ -5,15 +5,23 @@ class ReviewHistory extends Equatable {
   const ReviewHistory({
     this.events = 0,
     this.lastEventId,
+    this.openDays = 0,
+    this.lastOpenDay,
     this.askedAt,
     this.askedVersion,
   });
 
-  /// The moments counted so far, such as finished workouts.
+  /// The events counted so far, such as finished workouts.
   final int events;
 
-  /// The last moment counted, so the same one never counts twice.
+  /// The last event counted, so the same one never counts twice.
   final String? lastEventId;
+
+  /// The different local calendar days the app was opened on.
+  final int openDays;
+
+  /// The last of them, at local midnight.
+  final DateTime? lastOpenDay;
 
   /// When the app last asked; null before the first time.
   final DateTime? askedAt;
@@ -24,26 +32,43 @@ class ReviewHistory extends Equatable {
   ReviewHistory copyWith({
     int? events,
     String? lastEventId,
+    int? openDays,
+    DateTime? lastOpenDay,
     DateTime? askedAt,
     String? askedVersion,
   }) => ReviewHistory(
     events: events ?? this.events,
     lastEventId: lastEventId ?? this.lastEventId,
+    openDays: openDays ?? this.openDays,
+    lastOpenDay: lastOpenDay ?? this.lastOpenDay,
     askedAt: askedAt ?? this.askedAt,
     askedVersion: askedVersion ?? this.askedVersion,
   );
 
   @override
-  List<Object?> get props => [events, lastEventId, askedAt, askedVersion];
+  List<Object?> get props => [
+    events,
+    lastEventId,
+    openDays,
+    lastOpenDay,
+    askedAt,
+    askedVersion,
+  ];
 }
 
-/// When the app asks: first at any moment once [firstAfter] moments were
-/// counted, later only at a highlight moment at least [cooldown] after the
-/// last ask, and never twice in one app version.
+/// When the app asks: first at any moment once [firstAfterEvents] events
+/// were counted or the app was opened on [firstAfterDays] different days,
+/// whichever comes first; later only at a highlight moment at least
+/// [cooldown] after the last ask; never twice in one app version.
 class ReviewRules {
-  const ReviewRules({required this.firstAfter, required this.cooldown});
+  const ReviewRules({
+    required this.firstAfterEvents,
+    required this.firstAfterDays,
+    required this.cooldown,
+  });
 
-  final int firstAfter;
+  final int firstAfterEvents;
+  final int firstAfterDays;
   final Duration cooldown;
 
   /// Whether a moment, a [highlight] or not, asks now, after [history], in
@@ -56,7 +81,10 @@ class ReviewRules {
   }) {
     if (history.askedVersion == version) return false;
     final askedAt = history.askedAt;
-    if (askedAt == null) return history.events >= firstAfter;
+    if (askedAt == null) {
+      return history.events >= firstAfterEvents ||
+          history.openDays >= firstAfterDays;
+    }
     return highlight && !now.isBefore(askedAt.add(cooldown));
   }
 }
