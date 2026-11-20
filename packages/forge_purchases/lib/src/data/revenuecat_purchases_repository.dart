@@ -176,7 +176,11 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
         'No current offering with monthly, yearly or lifetime packages',
       );
     }
-    return Offering(plans, metadata: current?.metadata ?? const {});
+    return Offering(
+      plans,
+      metadata: current?.metadata ?? const {},
+      id: current?.identifier,
+    );
   }
 
   /// Google Play lists only offers the user is eligible for; the App Store

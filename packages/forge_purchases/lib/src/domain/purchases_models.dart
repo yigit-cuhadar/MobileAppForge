@@ -103,14 +103,18 @@ class Plan extends Equatable {
 /// The plans to show on a paywall, in display order, with the offering's
 /// [metadata]: the store setup's own keys (RevenueCat's offering metadata),
 /// which the app reads, e.g. to pick a paywall without an app update.
+/// [id] is the store setup's identifier of the offering (RevenueCat's
+/// offering identifier), e.g. to tell in analytics which one was shown;
+/// null where the store has none.
 class Offering extends Equatable {
-  const Offering(this.plans, {this.metadata = const {}});
+  const Offering(this.plans, {this.metadata = const {}, this.id});
 
   final List<Plan> plans;
   final Map<String, Object?> metadata;
+  final String? id;
 
   @override
-  List<Object?> get props => [plans, metadata];
+  List<Object?> get props => [plans, metadata, id];
 }
 
 enum PurchaseStore { appStore, playStore, promotional, test, other }
