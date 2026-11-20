@@ -360,4 +360,57 @@ void main() {
       expect(logged, isEmpty);
     });
   });
+
+  group('while collection was off', () {
+    /// Calls to Analytics that only count while it collects, as they came.
+    late List<String> sent;
+
+    setUp(() {
+      sent = [];
+      when(() => analytics.setAnalyticsCollectionEnabled(any()))
+          .thenAnswer((call) async {
+            collecting = call.positionalArguments.first as bool;
+            sent.add('collect $collecting');
+          });
+      when(() => analytics.setUserId(id: any(named: 'id')))
+          .thenAnswer((call) async {
+            analyticsId = call.namedArguments[#id] as String?;
+            sent.add('id $analyticsId');
+          });
+      when(
+        () => analytics.setUserProperty(
+          name: any(named: 'name'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((call) async {
+        sent.add(
+          '${call.namedArguments[#name]} ${call.namedArguments[#value]}',
+        );
+      });
+    });
+
+    test('the id and the properties are sent once it starts', () async {
+      final subject = telemetry(collectUnanswered: true);
+      await subject.follow('u1');
+      await subject.setUserProperty('level', 'beginner');
+      await subject.setUserProperty('goal', null);
+      sent.clear();
+
+      await subject.apply('u1', null);
+
+      expect(sent, ['collect true', 'id u1', 'level beginner', 'goal null']);
+    });
+
+    test('a forgotten user leaves no properties behind', () async {
+      final subject = await answered('u1', true);
+      await subject.setUserProperty('level', 'beginner');
+      await subject.forget('u1');
+      await subject.follow('u2');
+      sent.clear();
+
+      await subject.apply('u2', true);
+
+      expect(sent, ['collect true', 'id u2']);
+    });
+  });
 }
