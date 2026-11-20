@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' as rc;
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../domain/purchases_models.dart';
 import '../domain/purchases_repository.dart';
@@ -19,6 +20,9 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
 
   /// Packages of the last loaded offering by product id; purchases need them.
   final _packages = <String, rc.Package>{};
+
+  /// The win-back offers of those packages the user is eligible for.
+  final _winBacks = <String, rc.WinBackOffer>{};
 
   @override
   Future<Result<void>> configure() => _guard(() async {
@@ -62,6 +66,7 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
       rc.PurchaseParams.package(
         package,
         productChangeInfo: productChangeFor(_channel.latest, plan),
+        winBackOffer: plan.winBack == null ? null : _winBacks[plan.id],
       ),
     );
     return _publish(result.customerInfo);
@@ -77,6 +82,12 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
     return url == null ? storeSubscriptionsUrl() : Uri.parse(url);
   });
 
+  @override
+  Future<Result<bool>> presentCustomerCenter() => _guard(() async {
+    await RevenueCatUI.presentCustomerCenter();
+    return true;
+  });
+
   Future<Result<Entitlement>> _switchUser(
     Future<rc.CustomerInfo> Function() body,
   ) {
@@ -90,14 +101,22 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
     final current = (await rc.Purchases.getOfferings()).current;
     final packages = current?.availablePackages ?? const <rc.Package>[];
     final eligible = await _introEligibleProducts(packages);
+    final winBacks = await _eligibleWinBacks(packages);
     final plans = <Plan>[];
     _packages.clear();
+    _winBacks.clear();
     for (final package in packages) {
       final id = package.storeProduct.identifier;
-      final plan = planFrom(package, introEligible: eligible(id));
+      final winBack = winBacks[id];
+      final plan = planFrom(
+        package,
+        introEligible: eligible(id),
+        winBack: winBack,
+      );
       if (plan == null) continue;
       plans.add(plan);
       _packages[id] = package;
+      if (plan.winBack != null) _winBacks[id] = winBack!;
     }
     if (plans.isEmpty) {
       throw const PurchaseFailure(
@@ -128,6 +147,30 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
     return (id) =>
         eligibility[id]?.status ==
         rc.IntroEligibilityStatus.introEligibilityStatusEligible;
+  }
+
+  /// The first win-back offer of each subscription the user is eligible
+  /// for. Apple's only, from iOS 18; elsewhere, or when the store cannot
+  /// tell, there are none.
+  Future<Map<String, rc.WinBackOffer>> _eligibleWinBacks(
+    List<rc.Package> packages,
+  ) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return const {};
+    final offers = <String, rc.WinBackOffer>{};
+    await Future.wait([
+      for (final package in packages)
+        if (package.storeProduct.subscriptionPeriod != null)
+          rc.Purchases.getEligibleWinBackOffersForPackage(package).then(
+            (eligible) {
+              if (eligible.isNotEmpty) {
+                offers[package.storeProduct.identifier] = eligible.first;
+              }
+            },
+            // Before iOS 18 the SDK refuses; the paywall goes on without.
+            onError: (_) {},
+          ),
+    ]);
+    return offers;
   }
 
   Entitlement _publish(rc.CustomerInfo info) =>

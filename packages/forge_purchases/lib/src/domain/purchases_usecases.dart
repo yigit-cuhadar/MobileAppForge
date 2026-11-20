@@ -80,3 +80,12 @@ class GetManagementUrl implements UseCase<Uri, NoParams> {
   Future<Result<Uri>> call([NoParams params = const NoParams()]) =>
       _repository.managementUrl();
 }
+
+class PresentCustomerCenter implements UseCase<bool, NoParams> {
+  const PresentCustomerCenter(this._repository);
+  final PurchasesRepository _repository;
+
+  @override
+  Future<Result<bool>> call([NoParams params = const NoParams()]) =>
+      _repository.presentCustomerCenter();
+}

@@ -16,7 +16,8 @@ class OfferPeriod extends Equatable {
   List<Object?> get props => [count, unit];
 }
 
-/// A paid introductory price, e.g. [price] per [period] for [cycles] periods.
+/// A paid offer price, e.g. [price] per [period] for [cycles] periods: an
+/// introductory price, or a [WinBackOffer]'s discount.
 class IntroOffer extends Equatable {
   const IntroOffer({
     required this.price,
@@ -33,6 +34,23 @@ class IntroOffer extends Equatable {
   List<Object?> get props => [price, period, cycles];
 }
 
+/// The store's offer to a lapsed subscriber (Apple's win-back offer):
+/// either [free] for a while or a paid [discount]. Purchasing the plan that
+/// carries it applies it.
+class WinBackOffer extends Equatable {
+  const WinBackOffer.free(this.id, OfferPeriod this.free) : discount = null;
+
+  const WinBackOffer.discount(this.id, IntroOffer this.discount) : free = null;
+
+  /// The store's offer id.
+  final String id;
+  final OfferPeriod? free;
+  final IntroOffer? discount;
+
+  @override
+  List<Object?> get props => [id, free, discount];
+}
+
 /// One purchasable plan.
 class Plan extends Equatable {
   const Plan({
@@ -43,6 +61,7 @@ class Plan extends Equatable {
     required this.currencyCode,
     this.trial,
     this.intro,
+    this.winBack,
   });
 
   /// Store product id as RevenueCat reports it: `productId` on the App
@@ -64,6 +83,10 @@ class Plan extends Equatable {
   /// Paid introductory price; only present when the user is eligible.
   final IntroOffer? intro;
 
+  /// Only present when the user is eligible; it then takes the place of
+  /// [trial] and [intro], which a lapsed subscriber does not get.
+  final WinBackOffer? winBack;
+
   @override
   List<Object?> get props => [
     id,
@@ -73,6 +96,7 @@ class Plan extends Equatable {
     currencyCode,
     trial,
     intro,
+    winBack,
   ];
 }
 

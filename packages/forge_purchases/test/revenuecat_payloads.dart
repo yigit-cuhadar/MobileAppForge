@@ -73,6 +73,17 @@ const playSevenDayTrial = {
   'periodNumberOfUnits': 7,
 };
 
+/// An App Store win-back offer: one month free.
+const appStoreMonthFreeWinBack = {
+  'identifier': 'winback_1m_free',
+  'price': 0.0,
+  'priceString': '€0.00',
+  'cycles': 1,
+  'period': 'P1M',
+  'periodUnit': 'MONTH',
+  'periodNumberOfUnits': 1,
+};
+
 Map<String, Object?> packageJson({
   required String productId,
   String packageType = 'ANNUAL',

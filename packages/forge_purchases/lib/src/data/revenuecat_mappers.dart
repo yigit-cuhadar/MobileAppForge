@@ -30,8 +30,13 @@ Entitlement entitlementFrom(rc.CustomerInfo info, String entitlementId) {
 }
 
 /// Null for packages that are not monthly, yearly or lifetime. Without
-/// [introEligible] the plan carries no trial or intro offer.
-Plan? planFrom(rc.Package package, {required bool introEligible}) {
+/// [introEligible] the plan carries no trial or intro offer; a [winBack]
+/// the user is eligible for replaces them.
+Plan? planFrom(
+  rc.Package package, {
+  required bool introEligible,
+  rc.WinBackOffer? winBack,
+}) {
   final product = package.storeProduct;
   final period = switch (package.packageType) {
     rc.PackageType.monthly => PlanPeriod.monthly,
@@ -44,7 +49,10 @@ Plan? planFrom(rc.Package package, {required bool introEligible}) {
     },
   };
   if (period == null) return null;
-  final intro = introEligible ? product.introductoryPrice : null;
+  final offer = winBack == null ? null : _winBackFrom(winBack);
+  final intro = introEligible && offer == null
+      ? product.introductoryPrice
+      : null;
   final unit = intro == null ? null : _unitFrom(intro.periodUnit);
   final isFree = intro != null && intro.price == 0;
   return Plan(
@@ -63,7 +71,34 @@ Plan? planFrom(rc.Package package, {required bool introEligible}) {
             cycles: intro.cycles,
           )
         : null,
+    winBack: offer,
   );
+}
+
+/// Null for a period unit the SDK does not know.
+WinBackOffer? _winBackFrom(rc.WinBackOffer offer) {
+  final unit = switch (offer.periodUnit) {
+    'DAY' => PeriodUnit.day,
+    'WEEK' => PeriodUnit.week,
+    'MONTH' => PeriodUnit.month,
+    'YEAR' => PeriodUnit.year,
+    _ => null,
+  };
+  if (unit == null) return null;
+  final period = OfferPeriod(offer.periodNumberOfUnits, unit);
+  return offer.price == 0
+      ? WinBackOffer.free(
+          offer.identifier,
+          OfferPeriod(period.count * offer.cycles, unit),
+        )
+      : WinBackOffer.discount(
+          offer.identifier,
+          IntroOffer(
+            price: offer.priceString,
+            period: period,
+            cycles: offer.cycles,
+          ),
+        );
 }
 
 PeriodUnit? _unitFrom(rc.PeriodUnit unit) => switch (unit) {

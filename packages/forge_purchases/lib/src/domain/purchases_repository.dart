@@ -26,10 +26,12 @@ abstract interface class PurchasesRepository {
   Future<Result<Entitlement>> refresh();
 
   /// Never empty: no plans is a [PurchaseFailureReason.productNotAvailable].
-  /// Trials and intro offers appear only when the user is eligible.
+  /// Trials, intro and win-back offers appear only when the user is
+  /// eligible.
   Future<Result<Offering>> offering();
 
-  /// Resolves to the entitlement after the purchase.
+  /// Resolves to the entitlement after the purchase, with the plan's
+  /// win-back offer applied when it carries one.
   Future<Result<Entitlement>> purchase(Plan plan);
 
   /// Moves the store account's purchases to the current user.
@@ -37,4 +39,11 @@ abstract interface class PurchasesRepository {
 
   /// The platform's manage-subscription page, for the app to open.
   Future<Result<Uri>> managementUrl();
+
+  /// Presents the store setup's own subscription management (RevenueCat's
+  /// Customer Center, with the retention offers configured there) and
+  /// completes when it closes. False, showing nothing, where there is none
+  /// (the fake): open [managementUrl] instead. Entitlement changes made
+  /// there arrive through [watchEntitlement].
+  Future<Result<bool>> presentCustomerCenter();
 }

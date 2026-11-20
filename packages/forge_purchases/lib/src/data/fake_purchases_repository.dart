@@ -10,8 +10,9 @@ import 'entitlement_channel.dart';
 /// exists. Simulates one device with one store account: its subscription
 /// belongs to the user who bought or last restored it (buying it again as
 /// another user transfers it, like RevenueCat's default), a user is offered
-/// trials until their first subscription, as on the App Store, and renewals
-/// and expiry follow the clock. State lives for the process.
+/// trials until their first subscription, as on the App Store, plans' win-back
+/// offers once their subscription has ended (instead of any trial), and
+/// renewals and expiry follow the clock. State lives for the process.
 class FakePurchasesRepository implements PurchasesRepository {
   /// [cachedUserId] is the user the SDK would resume on a cold start.
   FakePurchasesRepository({
@@ -73,9 +74,15 @@ class FakePurchasesRepository implements PurchasesRepository {
     if (_plans.isEmpty) {
       throw const PurchaseFailure(PurchaseFailureReason.productNotAvailable);
     }
+    final lapsed = _lapsed;
     final eligible = !_trialUsers.contains(_user);
     return Offering([
-      for (final plan in _plans) eligible ? plan : _withoutOffers(plan),
+      for (final plan in _plans)
+        lapsed && plan.winBack != null
+            ? _withoutOffers(plan, winBack: plan.winBack)
+            : eligible
+            ? _withoutOffers(plan, trial: plan.trial, intro: plan.intro)
+            : _withoutOffers(plan),
     ], metadata: metadata);
   });
 
@@ -96,7 +103,7 @@ class FakePurchasesRepository implements PurchasesRepository {
       current.owner = _user!;
       return _publish();
     }
-    _start(plan, _user!);
+    _start(plan, _user!, winBack: plan.winBack != null && _lapsed);
     return _publish();
   });
 
@@ -110,6 +117,9 @@ class FakePurchasesRepository implements PurchasesRepository {
 
   @override
   Future<Result<Uri>> managementUrl() async => Ok(storeSubscriptionsUrl());
+
+  @override
+  Future<Result<bool>> presentCustomerCenter() async => const Ok(false);
 
   /// Completes the last pending purchase, as an approved Ask to Buy would.
   void approvePending() {
@@ -126,6 +136,21 @@ class FakePurchasesRepository implements PurchasesRepository {
     _publish();
   }
 
+  /// Simulates the subscription running out now, as if auto-renew had been
+  /// off; its owner is then offered the plans' win-back offers.
+  void lapse() {
+    _subscription?.lapse();
+    _publish();
+  }
+
+  /// Whether the current user's subscription has ended.
+  bool get _lapsed {
+    final subscription = _subscription;
+    return subscription != null &&
+        subscription.owner == _user &&
+        !subscription.isActive;
+  }
+
   static const _anonymousPrefix = r'$anonymous:';
 
   String _newAnonymousUser() => '$_anonymousPrefix${_anonymousCount++}';
@@ -139,14 +164,21 @@ class FakePurchasesRepository implements PurchasesRepository {
     });
   }
 
-  void _start(Plan plan, String owner) {
+  /// With [winBack] the configured plan's free win-back period replaces the
+  /// trial.
+  void _start(Plan plan, String owner, {bool winBack = false}) {
     final configured = _plans.firstWhere(
       (p) => p.id == plan.id,
       orElse: () => throw const PurchaseFailure(
         PurchaseFailureReason.productNotAvailable,
       ),
     );
-    final trial = _trialUsers.add(owner) ? configured.trial : null;
+    final firstTime = _trialUsers.add(owner);
+    final trial = winBack
+        ? configured.winBack?.free
+        : firstTime
+        ? configured.trial
+        : null;
     _subscription = _Subscription(
       plan: configured,
       owner: owner,
@@ -170,12 +202,21 @@ void _throw(Failure? failure) {
   if (failure != null) throw failure;
 }
 
-Plan _withoutOffers(Plan plan) => Plan(
+/// [plan] with only the offers given.
+Plan _withoutOffers(
+  Plan plan, {
+  OfferPeriod? trial,
+  IntroOffer? intro,
+  WinBackOffer? winBack,
+}) => Plan(
   id: plan.id,
   period: plan.period,
   price: plan.price,
   priceAmount: plan.priceAmount,
   currencyCode: plan.currencyCode,
+  trial: trial,
+  intro: intro,
+  winBack: winBack,
 );
 
 class _Subscription {
@@ -192,6 +233,9 @@ class _Subscription {
   final Plan plan;
   String owner;
   bool willRenew = true;
+
+  /// When [lapse] ended it early.
+  DateTime? _lapsedAt;
   final DateTime Function() _clock;
   final DateTime? _trialEnd;
 
@@ -214,10 +258,17 @@ class _Subscription {
   /// Null for lifetime. Renews every period that has passed.
   DateTime? get periodEnd {
     if (_isLifetime) return null;
+    if (_lapsedAt case final lapsedAt?) return lapsedAt;
     while (willRenew && !_clock().isBefore(_currentEnd)) {
       _paidPeriods++;
     }
     return _currentEnd;
+  }
+
+  void lapse() {
+    if (_isLifetime) return;
+    willRenew = false;
+    _lapsedAt = _clock();
   }
 
   bool get isActive {

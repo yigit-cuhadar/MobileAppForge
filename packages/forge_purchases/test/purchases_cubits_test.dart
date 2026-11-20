@@ -41,6 +41,7 @@ void main() {
       reset: ResetPurchaser(repository),
       refresh: RefreshEntitlement(repository),
       getManagementUrl: GetManagementUrl(repository),
+      presentCustomerCenter: PresentCustomerCenter(repository),
       clock: clock,
     );
 

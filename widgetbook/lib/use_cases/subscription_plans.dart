@@ -9,50 +9,108 @@ const _monthlyTerms =
     'Renews at [MONTHLY PRICE] a month. Cancel anytime in your store '
     'settings.';
 
-/// The plans as the app words them for each layout.
-List<SubscriptionPlan> _plans(SubscriptionLayout layout) => switch (layout) {
-  SubscriptionLayout.rows => const [
-    SubscriptionPlan(
-      name: 'Yearly',
-      price: '[YEARLY PRICE] / year',
-      terms: _yearlyTerms,
-      tag: 'Best value',
-    ),
-    SubscriptionPlan(
-      name: 'Monthly',
-      price: '[MONTHLY PRICE] / month',
-      terms: _monthlyTerms,
-    ),
-  ],
-  SubscriptionLayout.tiles => const [
-    SubscriptionPlan(
-      name: 'Yearly',
-      price: '[YEARLY PRICE]',
-      terms: _yearlyTerms,
-      detail: '7 days free',
-    ),
-    SubscriptionPlan(
-      name: 'Monthly',
-      price: '[MONTHLY PRICE]',
-      terms: _monthlyTerms,
-      detail: 'billed monthly',
-    ),
-  ],
-  SubscriptionLayout.single => const [
-    SubscriptionPlan(
-      name: 'Yearly · 7 days free',
-      price: '[YEARLY PRICE] / year',
-      terms: _yearlyTerms,
-      detail: 'That is [MONTHLY EQUIVALENT] a month.',
-    ),
-    SubscriptionPlan(
-      name: 'Monthly',
-      price: '[MONTHLY PRICE] / month',
-      terms: _monthlyTerms,
-      detail: 'Billed monthly.',
-    ),
-  ],
-};
+const _winBack = 'Welcome back · [OFFER] free';
+
+/// The plans as the app words them for each layout; [winBack] for a lapsed
+/// subscriber the store offers [OFFER] free on every plan.
+List<SubscriptionPlan> _plans(
+  SubscriptionLayout layout, {
+  bool winBack = false,
+}) => winBack
+    ? _winBackPlans(layout)
+    : switch (layout) {
+        SubscriptionLayout.rows => const [
+          SubscriptionPlan(
+            name: 'Yearly',
+            price: '[YEARLY PRICE] / year',
+            terms: _yearlyTerms,
+            tag: 'Best value',
+          ),
+          SubscriptionPlan(
+            name: 'Monthly',
+            price: '[MONTHLY PRICE] / month',
+            terms: _monthlyTerms,
+          ),
+        ],
+        SubscriptionLayout.tiles => const [
+          SubscriptionPlan(
+            name: 'Yearly',
+            price: '[YEARLY PRICE]',
+            terms: _yearlyTerms,
+            detail: '7 days free',
+          ),
+          SubscriptionPlan(
+            name: 'Monthly',
+            price: '[MONTHLY PRICE]',
+            terms: _monthlyTerms,
+            detail: 'billed monthly',
+          ),
+        ],
+        SubscriptionLayout.single => const [
+          SubscriptionPlan(
+            name: 'Yearly · 7 days free',
+            price: '[YEARLY PRICE] / year',
+            terms: _yearlyTerms,
+            detail: 'That is [MONTHLY EQUIVALENT] a month.',
+          ),
+          SubscriptionPlan(
+            name: 'Monthly',
+            price: '[MONTHLY PRICE] / month',
+            terms: _monthlyTerms,
+            detail: 'Billed monthly.',
+          ),
+        ],
+      };
+
+List<SubscriptionPlan> _winBackPlans(SubscriptionLayout layout) =>
+    switch (layout) {
+      SubscriptionLayout.rows => const [
+        SubscriptionPlan(
+          name: 'Yearly',
+          price: '[OFFER] free, then [YEARLY PRICE] / year',
+          terms: _yearlyTerms,
+          tag: 'Best value',
+          offer: _winBack,
+        ),
+        SubscriptionPlan(
+          name: 'Monthly',
+          price: '[OFFER] free, then [MONTHLY PRICE] / month',
+          terms: _monthlyTerms,
+          offer: _winBack,
+        ),
+      ],
+      SubscriptionLayout.tiles => const [
+        SubscriptionPlan(
+          name: 'Yearly',
+          price: '[YEARLY PRICE]',
+          terms: _yearlyTerms,
+          detail: '[OFFER] free',
+          offer: _winBack,
+        ),
+        SubscriptionPlan(
+          name: 'Monthly',
+          price: '[MONTHLY PRICE]',
+          terms: _monthlyTerms,
+          detail: '[OFFER] free',
+          offer: _winBack,
+        ),
+      ],
+      SubscriptionLayout.single => const [
+        SubscriptionPlan(
+          name: 'Yearly · [OFFER] free',
+          price: '[YEARLY PRICE] / year',
+          terms: _yearlyTerms,
+          detail: 'That is [MONTHLY EQUIVALENT] a month.',
+          offer: _winBack,
+        ),
+        SubscriptionPlan(
+          name: 'Monthly · [OFFER] free',
+          price: '[MONTHLY PRICE] / month',
+          terms: _monthlyTerms,
+          offer: _winBack,
+        ),
+      ],
+    };
 
 SubscriptionPlans _paywall(
   BuildContext context, {
@@ -65,6 +123,7 @@ SubscriptionPlans _paywall(
   String? restoring,
   SubscriptionMessage? message,
   bool closable = true,
+  bool winBack = false,
 }) {
   final single = layout == SubscriptionLayout.single;
   return SubscriptionPlans(
@@ -77,7 +136,7 @@ SubscriptionPlans _paywall(
       '[PREMIUM FEATURE FOUR]',
     ],
     layout: layout,
-    plans: loading || noPlans ? const [] : _plans(layout),
+    plans: loading || noPlans ? const [] : _plans(layout, winBack: winBack),
     selected: selected,
     onSelected: (_) {},
     purchaseLabel: purchaseLabel,
@@ -137,6 +196,15 @@ Widget noTrialPaywall(BuildContext context) => _paywall(
   layout: SubscriptionLayout.rows,
   selected: 1,
   purchaseLabel: 'Subscribe',
+);
+
+/// A lapsed subscriber the store offers a win-back: a tag on every plan.
+@widgetbook.UseCase(name: 'Win-back offer', type: SubscriptionPlans)
+Widget winBackPaywall(BuildContext context) => _paywall(
+  context,
+  layout: _layout(context),
+  winBack: true,
+  purchaseLabel: 'Start free [OFFER PERIOD]',
 );
 
 @widgetbook.UseCase(name: 'Loading', type: SubscriptionPlans)

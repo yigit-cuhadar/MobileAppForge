@@ -10,8 +10,9 @@
 /// `Plan.period`, never by hard-coded ids. The fake's ids are free.
 /// Wire the app's session to `EntitlementCubit`: `identify(uid)` when signed
 /// in, `reset()` when signed out, at startup and on every change; the state
-/// stays unknown until then. Open `EntitlementCubit.managementUrl()` for
-/// "Manage subscription".
+/// stays unknown until then. For "Manage subscription", present
+/// `EntitlementCubit.presentCustomerCenter()` (RevenueCat's Customer Center)
+/// or open `EntitlementCubit.managementUrl()` where it gives false.
 ///
 /// **RevenueCat setup.** One project, one entitlement attached to every
 /// product, products in a "current" offering as Monthly/Annual/Lifetime
@@ -21,6 +22,12 @@
 ///   App Store Server Notifications pointed at RevenueCat. For simulator runs
 ///   without App Store Connect, a StoreKit Configuration file selected in the
 ///   Run scheme. Prefer Swift Package Manager (the SDK is leaving CocoaPods).
+///   Win-back offers (iOS 18+) are created in App Store Connect once the
+///   subscription is approved; the paywall shows them as `Plan.winBack`.
+/// - Customer Center (RevenueCat Pro plan, free below its revenue threshold):
+///   enabled and themed under Project settings › Customer Center; its
+///   retention offers map each product to a store promotional offer id
+///   (Lifecycle › Retention), so the offers must exist in the store first.
 /// - Android: the `com.android.vending.BILLING` permission comes from the
 ///   Play Billing manifest merge (check it is in the merged manifest);
 ///   `MainActivity` launchMode `standard` or `singleTop`, or purchases

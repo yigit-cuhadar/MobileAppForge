@@ -35,6 +35,7 @@ class SubscriptionPlan {
     required this.terms,
     this.detail,
     this.tag,
+    this.offer,
   });
 
   /// "Yearly"; in the single layout the muted line over the price
@@ -54,6 +55,10 @@ class SubscriptionPlan {
 
   /// A record tag at the end of a row ("Best value"); rows only.
   final String? tag;
+
+  /// An offer this user gets, as a record tag under the plan's lines in
+  /// every layout ("Welcome back · 1 month free").
+  final String? offer;
 }
 
 enum _MessageKind { failed, unavailable, pending }
@@ -526,6 +531,7 @@ class _PlanBox extends StatelessWidget {
     );
     final detail = plan.detail;
     final tag = plan.tag;
+    final offer = plan.offer;
     return MergeSemantics(
       child: Semantics(
         button: onTap != null,
@@ -565,6 +571,8 @@ class _PlanBox extends StatelessWidget {
                             color: colors.inkMuted,
                           ),
                         ),
+                      if (offer != null)
+                        ForgeTag(offer, kind: ForgeTagKind.record),
                     ],
                   )
                 : Row(
@@ -578,6 +586,10 @@ class _PlanBox extends StatelessWidget {
                           children: [
                             Text(plan.name, style: text.titleMedium),
                             price,
+                            if (offer != null) ...[
+                              const SizedBox(height: Gap.xs),
+                              ForgeTag(offer, kind: ForgeTagKind.record),
+                            ],
                           ],
                         ),
                       ),
@@ -612,6 +624,7 @@ class _SinglePlan extends StatelessWidget {
     final colors = style.colors;
     final text = Theme.of(context).textTheme;
     final detail = plan.detail;
+    final offer = plan.offer;
     return Container(
       padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
@@ -632,6 +645,7 @@ class _SinglePlan extends StatelessWidget {
           ),
           Text(plan.price, style: style.dataLg.copyWith(color: colors.ink)),
           if (detail != null) Text(detail, style: text.bodySmall),
+          if (offer != null) ForgeTag(offer, kind: ForgeTagKind.record),
         ],
       ),
     );

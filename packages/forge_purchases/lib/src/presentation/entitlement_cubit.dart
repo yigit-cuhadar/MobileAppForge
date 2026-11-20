@@ -43,6 +43,7 @@ class EntitlementCubit extends Cubit<EntitlementState> {
     required this._reset,
     required this._refresh,
     required this._getManagementUrl,
+    required this._presentCustomerCenter,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now,
        super(const EntitlementUnknown()) {
@@ -54,6 +55,7 @@ class EntitlementCubit extends Cubit<EntitlementState> {
   final ResetPurchaser _reset;
   final RefreshEntitlement _refresh;
   final GetManagementUrl _getManagementUrl;
+  final PresentCustomerCenter _presentCustomerCenter;
   final DateTime Function() _clock;
   late final StreamSubscription<Entitlement> _subscription;
   Timer? _expiryTimer;
@@ -78,6 +80,11 @@ class EntitlementCubit extends Cubit<EntitlementState> {
 
   /// The platform's manage-subscription page, for the app to open.
   Future<Result<Uri>> managementUrl() => _getManagementUrl();
+
+  /// The store setup's subscription management (RevenueCat's Customer
+  /// Center), completing when it closes; false, showing nothing, where
+  /// there is none: open [managementUrl] then.
+  Future<Result<bool>> presentCustomerCenter() => _presentCustomerCenter();
 
   Future<Result<void>> _switchUser(
     String? userId,

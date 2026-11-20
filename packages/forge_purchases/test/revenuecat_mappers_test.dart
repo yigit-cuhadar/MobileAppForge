@@ -12,8 +12,15 @@ Entitlement entitlementOf(Map<String, Object?> entitlement) => entitlementFrom(
   'premium',
 );
 
-Plan? planOf(Map<String, Object?> package, {bool introEligible = true}) =>
-    planFrom(rc.Package.fromJson(package), introEligible: introEligible);
+Plan? planOf(
+  Map<String, Object?> package, {
+  bool introEligible = true,
+  Map<String, Object?>? winBack,
+}) => planFrom(
+  rc.Package.fromJson(package),
+  introEligible: introEligible,
+  winBack: winBack == null ? null : rc.WinBackOffer.fromJson(winBack),
+);
 
 void main() {
   group('entitlementFrom', () {
@@ -119,6 +126,45 @@ void main() {
       )!;
       expect(plan.trial, isNull);
       expect(plan.intro, isNull);
+    });
+
+    test('a free win-back offer replaces the trial', () {
+      final plan = planOf(
+        packageJson(productId: 'pro_yearly', introPrice: appStoreWeekTrial),
+        winBack: appStoreMonthFreeWinBack,
+      )!;
+      expect(
+        plan.winBack,
+        const WinBackOffer.free(
+          'winback_1m_free',
+          OfferPeriod(1, PeriodUnit.month),
+        ),
+      );
+      expect(plan.trial, isNull);
+      expect(plan.intro, isNull);
+    });
+
+    test('maps a paid win-back offer as a discount', () {
+      final plan = planOf(
+        packageJson(productId: 'pro_yearly'),
+        winBack: {
+          ...appStoreMonthFreeWinBack,
+          'price': 0.99,
+          'priceString': '€0.99',
+          'cycles': 3,
+        },
+      )!;
+      expect(
+        plan.winBack,
+        const WinBackOffer.discount(
+          'winback_1m_free',
+          IntroOffer(
+            price: '€0.99',
+            period: OfferPeriod(1, PeriodUnit.month),
+            cycles: 3,
+          ),
+        ),
+      );
     });
 
     test('maps a paid intro offer', () {
