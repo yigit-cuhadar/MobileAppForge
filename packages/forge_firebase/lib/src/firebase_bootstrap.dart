@@ -25,8 +25,9 @@ import 'firebase_telemetry.dart';
 /// `firebase_analytics_collection_enabled` and
 /// `firebase_crashlytics_collection_enabled` into AndroidManifest.xml) until
 /// the main entry point calls [FirebaseTelemetry.restore] and the app
-/// applies answers through the returned [Telemetry]. It only ever collects
-/// in release builds of the prod environment, so development never
+/// applies answers through the returned [Telemetry]. Development builds
+/// collect into the dev environment's project, so events can be checked
+/// there; prod collects only from release builds, so development never
 /// pollutes production data. [collectUnanswered] is whether a user who
 /// never answered is collected for (opt-out) or not (opt-in).
 ///
@@ -57,7 +58,7 @@ Future<FirebaseTelemetry> initFirebase({
       crashlytics.recordError(error, stack, reason: reason);
 
   return FirebaseTelemetry(
-    allowed: env.isProd && kReleaseMode,
+    allowed: !env.isProd || kReleaseMode,
     collectUnanswered: collectUnanswered,
     directory: getApplicationSupportDirectory,
     analytics: FirebaseAnalytics.instance,
