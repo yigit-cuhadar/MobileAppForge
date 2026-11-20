@@ -41,6 +41,14 @@ class FirebaseTelemetry implements Telemetry {
   /// The user properties last set, sent again whenever collection turns on:
   /// Analytics drops what is set while it does not collect.
   final _properties = <String, String?>{};
+
+  /// Events and screens logged while the followed user's answer is not
+  /// known yet (a new install, a user change): sent once it says collect,
+  /// dropped once it says no. Analytics would drop them, and a new user's
+  /// first screens are the start of every funnel. At most [_maxHeld].
+  final _held = <Future<void> Function()>[];
+  bool _holding = false;
+  static const _maxHeld = 100;
   Future<void> _tail = Future.value();
   int _latest = 0;
 
@@ -53,7 +61,9 @@ class FirebaseTelemetry implements Telemetry {
   Future<void> restore(String? uid) async {
     _uid = uid;
     try {
-      await _setCollection(uid != null && await _collects(uid) == true);
+      final collects = uid == null ? false : await _collects(uid);
+      _holding = uid != null && collects == null;
+      await _setCollection(collects == true);
     } catch (error, stack) {
       Log.e('FirebaseTelemetry', 'consent not restored', error, stack);
       await guard(() => _setCollection(false));
@@ -66,6 +76,8 @@ class FirebaseTelemetry implements Telemetry {
     // Set now, so an answer in flight for the previous user stops.
     _uid = uid;
     ++_latest;
+    _drop();
+    _holding = uid != null;
     return _run(() => _setCollection(false));
   }
 
@@ -77,6 +89,7 @@ class FirebaseTelemetry implements Telemetry {
     return _run(() async {
       if (!current()) return;
       if (!(consent ?? _collectUnanswered)) {
+        _drop();
         await _setCollection(false);
         return _save(uid, consent);
       }
@@ -91,6 +104,11 @@ class FirebaseTelemetry implements Telemetry {
       // Overtaken while turning on: the change that did it runs next and
       // turns collection off again; the yes is not saved.
       if (!current()) return;
+      if (_allowed) {
+        await _flush();
+      } else {
+        _drop();
+      }
       await _save(uid, consent);
     });
   }
@@ -98,6 +116,7 @@ class FirebaseTelemetry implements Telemetry {
   @override
   Future<Result<void>> forget(String uid) {
     ++_latest;
+    _drop();
     return _run(() async {
       await _setCollection(false);
       await _save(uid, false);
@@ -112,6 +131,7 @@ class FirebaseTelemetry implements Telemetry {
     String name, [
     Map<String, Object> parameters = const {},
   ]) async {
+    if (_hold(() => logEvent(name, parameters))) return;
     try {
       await _analytics.logEvent(name: name, parameters: parameters);
     } catch (error) {
@@ -121,6 +141,7 @@ class FirebaseTelemetry implements Telemetry {
 
   @override
   Future<void> logScreen(String name) async {
+    if (_hold(() => logScreen(name))) return;
     try {
       await _analytics.logScreenView(screenName: name);
     } catch (error) {
@@ -135,6 +156,29 @@ class FirebaseTelemetry implements Telemetry {
       await _analytics.setUserProperty(name: name, value: value);
     } catch (error) {
       Log.d('FirebaseTelemetry', 'user property $name not set: $error');
+    }
+  }
+
+  /// Keeps [send] for later while the answer is not known; false when it
+  /// should go now.
+  bool _hold(Future<void> Function() send) {
+    if (!_holding) return false;
+    if (_held.length < _maxHeld) _held.add(send);
+    return true;
+  }
+
+  /// Stops holding and drops what was held.
+  void _drop() {
+    _holding = false;
+    _held.clear();
+  }
+
+  /// Stops holding and sends what was held, in order.
+  Future<void> _flush() async {
+    final held = List.of(_held);
+    _drop();
+    for (final log in held) {
+      await log();
     }
   }
 

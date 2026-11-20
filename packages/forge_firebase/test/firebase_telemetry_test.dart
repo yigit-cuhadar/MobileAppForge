@@ -413,4 +413,71 @@ void main() {
       expect(sent, ['collect true', 'id u2']);
     });
   });
+
+  group('before the answer is known', () {
+    late List<String> logged;
+
+    setUp(() {
+      logged = [];
+      when(
+        () => analytics.logEvent(
+          name: any(named: 'name'),
+          parameters: any(named: 'parameters'),
+        ),
+      ).thenAnswer((call) async {
+        logged.add(call.namedArguments[#name] as String);
+      });
+      when(() => analytics.logScreenView(screenName: any(named: 'screenName')))
+          .thenAnswer((call) async {
+            logged.add('screen ${call.namedArguments[#screenName]}');
+          });
+    });
+
+    test('events are held and sent, in order, once it says collect', () async {
+      final subject = telemetry(collectUnanswered: true);
+      await subject.restore('u1');
+      await subject.logScreen('onboarding_welcome');
+      await subject.logEvent('onboarding_start');
+      expect(logged, isEmpty);
+
+      await subject.apply('u1', null);
+
+      expect(logged, ['screen onboarding_welcome', 'onboarding_start']);
+      await subject.logEvent('onboarding_step');
+      expect(logged.last, 'onboarding_step');
+    });
+
+    test('held events are dropped once it says no', () async {
+      final subject = telemetry(collectUnanswered: true);
+      await subject.follow('u1');
+      await subject.logEvent('onboarding_start');
+
+      await subject.apply('u1', false);
+      await subject.logEvent('later');
+
+      expect(logged, ['later']);
+    });
+
+    test('a user change drops what the previous user held', () async {
+      final subject = telemetry(collectUnanswered: true);
+      await subject.follow('u1');
+      await subject.logEvent('of_u1');
+      await subject.follow('u2');
+      await subject.logEvent('of_u2');
+
+      await subject.apply('u2', true);
+
+      expect(logged, ['of_u2']);
+    });
+
+    test('a user whose answer is saved here is not held', () async {
+      await answered('u1', true);
+      final subject = telemetry();
+      await subject.restore('u1');
+
+      await subject.logEvent('now');
+
+      expect(logged, ['now']);
+    });
+  });
 }
