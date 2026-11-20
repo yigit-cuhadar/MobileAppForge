@@ -79,4 +79,10 @@ void main() {
     repository.failure = null;
     expect((await repository.initialize()).isOk, isTrue);
   });
+
+  test('refresh returns the failure, like initialize', () async {
+    expect((await repository.refresh({'layout'})).isOk, isTrue);
+    repository.failure = const NetworkFailure();
+    expect((await repository.refresh({'layout'})).isOk, isFalse);
+  });
 }

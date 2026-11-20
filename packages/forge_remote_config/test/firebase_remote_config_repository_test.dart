@@ -62,6 +62,12 @@ void main() {
       await fetch.future;
       fetched = {...server};
     });
+    when(() => config.fetchAndActivate()).thenAnswer((_) async {
+      await fetch.future;
+      fetched = {...server};
+      active = {...fetched};
+      return true;
+    });
     when(() => config.getValue(any())).thenAnswer((call) {
       final raw = active[call.positionalArguments.single as String];
       return raw == null ? unknown : remote(raw);
@@ -129,6 +135,52 @@ void main() {
 
       expect(result.failureOrNull, isA<UnknownFailure>());
       verify(() => config.fetch()).called(1);
+    });
+  });
+
+  group('refresh', () {
+    test('the refreshed keys read the server at once, the others keep '
+        "the session's values", () async {
+      server.addAll({'layout': 'b', 'count': '7'});
+      await repository.initialize();
+
+      final result = await repository.refresh({'count'});
+
+      expect(result.isOk, isTrue);
+      expect(repository.getInt('count'), 7);
+      expect(repository.getString('layout'), 'a');
+
+      server['count'] = '8';
+      await repository.refresh({});
+      expect(repository.getInt('count'), 8);
+      expect(repository.getString('layout'), 'a');
+    });
+
+    test('fetches whatever the minimum interval, then restores it', () async {
+      await repository.refresh({'count'});
+
+      final settings = verifyInOrder([
+        () => config.setConfigSettings(captureAny()),
+        () => config.fetchAndActivate(),
+        () => config.setConfigSettings(captureAny()),
+      ]).expand((call) => call.captured).cast<RemoteConfigSettings>();
+      expect(settings.first.minimumFetchInterval, Duration.zero);
+      expect(settings.last.minimumFetchInterval, const Duration(hours: 1));
+    });
+
+    test('a failed fetch is an Err and keeps every value', () async {
+      active = {'count': '7'};
+      fetch = Completer();
+      fetch.future.ignore();
+      fetch.completeError(
+        FirebaseException(plugin: 'firebase_remote_config', code: 'offline'),
+      );
+
+      final result = await repository.refresh({'count'});
+
+      expect(result.isOk, isFalse);
+      expect(repository.getInt('count'), 7);
+      verify(() => config.setConfigSettings(any())).called(2);
     });
   });
 
