@@ -33,6 +33,8 @@ class AuthModule implements FeatureModule {
       ..registerFactory(() => SendPasswordReset(sl()))
       ..registerFactory(() => SendEmailVerification(sl()))
       ..registerFactory(() => ReloadUser(sl()))
+      ..registerFactory(() => ChangeEmail(sl()))
+      ..registerFactory(() => GetVerificationSentAt(sl()))
       ..registerFactory(() => SignOut(sl()))
       ..registerFactory(() => DeleteAccount(sl()))
       ..registerFactory(() => Reauthenticate(sl()))
@@ -60,6 +62,8 @@ class AuthModule implements FeatureModule {
         () => EmailVerificationCubit(
           reloadUser: sl(),
           sendEmailVerification: sl(),
+          changeEmail: sl(),
+          getVerificationSentAt: sl(),
           signOut: sl(),
         ),
       );

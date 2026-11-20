@@ -24,7 +24,8 @@ abstract interface class AuthRepository {
 
   AuthUser? get currentUser;
 
-  /// Starts a guest session.
+  /// Starts a guest session; right after a confirmed [changeEmail], signs
+  /// in to the account again instead when it can.
   Future<Result<AuthUser>> signInAnonymously();
 
   /// Replaces the current session, including a guest one; the caller confirms
@@ -47,6 +48,19 @@ abstract interface class AuthRepository {
 
   /// Mails the signed-in user a link that verifies their address.
   Future<Result<void>> sendEmailVerification();
+
+  /// When this session last mailed a verification link
+  /// ([sendEmailVerification] or [changeEmail]); null when it has not.
+  DateTime? get verificationSentAt;
+
+  /// Mails a link to [email]; opening it makes [email] the signed-in
+  /// account's verified address (same account, same data). Firebase then
+  /// ends the session; with guest start, [signInAnonymously] signs in to
+  /// the new address again when this session knows the password. Fails
+  /// with Firebase's code: `invalid-email`, `email-already-in-use`, and
+  /// `requires-recent-login` when the sign-in is too old and this session
+  /// has no password to renew it with.
+  Future<Result<void>> changeEmail(String email);
 
   /// Fetches the signed-in user again, so a verification made in the mail
   /// app shows; [watchUser] emits the result too.

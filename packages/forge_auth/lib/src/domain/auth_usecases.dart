@@ -84,6 +84,22 @@ class SendEmailVerification implements UseCase<void, NoParams> {
       _repository.sendEmailVerification();
 }
 
+class ChangeEmail implements UseCase<void, String> {
+  const ChangeEmail(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<void>> call(String params) =>
+      _repository.changeEmail(params.trim());
+}
+
+class GetVerificationSentAt {
+  const GetVerificationSentAt(this._repository);
+  final AuthRepository _repository;
+
+  DateTime? call() => _repository.verificationSentAt;
+}
+
 class ReloadUser implements UseCase<AuthUser, NoParams> {
   const ReloadUser(this._repository);
   final AuthRepository _repository;

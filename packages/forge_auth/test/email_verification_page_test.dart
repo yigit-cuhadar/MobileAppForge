@@ -34,7 +34,8 @@ void main() {
     when(() => cubit.watch()).thenReturn(null);
     when(() => cubit.stopWatching()).thenReturn(null);
     when(() => cubit.resend()).thenAnswer((_) async {});
-    when(() => cubit.useAnotherAccount()).thenAnswer((_) async {});
+    when(() => cubit.signOut()).thenAnswer((_) async {});
+    when(() => cubit.changeEmail(any())).thenAnswer((_) async {});
     sl.registerFactory<EmailVerificationCubit>(() => cubit);
   });
 
@@ -117,12 +118,83 @@ void main() {
     expect(find.text(s.verificationFailed), findsOneWidget);
   });
 
-  testWidgets('the way out signs out', (tester) async {
-    await pump(tester);
+  group('Use another email', () {
+    Future<void> openSheet(WidgetTester tester) async {
+      await pump(tester);
+      await tester.tap(find.text(s.useAnotherAccount));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text(s.changeEmailTitle), findsOneWidget);
+      expect(find.text(s.changeEmailBody), findsOneWidget);
+    }
 
-    await tester.tap(find.text(s.useAnotherAccount));
+    Finder field() => find.byType(TextField);
 
-    verify(() => cubit.useAnotherAccount()).called(1);
+    testWidgets('checks the address before sending it', (tester) async {
+      await openSheet(tester);
+
+      await tester.enterText(field(), 'not-an-email');
+      await tester.tap(find.text(s.sendLink));
+      await tester.pump();
+
+      expect(find.text(s.invalidEmail), findsOneWidget);
+      verifyNever(() => cubit.changeEmail(any()));
+    });
+
+    testWidgets('Send link sends it; once sent the sheet closes and the '
+        'page names the new address', (tester) async {
+      await openSheet(tester);
+
+      await tester.enterText(field(), 'new@b.co');
+      await tester.tap(find.text(s.sendLink));
+      verify(() => cubit.changeEmail('new@b.co')).called(1);
+
+      await emit(
+        tester,
+        const EmailVerificationState(
+          status: EmailVerificationStatus.emailChangeSent,
+          pendingEmail: 'new@b.co',
+          resendIn: 60,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text(s.changeEmailTitle), findsNothing);
+      expect(find.text('new@b.co'), findsOneWidget);
+      expect(find.text('a@b.co'), findsNothing);
+      expect(find.text(s.emailSent), findsOneWidget);
+    });
+
+    testWidgets('a refused address shows why under the field', (tester) async {
+      await openSheet(tester);
+      await tester.enterText(field(), 'taken@b.co');
+      await tester.tap(find.text(s.sendLink));
+
+      const failure = AuthFailure('x', code: 'email-already-in-use');
+      await emit(
+        tester,
+        const EmailVerificationState(
+          status: EmailVerificationStatus.emailChangeFailed,
+          failure: failure,
+        ),
+      );
+
+      expect(find.text(s.errorFor(failure)), findsOneWidget);
+      expect(find.text(s.changeEmailTitle), findsOneWidget);
+    });
+
+    testWidgets('Sign out instead closes the sheet and signs out', (
+      tester,
+    ) async {
+      await openSheet(tester);
+
+      await tester.tap(find.text(s.signOutInstead));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      verify(() => cubit.signOut()).called(1);
+      expect(find.text(s.changeEmailTitle), findsNothing);
+    });
   });
 
   testWidgets('stops watching while hidden and starts again on return', (

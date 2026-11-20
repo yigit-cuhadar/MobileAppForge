@@ -43,6 +43,12 @@ class AuthStrings {
     this.resendIn = 'Resend in {seconds}s',
     this.emailSent = 'Email sent',
     this.useAnotherAccount = 'Use another email',
+    this.changeEmailTitle = 'Change email',
+    this.changeEmailBody =
+        'We will send a new link. Your data stays with this account.',
+    this.newEmail = 'New email',
+    this.sendLink = 'Send link',
+    this.signOutInstead = 'Sign out instead',
     this.verificationFailed = 'Something went wrong. Try again.',
     this.errorFor = defaultErrorFor,
   });
@@ -100,7 +106,14 @@ class AuthStrings {
   /// Resend while it waits, with `{seconds}` where the count goes.
   final String resendIn;
   final String emailSent;
+
+  /// Opens the change-email sheet.
   final String useAnotherAccount;
+  final String changeEmailTitle;
+  final String changeEmailBody;
+  final String newEmail;
+  final String sendLink;
+  final String signOutInstead;
 
   /// The verification page's snackbar for any failure.
   final String verificationFailed;
@@ -117,6 +130,7 @@ class AuthStrings {
       'email-already-in-use' => 'This email is already registered',
       'weak-password' => 'Password is too weak',
       'invalid-email' => 'Email address is not valid',
+      'requires-recent-login' => 'Sign in again to continue',
       _ => 'Could not sign in. Try again',
     },
     _ => 'Something went wrong. Try again',
