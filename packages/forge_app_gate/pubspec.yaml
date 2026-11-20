@@ -1,0 +1,30 @@
+name: forge_app_gate
+description: MobileAppForge shared package.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.1
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  forge_core:
+    path: ../forge_core
+  forge_remote_config:
+    path: ../forge_remote_config
+  forge_ui:
+    path: ../forge_ui
+  get_it: ^9.3.0
+  package_info_plus: ^10.2.2
+  path_provider: ^2.1.5
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  bloc_test: ^10.0.0
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.5

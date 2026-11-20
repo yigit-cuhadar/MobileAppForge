@@ -15,12 +15,16 @@ class FakeRemoteConfigRepository implements RemoteConfigRepository {
   /// (`values['paywall_layout'] = 'b'`) or typed like defaults.
   final values = <String, Object>{};
 
-  /// Returned by [initialize] until cleared, e.g. `NetworkFailure()`.
+  /// Returned by [initialize] and [refresh] until cleared, e.g.
+  /// `NetworkFailure()`.
   Failure? failure;
 
   @override
   Future<Result<void>> initialize() async =>
       failure == null ? const Ok(null) : Err(failure!);
+
+  @override
+  Future<Result<void>> refresh(Set<String> keys) => initialize();
 
   @override
   String getString(String key) => readString(_value(key));

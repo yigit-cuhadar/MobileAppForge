@@ -8,6 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  forge_app_gate:
+    path: ../packages/forge_app_gate
   forge_ui:
     path: ../packages/forge_ui
   widgetbook: ^3.25.0
