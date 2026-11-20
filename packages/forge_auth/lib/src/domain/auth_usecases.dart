@@ -38,13 +38,23 @@ class SignInWithEmail implements UseCase<AuthUser, EmailCredentials> {
       _repository.signInWithEmail(params.email.trim(), params.password);
 }
 
+/// Creates the account (or links the guest) and mails the verification
+/// link at once.
 class SignUpWithEmail implements UseCase<AuthUser, EmailCredentials> {
   const SignUpWithEmail(this._repository);
   final AuthRepository _repository;
 
   @override
-  Future<Result<AuthUser>> call(EmailCredentials params) =>
-      _repository.signUpWithEmail(params.email.trim(), params.password);
+  Future<Result<AuthUser>> call(EmailCredentials params) async {
+    final result = await _repository.signUpWithEmail(
+      params.email.trim(),
+      params.password,
+    );
+    // A failed send leaves the account as it is; the user resends it from
+    // the verification page.
+    if (result.isOk) await _repository.sendEmailVerification();
+    return result;
+  }
 }
 
 class SignInWithProvider implements UseCase<AuthUser, ProviderSignIn> {
@@ -63,6 +73,40 @@ class SendPasswordReset implements UseCase<void, String> {
   @override
   Future<Result<void>> call(String params) =>
       _repository.sendPasswordReset(params.trim());
+}
+
+class SendEmailVerification implements UseCase<void, NoParams> {
+  const SendEmailVerification(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<void>> call([NoParams params = const NoParams()]) =>
+      _repository.sendEmailVerification();
+}
+
+class ChangeEmail implements UseCase<void, String> {
+  const ChangeEmail(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<void>> call(String params) =>
+      _repository.changeEmail(params.trim());
+}
+
+class GetVerificationSentAt {
+  const GetVerificationSentAt(this._repository);
+  final AuthRepository _repository;
+
+  DateTime? call() => _repository.verificationSentAt;
+}
+
+class ReloadUser implements UseCase<AuthUser, NoParams> {
+  const ReloadUser(this._repository);
+  final AuthRepository _repository;
+
+  @override
+  Future<Result<AuthUser>> call([NoParams params = const NoParams()]) =>
+      _repository.reloadUser();
 }
 
 class SignOut implements UseCase<void, NoParams> {

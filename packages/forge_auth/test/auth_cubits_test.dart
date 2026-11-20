@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_auth/forge_auth.dart';
 import 'package:forge_core/forge_core.dart';
@@ -12,7 +13,11 @@ void main() {
   const user = AuthUser(id: 'u1', email: 'a@b.co');
   late MockAuthRepository repository;
 
-  setUp(() => repository = MockAuthRepository());
+  setUp(() {
+    repository = MockAuthRepository();
+    when(() => repository.sendEmailVerification())
+        .thenAnswer((_) async => const Ok(null));
+  });
 
   group('AuthCubit', () {
     late StreamController<AuthUser?> users;
@@ -156,6 +161,43 @@ void main() {
       expect: () => const [
         AuthFormState(status: AuthFormStatus.loading),
         AuthFormState(status: AuthFormStatus.failure, failure: failure),
+      ],
+    );
+
+    test(
+      'signUp mails the verification link once the account exists',
+      () async {
+        when(() => repository.signUpWithEmail('a@b.co', 'secret1'))
+            .thenAnswer((_) async => const Ok(user));
+
+        await build().signUp(' a@b.co ', 'secret1');
+
+        verify(() => repository.sendEmailVerification()).called(1);
+      },
+    );
+
+    test('a failed sign-up mails nothing', () async {
+      when(() => repository.signUpWithEmail(any(), any()))
+          .thenAnswer((_) async => const Err(failure));
+
+      await build().signUp('a@b.co', 'secret1');
+
+      verifyNever(() => repository.sendEmailVerification());
+    });
+
+    blocTest<AuthFormCubit, AuthFormState>(
+      'a verification email that fails to go out still signs up',
+      setUp: () {
+        when(() => repository.signUpWithEmail(any(), any()))
+            .thenAnswer((_) async => const Ok(user));
+        when(() => repository.sendEmailVerification())
+            .thenAnswer((_) async => const Err(NetworkFailure()));
+      },
+      build: build,
+      act: (cubit) => cubit.signUp('a@b.co', 'secret1'),
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(),
       ],
     );
 
@@ -366,6 +408,210 @@ void main() {
           AuthFormStatus.failure,
         ),
       ],
+    );
+  });
+
+  group('EmailVerificationCubit', () {
+    const unverified = AuthUser(
+      id: 'u1',
+      email: 'a@b.co',
+      signInMethods: {SignInMethod.email},
+    );
+    const verified = AuthUser(
+      id: 'u1',
+      email: 'a@b.co',
+      signInMethods: {SignInMethod.email},
+      emailVerified: true,
+    );
+    const throttled = AuthFailure('x', code: 'too-many-requests');
+
+    EmailVerificationCubit build() => EmailVerificationCubit(
+      reloadUser: ReloadUser(repository),
+      sendEmailVerification: SendEmailVerification(repository),
+      changeEmail: ChangeEmail(repository),
+      getVerificationSentAt: GetVerificationSentAt(repository),
+      signOut: SignOut(repository),
+    );
+
+    setUp(() => when(() => repository.verificationSentAt).thenReturn(null));
+
+    test('opened right after a link went out, Resend waits out the rest '
+        'of the minute', () {
+      when(() => repository.verificationSentAt)
+          .thenReturn(DateTime.now().subtract(const Duration(seconds: 20)));
+      final cubit = build();
+      expect(cubit.state.resendIn, inInclusiveRange(39, 40));
+      cubit.close();
+
+      when(() => repository.verificationSentAt)
+          .thenReturn(DateTime.now().subtract(const Duration(minutes: 2)));
+      final later = build();
+      expect(later.state.resendIn, 0);
+      later.close();
+    });
+
+    test('changeEmail sends the link to the new address, which the page '
+        'then shows and Resend uses', () {
+      fakeAsync((async) {
+        when(() => repository.changeEmail('new@b.co'))
+            .thenAnswer((_) async => const Ok(null));
+        final cubit = build()..changeEmail(' new@b.co ');
+        expect(cubit.state.status, EmailVerificationStatus.changingEmail);
+        async.flushMicrotasks();
+        expect(cubit.state.status, EmailVerificationStatus.emailChangeSent);
+        expect(cubit.state.pendingEmail, 'new@b.co');
+        expect(cubit.state.resendIn, EmailVerificationCubit.resendCooldown);
+
+        async.elapse(const Duration(seconds: 60));
+        cubit.resend();
+        async.flushMicrotasks();
+        verify(() => repository.changeEmail('new@b.co')).called(2);
+        verifyNever(() => repository.sendEmailVerification());
+        cubit.close();
+        async.flushTimers();
+      });
+    });
+
+    blocTest<EmailVerificationCubit, EmailVerificationState>(
+      'a refused address keeps the old one and says why',
+      setUp: () => when(() => repository.changeEmail(any())).thenAnswer(
+        (_) async => const Err(AuthFailure('x', code: 'email-already-in-use')),
+      ),
+      build: build,
+      act: (cubit) => cubit.changeEmail('taken@b.co'),
+      expect: () => const [
+        EmailVerificationState(status: EmailVerificationStatus.changingEmail),
+        EmailVerificationState(
+          status: EmailVerificationStatus.emailChangeFailed,
+          failure: AuthFailure('x', code: 'email-already-in-use'),
+        ),
+      ],
+    );
+
+    test('watching reloads at once, then every few seconds until it '
+        'stops', () {
+      fakeAsync((async) {
+        when(() => repository.reloadUser())
+            .thenAnswer((_) async => const Ok(unverified));
+        final cubit = build()..watch();
+        async.flushMicrotasks();
+        verify(() => repository.reloadUser()).called(1);
+
+        async.elapse(EmailVerificationCubit.checkEvery * 2);
+        verify(() => repository.reloadUser()).called(2);
+
+        cubit.stopWatching();
+        async.elapse(EmailVerificationCubit.checkEvery * 3);
+        verifyNever(() => repository.reloadUser());
+        expect(cubit.state, const EmailVerificationState());
+        cubit.close();
+      });
+    });
+
+    test('a slow reload is not doubled; a failed one waits for the next '
+        'tick', () {
+      fakeAsync((async) {
+        final reload = Completer<Result<AuthUser>>();
+        when(() => repository.reloadUser()).thenAnswer((_) => reload.future);
+        final cubit = build()..watch();
+        async.elapse(EmailVerificationCubit.checkEvery * 2);
+        verify(() => repository.reloadUser()).called(1);
+
+        reload.complete(const Err(NetworkFailure()));
+        when(() => repository.reloadUser())
+            .thenAnswer((_) async => const Ok(verified));
+        async.elapse(EmailVerificationCubit.checkEvery);
+        verify(() => repository.reloadUser()).called(1);
+        expect(cubit.state, const EmailVerificationState());
+        cubit.close();
+      });
+    });
+
+    test('closing stops watching', () {
+      fakeAsync((async) {
+        when(() => repository.reloadUser())
+            .thenAnswer((_) async => const Ok(unverified));
+        build()
+          ..watch()
+          ..close();
+        async.flushMicrotasks();
+        clearInteractions(repository);
+        async.elapse(EmailVerificationCubit.checkEvery * 2);
+        verifyNever(() => repository.reloadUser());
+      });
+    });
+
+    test('resend counts down a minute before it can send again', () {
+      fakeAsync((async) {
+        final cubit = build();
+        cubit.resend();
+        async.flushMicrotasks();
+        expect(cubit.state.status, EmailVerificationStatus.sent);
+        expect(cubit.state.resendIn, EmailVerificationCubit.resendCooldown);
+
+        cubit.resend();
+        async.elapse(const Duration(seconds: 59));
+        expect(cubit.state.resendIn, 1);
+        verify(() => repository.sendEmailVerification()).called(1);
+
+        async.elapse(const Duration(seconds: 1));
+        expect(cubit.state.resendIn, 0);
+        cubit.resend();
+        async.flushMicrotasks();
+        verify(() => repository.sendEmailVerification()).called(1);
+        cubit.close();
+        async.flushTimers();
+      });
+    });
+
+    test('a throttled send waits too; another failure does not', () {
+      fakeAsync((async) {
+        when(() => repository.sendEmailVerification())
+            .thenAnswer((_) async => const Err(throttled));
+        final throttledCubit = build()..resend();
+        async.flushMicrotasks();
+        expect(throttledCubit.state.status, EmailVerificationStatus.failure);
+        expect(throttledCubit.state.resendIn, greaterThan(0));
+
+        when(() => repository.sendEmailVerification())
+            .thenAnswer((_) async => const Err(NetworkFailure()));
+        final offlineCubit = build()..resend();
+        async.flushMicrotasks();
+        expect(offlineCubit.state.status, EmailVerificationStatus.failure);
+        expect(offlineCubit.state.resendIn, 0);
+
+        throttledCubit.close();
+        offlineCubit.close();
+        async.flushTimers();
+      });
+    });
+
+    blocTest<EmailVerificationCubit, EmailVerificationState>(
+      'signOut signs out',
+      setUp: () =>
+          when(() => repository.signOut())
+              .thenAnswer((_) async => const Ok(null)),
+      build: build,
+      act: (cubit) => cubit.signOut(),
+      expect: () => const [
+        EmailVerificationState(status: EmailVerificationStatus.signingOut),
+        EmailVerificationState(),
+      ],
+      verify: (_) => verify(() => repository.signOut()).called(1),
+    );
+
+    blocTest<EmailVerificationCubit, EmailVerificationState>(
+      'ignores a second action while one runs',
+      setUp: () =>
+          when(() => repository.signOut())
+              .thenAnswer((_) async => const Ok(null)),
+      build: build,
+      act: (cubit) =>
+          Future.wait([cubit.signOut(), cubit.resend(), cubit.signOut()]),
+      verify: (_) {
+        verify(() => repository.signOut()).called(1);
+        verifyNever(() => repository.sendEmailVerification());
+      },
     );
   });
 

@@ -2,6 +2,9 @@ import 'package:forge_core/forge_core.dart';
 
 enum AuthFailureField { email, password }
 
+/// Roughly an email address: enough to catch a typo before Firebase does.
+final emailShape = RegExp(r'^\S+@\S+\.\S+$');
+
 /// The email form field a failure is shown under, or null when it belongs
 /// to none (no connection, too many attempts) and shows as a snackbar.
 AuthFailureField? failureField(Failure failure) => switch (failure) {

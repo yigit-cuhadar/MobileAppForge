@@ -18,12 +18,25 @@ typedef AppleIdRequest = Future<AuthorizationCredentialAppleID> Function({
 });
 
 class FirebaseAuthRepository implements AuthRepository {
-  const FirebaseAuthRepository(
+  FirebaseAuthRepository(
     this._auth, {
     this._requestAppleId = SignInWithApple.getAppleIDCredential,
   });
   final FirebaseAuth _auth;
   final AppleIdRequest _requestAppleId;
+
+  /// The password of this session's last email sign-in, sign-up or
+  /// re-authentication, in memory only: changing the email may need a
+  /// recent sign-in, and confirming the change ends the session.
+  String? _password;
+
+  /// The address [changeEmail] sent its link to, until the session ends.
+  String? _pendingEmail;
+
+  @override
+  DateTime? verificationSentAt;
+
+  static const _recentLoginCode = 'requires-recent-login';
 
   /// Firebase codes meaning the linked credential belongs to another account.
   static const _accountExistsCodes = {
@@ -37,21 +50,40 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   AuthUser? get currentUser => _toUser(_auth.currentUser);
 
+  /// Confirming an email change revokes the session, so Firebase signs the
+  /// user out. While the new address and the password are known, this
+  /// signs in to the account again instead of starting a stranger guest.
   @override
-  Future<Result<AuthUser>> signInAnonymously() =>
-      _credential(_auth.signInAnonymously);
+  Future<Result<AuthUser>> signInAnonymously() async {
+    final (email, password) = (_pendingEmail, _password);
+    _pendingEmail = null;
+    if (email != null && password != null) {
+      final account = await signInWithEmail(email, password);
+      if (account.isOk) return account;
+    }
+    _password = null;
+    return _credential(_auth.signInAnonymously);
+  }
 
   @override
-  Future<Result<AuthUser>> signInWithEmail(String email, String password) =>
-      _credential(
-        () =>
-            _auth.signInWithEmailAndPassword(email: email, password: password),
-      );
+  Future<Result<AuthUser>> signInWithEmail(
+    String email,
+    String password,
+  ) async {
+    final result = await _credential(
+      () => _auth.signInWithEmailAndPassword(email: email, password: password),
+    );
+    if (result.isOk) _password = password;
+    return result;
+  }
 
   @override
-  Future<Result<AuthUser>> signUpWithEmail(String email, String password) {
+  Future<Result<AuthUser>> signUpWithEmail(
+    String email,
+    String password,
+  ) async {
     final guest = _guest;
-    return _credential(
+    final result = await _credential(
       () => guest != null
           ? guest.linkWithCredential(
               EmailAuthProvider.credential(email: email, password: password),
@@ -61,6 +93,8 @@ class FirebaseAuthRepository implements AuthRepository {
               password: password,
             ),
     );
+    if (result.isOk) _password = password;
+    return result;
   }
 
   @override
@@ -94,12 +128,62 @@ class FirebaseAuthRepository implements AuthRepository {
   );
 
   @override
-  Future<Result<void>> signOut() =>
-      guard(_auth.signOut, mapper: mapFirebaseError);
+  Future<Result<void>> sendEmailVerification() => guard(() async {
+    await _signedIn.sendEmailVerification();
+    verificationSentAt = DateTime.now();
+  }, mapper: mapFirebaseError);
 
   @override
-  Future<Result<void>> deleteAccount() =>
-      guard(() async => _auth.currentUser?.delete(), mapper: mapFirebaseError);
+  Future<Result<void>> changeEmail(String email) => guard(() async {
+    final user = _signedIn;
+    try {
+      await user.verifyBeforeUpdateEmail(email);
+    } on FirebaseAuthException catch (error) {
+      if (error.code != _recentLoginCode) rethrow;
+      await _renewSignIn(user, error);
+      await user.verifyBeforeUpdateEmail(email);
+    }
+    _pendingEmail = email;
+    verificationSentAt = DateTime.now();
+  }, mapper: mapFirebaseError);
+
+  /// Signs [user] in again with this session's password, or rethrows
+  /// [tooOld] when there is none or it no longer fits.
+  Future<void> _renewSignIn(User user, FirebaseAuthException tooOld) async {
+    final (email, password) = (user.email, _password);
+    if (email == null || password == null) throw tooOld;
+    try {
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+    } on FirebaseAuthException {
+      throw tooOld;
+    }
+  }
+
+  @override
+  Future<Result<AuthUser>> reloadUser() => guard(() async {
+    await _signedIn.reload();
+    return _toUser(_auth.currentUser)!;
+  }, mapper: mapFirebaseError);
+
+  @override
+  Future<Result<void>> signOut() => guard(() async {
+    _forgetSession();
+    await _auth.signOut();
+  }, mapper: mapFirebaseError);
+
+  @override
+  Future<Result<void>> deleteAccount() => guard(() async {
+    await _auth.currentUser?.delete();
+    _forgetSession();
+  }, mapper: mapFirebaseError);
+
+  void _forgetSession() {
+    _password = null;
+    _pendingEmail = null;
+    verificationSentAt = null;
+  }
 
   @override
   Future<Result<void>> reauthenticate(String password) => guard(() async {
@@ -119,6 +203,7 @@ class FirebaseAuthRepository implements AuthRepository {
     await user.reauthenticateWithCredential(
       EmailAuthProvider.credential(email: email, password: password),
     );
+    _password = password;
   }, mapper: mapFirebaseError);
 
   @override
@@ -203,6 +288,9 @@ class FirebaseAuthRepository implements AuthRepository {
         SocialProvider.apple => AppleAuthProvider(),
       };
 
+  User get _signedIn =>
+      _auth.currentUser ?? (throw const AuthFailure('nobody signed in'));
+
   User? get _guest {
     final user = _auth.currentUser;
     return user != null && user.isAnonymous ? user : null;
@@ -222,6 +310,7 @@ class FirebaseAuthRepository implements AuthRepository {
           email: user.email,
           displayName: user.displayName,
           isAnonymous: user.isAnonymous,
+          emailVerified: user.emailVerified,
           signInMethods: {
             for (final info in user.providerData) ?_methods[info.providerId],
           },

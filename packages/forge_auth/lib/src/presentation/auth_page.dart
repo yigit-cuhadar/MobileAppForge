@@ -79,8 +79,6 @@ class _AuthViewState extends State<_AuthView> {
   String? _passwordError;
   bool _signedIn = false;
 
-  static final _emailPattern = RegExp(r'^\S+@\S+\.\S+$');
-
   AuthStrings get _s => widget.page.strings;
   AuthFormCubit get _cubit => context.read<AuthFormCubit>();
 
@@ -91,7 +89,7 @@ class _AuthViewState extends State<_AuthView> {
   });
 
   String? _checkEmail(String email) =>
-      _emailPattern.hasMatch(email) ? null : _s.invalidEmail;
+      emailShape.hasMatch(email) ? null : _s.invalidEmail;
 
   void _submit(String email, String password) {
     final emailError = _checkEmail(email);

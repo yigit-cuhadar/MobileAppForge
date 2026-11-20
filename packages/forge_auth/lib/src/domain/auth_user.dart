@@ -7,6 +7,7 @@ class AuthUser extends Equatable {
     this.displayName,
     this.isAnonymous = false,
     this.signInMethods = const {},
+    this.emailVerified = false,
   });
 
   final String id;
@@ -19,6 +20,16 @@ class AuthUser extends Equatable {
   /// How the user can sign in; empty for a guest.
   final Set<SignInMethod> signInMethods;
 
+  /// Whether the user has opened the link Firebase mails to [email].
+  final bool emailVerified;
+
+  /// An email and password account whose address is not verified yet. A
+  /// Google or Apple sign-in counts as verified.
+  bool get needsEmailVerification =>
+      !emailVerified &&
+      signInMethods.length == 1 &&
+      signInMethods.contains(SignInMethod.email);
+
   @override
   List<Object?> get props => [
     id,
@@ -26,6 +37,7 @@ class AuthUser extends Equatable {
     displayName,
     isAnonymous,
     signInMethods,
+    emailVerified,
   ];
 }
 

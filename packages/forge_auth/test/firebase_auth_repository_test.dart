@@ -39,6 +39,7 @@ void main() {
     when(() => user.email).thenReturn('a@b.co');
     when(() => user.displayName).thenReturn(null);
     when(() => user.isAnonymous).thenReturn(false);
+    when(() => user.emailVerified).thenReturn(false);
     when(() => user.providerData).thenReturn([]);
     repository = FirebaseAuthRepository(auth);
   });
@@ -106,6 +107,7 @@ void main() {
     when(() => guest.email).thenReturn(null);
     when(() => guest.displayName).thenReturn(null);
     when(() => guest.isAnonymous).thenReturn(true);
+    when(() => guest.emailVerified).thenReturn(false);
     when(() => guest.providerData).thenReturn([]);
     when(() => auth.signInAnonymously())
         .thenAnswer((_) async => credentialFor(guest));
@@ -202,6 +204,220 @@ void main() {
       SignInMethod.google,
       SignInMethod.email,
       SignInMethod.apple,
+    });
+  });
+
+  group('email verification', () {
+    test('an email-only user needs it until verified', () {
+      final password = [provider('password')];
+      when(() => user.providerData).thenReturn(password);
+      when(() => auth.currentUser).thenReturn(user);
+      expect(repository.currentUser?.needsEmailVerification, isTrue);
+
+      when(() => user.emailVerified).thenReturn(true);
+      expect(repository.currentUser?.needsEmailVerification, isFalse);
+    });
+
+    test('Google or Apple next to email counts as verified', () {
+      for (final other in ['google.com', 'apple.com']) {
+        final providers = [provider('password'), provider(other)];
+        when(() => user.providerData).thenReturn(providers);
+        when(() => auth.currentUser).thenReturn(user);
+        expect(repository.currentUser?.needsEmailVerification, isFalse);
+      }
+    });
+
+    test('a guest or a provider-only user does not need it', () {
+      when(() => auth.currentUser).thenReturn(user);
+      final google = [provider('google.com')];
+      when(() => user.providerData).thenReturn(google);
+      expect(repository.currentUser?.needsEmailVerification, isFalse);
+
+      when(() => user.isAnonymous).thenReturn(true);
+      when(() => user.providerData).thenReturn([]);
+      expect(repository.currentUser?.needsEmailVerification, isFalse);
+    });
+
+    test('sendEmailVerification mails the signed-in user', () async {
+      when(() => auth.currentUser).thenReturn(user);
+      when(user.sendEmailVerification).thenAnswer((_) async {});
+
+      expect((await repository.sendEmailVerification()).isOk, isTrue);
+      verify(user.sendEmailVerification).called(1);
+    });
+
+    test('sendEmailVerification keeps Firebase\'s code', () async {
+      when(() => auth.currentUser).thenReturn(user);
+      when(user.sendEmailVerification)
+          .thenThrow(FirebaseAuthException(code: 'too-many-requests'));
+
+      final result = await repository.sendEmailVerification();
+
+      expect(
+        result.failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', 'too-many-requests'),
+      );
+    });
+
+    test('reloadUser returns the user as Firebase now has it', () async {
+      when(() => auth.currentUser).thenReturn(user);
+      var verifiedNow = false;
+      when(() => user.emailVerified).thenAnswer((_) => verifiedNow);
+      when(user.reload).thenAnswer((_) async => verifiedNow = true);
+
+      final result = await repository.reloadUser();
+
+      expect(result.valueOrNull?.emailVerified, isTrue);
+    });
+
+    test('both fail with nobody signed in', () async {
+      when(() => auth.currentUser).thenReturn(null);
+
+      expect(
+        (await repository.sendEmailVerification()).failureOrNull,
+        isA<AuthFailure>(),
+      );
+      expect((await repository.reloadUser()).failureOrNull, isA<AuthFailure>());
+    });
+  });
+
+  group('changeEmail', () {
+    final recentLogin = FirebaseAuthException(code: 'requires-recent-login');
+
+    setUp(() {
+      when(() => auth.currentUser).thenReturn(user);
+      when(
+        () => auth.signInWithEmailAndPassword(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async => credentialFor(user));
+    });
+
+    test('sends the link to the new address and notes when', () async {
+      when(() => user.verifyBeforeUpdateEmail('new@b.co'))
+          .thenAnswer((_) async {});
+
+      expect((await repository.changeEmail('new@b.co')).isOk, isTrue);
+      expect(repository.verificationSentAt, isNotNull);
+    });
+
+    test('a sent verification email is noted too', () async {
+      when(user.sendEmailVerification).thenAnswer((_) async {});
+      expect(repository.verificationSentAt, isNull);
+
+      await repository.sendEmailVerification();
+
+      expect(repository.verificationSentAt, isNotNull);
+    });
+
+    test('a too old sign-in is renewed with the password just used', () async {
+      var calls = 0;
+      when(() => user.verifyBeforeUpdateEmail('new@b.co'))
+          .thenAnswer((_) async {
+            if (calls++ == 0) throw recentLogin;
+          });
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
+      await repository.signInWithEmail('a@b.co', 'secret1');
+
+      expect((await repository.changeEmail('new@b.co')).isOk, isTrue);
+
+      final credential =
+          verify(() => user.reauthenticateWithCredential(captureAny()))
+                  .captured
+                  .single
+              as AuthCredential;
+      expect(credential.providerId, EmailAuthProvider.PROVIDER_ID);
+      verify(() => user.verifyBeforeUpdateEmail('new@b.co')).called(2);
+    });
+
+    test('without that password, or with one that no longer fits, it '
+        'stays requires-recent-login', () async {
+      when(() => user.verifyBeforeUpdateEmail(any())).thenThrow(recentLogin);
+      Matcher recent() => isA<AuthFailure>().having(
+        (f) => f.code,
+        'code',
+        'requires-recent-login',
+      );
+
+      expect(
+        (await repository.changeEmail('new@b.co')).failureOrNull,
+        recent(),
+      );
+      verifyNever(() => user.reauthenticateWithCredential(any()));
+
+      when(() => user.reauthenticateWithCredential(any()))
+          .thenThrow(FirebaseAuthException(code: 'invalid-credential'));
+      await repository.signInWithEmail('a@b.co', 'secret1');
+      expect(
+        (await repository.changeEmail('new@b.co')).failureOrNull,
+        recent(),
+      );
+    });
+
+    test('a refused address keeps Firebase\'s code', () async {
+      when(() => user.verifyBeforeUpdateEmail(any()))
+          .thenThrow(FirebaseAuthException(code: 'email-already-in-use'));
+
+      expect(
+        (await repository.changeEmail('taken@b.co')).failureOrNull,
+        isA<AuthFailure>().having(
+          (f) => f.code,
+          'code',
+          'email-already-in-use',
+        ),
+      );
+    });
+
+    test('once the change ends the session, the guest start signs in to '
+        'the new address instead', () async {
+      when(() => user.verifyBeforeUpdateEmail('new@b.co'))
+          .thenAnswer((_) async {});
+      await repository.signInWithEmail('a@b.co', 'secret1');
+      await repository.changeEmail('new@b.co');
+
+      final result = await repository.signInAnonymously();
+
+      expect(result.valueOrNull?.id, 'u1');
+      verify(
+        () => auth.signInWithEmailAndPassword(
+          email: 'new@b.co',
+          password: 'secret1',
+        ),
+      ).called(1);
+      verifyNever(() => auth.signInAnonymously());
+    });
+
+    test('after signing out, a guest starts as usual', () async {
+      when(() => user.verifyBeforeUpdateEmail('new@b.co'))
+          .thenAnswer((_) async {});
+      when(() => auth.signOut()).thenAnswer((_) async {});
+      final guest = MockUser();
+      when(() => guest.uid).thenReturn('g1');
+      when(() => guest.email).thenReturn(null);
+      when(() => guest.displayName).thenReturn(null);
+      when(() => guest.isAnonymous).thenReturn(true);
+      when(() => guest.emailVerified).thenReturn(false);
+      when(() => guest.providerData).thenReturn([]);
+      final guestCredential = credentialFor(guest);
+      when(() => auth.signInAnonymously())
+          .thenAnswer((_) async => guestCredential);
+      await repository.signInWithEmail('a@b.co', 'secret1');
+      await repository.changeEmail('new@b.co');
+      clearInteractions(auth);
+
+      await repository.signOut();
+      final result = await repository.signInAnonymously();
+
+      expect(result.valueOrNull?.isAnonymous, isTrue);
+      expect(repository.verificationSentAt, isNull);
+      verifyNever(
+        () => auth.signInWithEmailAndPassword(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+        ),
+      );
     });
   });
 
