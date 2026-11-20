@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'data/ad_services_attribution.dart';
 import 'data/fake_purchases_repository.dart';
 import 'data/revenuecat_purchases_repository.dart';
 import 'domain/purchases_models.dart';
@@ -51,6 +53,8 @@ class PurchasesModule implements FeatureModule {
                 ? googleApiKey
                 : appleApiKey,
             entitlementId: entitlementId,
+            adServices: AdServicesAttribution(),
+            preferences: SharedPreferencesAsync(),
           ),
         );
       case FakeBackend(:final plans):
@@ -66,6 +70,7 @@ class PurchasesModule implements FeatureModule {
       ..registerFactory(() => ResetPurchaser(sl()))
       ..registerFactory(() => WatchEntitlement(sl()))
       ..registerFactory(() => GetOffering(sl()))
+      ..registerFactory(() => RecordAdAttribution(sl()))
       ..registerFactory(() => PurchasePlan(sl()))
       ..registerFactory(() => RestorePurchases(sl()))
       ..registerFactory(() => RefreshEntitlement(sl()))

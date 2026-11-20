@@ -2,21 +2,43 @@ import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' as rc;
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/purchases_models.dart';
 import '../domain/purchases_repository.dart';
+import 'ad_services_attribution.dart';
 import 'entitlement_channel.dart';
 import 'revenuecat_mappers.dart';
+
+/// The custom attributes [RevenueCatPurchasesRepository.recordAdAttribution]
+/// sets for targeting: the ad network and its campaign id.
+const adNetworkAttribute = 'ad_network';
+const adCampaignAttribute = 'ad_campaign_id';
+const appleSearchAds = 'apple_search_ads';
 
 class RevenueCatPurchasesRepository implements PurchasesRepository {
   RevenueCatPurchasesRepository({
     required this._apiKey,
     required this._entitlementId,
+    required this._adServices,
+    required this._preferences,
+    this.attributionWait = const Duration(seconds: 5),
   });
 
   final String _apiKey;
   final String _entitlementId;
+  final AdServicesAttribution _adServices;
+  final SharedPreferencesAsync _preferences;
+
+  /// Apple's final answer for this install: the campaign id, or
+  /// [_notAttributed].
+  static const _adAttributionKey = 'forge_purchases.adAttribution';
+  static const _notAttributed = 'none';
+
+  /// How long [offering] waits for a [recordAdAttribution] in progress.
+  final Duration attributionWait;
   final _channel = EntitlementChannel();
+  Future<void>? _attribution;
 
   /// Packages of the last loaded offering by product id; purchases need them.
   final _packages = <String, rc.Package>{};
@@ -54,6 +76,35 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
 
   @override
   Future<Result<Offering>> offering() => _guard(_loadOffering);
+
+  @override
+  Future<Result<bool>> recordAdAttribution({required bool lookUp}) {
+    final result = _guard(() => _recordAdAttribution(lookUp: lookUp));
+    _attribution = result.then((_) {});
+    return result;
+  }
+
+  Future<bool> _recordAdAttribution({required bool lookUp}) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return false;
+    // RevenueCat's own Apple Search Ads collection, for its charts. It asks
+    // Apple within 24 hours, too late for a first paywall, hence the
+    // attributes below.
+    await rc.Purchases.enableAdServicesAttributionTokenCollection();
+    var answer = await _preferences.getString(_adAttributionKey);
+    if (answer == null) {
+      if (!lookUp) return false;
+      final campaign = await _adServices.campaignId();
+      answer = campaign == null ? _notAttributed : '$campaign';
+      await _preferences.setString(_adAttributionKey, answer);
+    }
+    if (answer == _notAttributed) return false;
+    await rc.Purchases.setAttributes({
+      adNetworkAttribute: appleSearchAds,
+      adCampaignAttribute: answer,
+    });
+    await rc.Purchases.syncAttributesAndOfferingsIfNeeded();
+    return true;
+  }
 
   @override
   Future<Result<Entitlement>> purchase(Plan plan) => _guard(() async {
@@ -98,6 +149,7 @@ class RevenueCatPurchasesRepository implements PurchasesRepository {
   }
 
   Future<Offering> _loadOffering() async {
+    await _attribution?.timeout(attributionWait, onTimeout: () {});
     final current = (await rc.Purchases.getOfferings()).current;
     final packages = current?.availablePackages ?? const <rc.Package>[];
     final eligible = await _introEligibleProducts(packages);

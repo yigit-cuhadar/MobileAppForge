@@ -55,6 +55,14 @@ class GetOffering implements UseCase<Offering, NoParams> {
       _repository.offering();
 }
 
+class RecordAdAttribution {
+  const RecordAdAttribution(this._repository);
+  final PurchasesRepository _repository;
+
+  Future<Result<bool>> call({required bool lookUp}) =>
+      _repository.recordAdAttribution(lookUp: lookUp);
+}
+
 class PurchasePlan implements UseCase<Entitlement, Plan> {
   const PurchasePlan(this._repository);
   final PurchasesRepository _repository;
