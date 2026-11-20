@@ -78,7 +78,9 @@ class _VerificationViewState extends State<_VerificationView> {
             ),
             EmailVerificationStatus.failure => showForgeSnackbar(
               context,
-              message: s.verificationFailed,
+              message: EmailVerificationCubit.isThrottled(state.failure)
+                  ? s.tooManyEmails
+                  : s.verificationFailed,
               error: true,
             ),
             _ => null,
@@ -91,7 +93,22 @@ class _VerificationViewState extends State<_VerificationView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ForgeIcon(ForgeIcons.mail, size: 32, color: colors.accent),
+                    Center(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colors.surfaceSunken,
+                        ),
+                        child: ForgeIcon(
+                          ForgeIcons.mail,
+                          size: 32,
+                          color: colors.accent,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: Gap.md),
                     Text(
                       s.verifyEmailTitle,
@@ -230,6 +247,7 @@ class _ChangeEmailSheetState extends State<_ChangeEmailSheet> {
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: Gap.md,
           children: [

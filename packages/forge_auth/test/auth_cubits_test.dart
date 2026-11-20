@@ -450,6 +450,17 @@ void main() {
       later.close();
     });
 
+    test('opened before sign-up\'s link went out, Resend still waits: it '
+        'starts the cooldown instead of sending', () {
+      final cubit = build();
+      expect(cubit.state.resendIn, 0);
+      when(() => repository.verificationSentAt).thenReturn(DateTime.now());
+      cubit.resend();
+      expect(cubit.state.resendIn, inInclusiveRange(59, 60));
+      verifyNever(() => repository.sendEmailVerification());
+      cubit.close();
+    });
+
     test('changeEmail sends the link to the new address, which the page '
         'then shows and Resend uses', () {
       fakeAsync((async) {

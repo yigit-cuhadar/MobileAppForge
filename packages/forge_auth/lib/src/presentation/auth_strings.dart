@@ -50,6 +50,7 @@ class AuthStrings {
     this.sendLink = 'Send link',
     this.signOutInstead = 'Sign out instead',
     this.verificationFailed = 'Something went wrong. Try again.',
+    this.tooManyEmails = 'Wait a minute before sending another email.',
     this.errorFor = defaultErrorFor,
   });
 
@@ -117,6 +118,9 @@ class AuthStrings {
 
   /// The verification page's snackbar for any failure.
   final String verificationFailed;
+
+  /// When Firebase refuses a resend for sending too often.
+  final String tooManyEmails;
 
   /// The message under the email or password field for a failure that
   /// belongs to one (a wrong password, an email in use).
