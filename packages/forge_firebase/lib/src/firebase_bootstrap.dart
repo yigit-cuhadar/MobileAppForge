@@ -9,9 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'firebase_telemetry.dart';
 
 /// Initializes Firebase, activates App Check and routes uncaught errors to
-/// Crashlytics, without
-/// changing whether Analytics and Crashlytics collect, so it is safe in any
-/// entry point, background ones included.
+/// Crashlytics, without changing whether Analytics and Crashlytics collect, so
+/// it is safe in any entry point, background ones included.
 ///
 /// App Check attests the app with App Attest (DeviceCheck below iOS 14) and
 /// Play Integrity; debug builds, the iOS simulator among them, use the debug
