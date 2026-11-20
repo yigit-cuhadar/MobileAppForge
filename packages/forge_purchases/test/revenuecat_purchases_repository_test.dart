@@ -140,6 +140,75 @@ void main() {
     expect((await yearlyPlan()).trial, isNull);
   });
 
+  group('on iOS', () {
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      answers['getOfferings'] = (_) => offeringsJson([
+        packageJson(productId: 'pro_yearly', introPrice: appStoreWeekTrial),
+      ]);
+      answers['checkTrialOrIntroductoryPriceEligibility'] = (_) => {
+        'pro_yearly': {
+          'status':
+              rc.IntroEligibilityStatus.introEligibilityStatusIneligible.index,
+          'description': '',
+        },
+      };
+      answers['purchasePackageWithWinBackOffer'] = answers['purchasePackage']!;
+    });
+
+    test('an eligible win-back offer is offered and applied', () async {
+      answers['eligibleWinBackOffersForProduct'] = (_) => [
+        appStoreMonthFreeWinBack,
+      ];
+      final plan = await yearlyPlan();
+      expect(
+        plan.winBack,
+        const WinBackOffer.free(
+          'winback_1m_free',
+          OfferPeriod(1, PeriodUnit.month),
+        ),
+      );
+
+      await repository.purchase(plan);
+      final arguments =
+          callsTo('purchasePackageWithWinBackOffer').single.arguments as Map;
+      expect(arguments['winBackOfferIdentifier'], 'winback_1m_free');
+      expect(callsTo('purchasePackage'), isEmpty);
+    });
+
+    test('before iOS 18 the plans come without win-back offers', () async {
+      answers['eligibleWinBackOffersForProduct'] = (_) =>
+          throw rcError(rc.PurchasesErrorCode.unsupportedError);
+      final plan = await yearlyPlan();
+      expect(plan.winBack, isNull);
+      expect(logged, isEmpty);
+
+      await repository.purchase(plan);
+      expect(callsTo('purchasePackage'), hasLength(1));
+    });
+  });
+
+  test('Customer Center is presented through RevenueCatUI', () async {
+    final presented = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('purchases_ui_flutter'), (
+          call,
+        ) async {
+          presented.add(call.method);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('purchases_ui_flutter'),
+            null,
+          ),
+    );
+
+    expect((await repository.presentCustomerCenter()).valueOrNull, isTrue);
+    expect(presented, contains('presentCustomerCenter'));
+  });
+
   test('expected outcomes are returned without error logging', () async {
     final plan = await yearlyPlan();
     for (final code in const [

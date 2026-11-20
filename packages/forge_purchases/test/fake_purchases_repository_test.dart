@@ -17,6 +17,19 @@ const yearly = Plan(
   currencyCode: 'USD',
   trial: OfferPeriod(7, PeriodUnit.day),
 );
+const winBackMonth = WinBackOffer.free(
+  'winback',
+  OfferPeriod(1, PeriodUnit.month),
+);
+const yearlyWithWinBack = Plan(
+  id: 'pro_yearly',
+  period: PlanPeriod.yearly,
+  price: r'$39.99',
+  priceAmount: 39.99,
+  currencyCode: 'USD',
+  trial: OfferPeriod(7, PeriodUnit.day),
+  winBack: winBackMonth,
+);
 const lifetime = Plan(
   id: 'pro_lifetime',
   period: PlanPeriod.lifetime,
@@ -35,13 +48,15 @@ void main() {
   late DateTime now;
   late FakePurchasesRepository repository;
 
-  FakePurchasesRepository build({String? cachedUserId}) =>
-      FakePurchasesRepository(
-        plans: const [monthly, yearly, lifetime],
-        purchaseDelay: Duration.zero,
-        cachedUserId: cachedUserId,
-        clock: () => now,
-      );
+  FakePurchasesRepository build({
+    String? cachedUserId,
+    List<Plan> plans = const [monthly, yearly, lifetime],
+  }) => FakePurchasesRepository(
+    plans: plans,
+    purchaseDelay: Duration.zero,
+    cachedUserId: cachedUserId,
+    clock: () => now,
+  );
 
   setUp(() async {
     now = DateTime.utc(2026, 1, 1);
@@ -311,6 +326,48 @@ void main() {
         expect(await offeredTrial(), yearly.trial);
       },
     );
+  });
+
+  group('win-back', () {
+    setUp(() async {
+      repository = build(plans: const [yearlyWithWinBack]);
+      await repository.configure();
+      await repository.identify('a');
+    });
+
+    Future<Plan> offered() async =>
+        (await repository.offering()).valueOrNull!.plans.single;
+
+    test('is offered only once the subscription has ended', () async {
+      expect((await offered()).winBack, isNull);
+      expect((await offered()).trial, isNotNull);
+
+      await buy(await offered());
+      expect((await offered()).winBack, isNull);
+
+      repository.lapse();
+      final plan = await offered();
+      expect(plan.winBack, winBackMonth);
+      expect(plan.trial, isNull);
+      expect((await current()).isActive, isFalse);
+    });
+
+    test('is not offered to another user', () async {
+      await buy(await offered());
+      repository.lapse();
+      await repository.identify('b');
+      expect((await offered()).winBack, isNull);
+    });
+
+    test('buying it starts with the free month', () async {
+      await buy(await offered());
+      now = DateTime.utc(2026, 3, 1);
+      repository.lapse();
+
+      final back = await buy(await offered());
+      expect(back.isActive, isTrue);
+      expect(back.expiresAt, DateTime.utc(2026, 4, 1));
+    });
   });
 
   group('restore', () {

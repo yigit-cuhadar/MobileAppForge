@@ -70,6 +70,7 @@ class PurchasesModule implements FeatureModule {
       ..registerFactory(() => RestorePurchases(sl()))
       ..registerFactory(() => RefreshEntitlement(sl()))
       ..registerFactory(() => GetManagementUrl(sl()))
+      ..registerFactory(() => PresentCustomerCenter(sl()))
       ..registerLazySingleton(
         () => EntitlementCubit(
           configure: sl(),
@@ -78,6 +79,7 @@ class PurchasesModule implements FeatureModule {
           reset: sl(),
           refresh: sl(),
           getManagementUrl: sl(),
+          presentCustomerCenter: sl(),
         ),
       )
       ..registerFactory(

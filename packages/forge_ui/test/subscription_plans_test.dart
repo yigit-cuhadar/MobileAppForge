@@ -142,6 +142,42 @@ void main() {
     expect(taps, ['alternative']);
   });
 
+  for (final layout in SubscriptionLayout.values) {
+    testWidgets('${layout.name}: an offer is a tag on its plan', (
+      tester,
+    ) async {
+      final taps = <String>[];
+      await pump(
+        tester,
+        paywall(
+          taps,
+          layout: layout,
+          plans: const [
+            SubscriptionPlan(
+              name: 'Yearly',
+              price: '1 month free, then [YEARLY PRICE] / year',
+              terms: yearlyTerms,
+              offer: 'Welcome back · 1 month free',
+            ),
+            SubscriptionPlan(
+              name: 'Monthly',
+              price: '[MONTHLY PRICE] / month',
+              terms: 'Renews at [MONTHLY PRICE] a month.',
+            ),
+          ],
+        ),
+      );
+
+      final tag = find.widgetWithText(ForgeTag, 'Welcome back · 1 month free');
+      expect(tag, findsOneWidget);
+      expect(tester.widget<ForgeTag>(tag).kind, ForgeTagKind.record);
+      if (layout != SubscriptionLayout.single) {
+        await tester.tap(tag);
+        expect(taps, ['plan 0']);
+      }
+    });
+  }
+
   testWidgets('loading is a skeleton with Restore and the links', (
     tester,
   ) async {
