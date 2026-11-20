@@ -19,7 +19,8 @@
    `bootstrap.dart` and `router.dart`. Either way Analytics and Crashlytics
    collect nothing until the app applies an answer through the `Telemetry`
    that `initFirebase` returns (keyed by user id, or one fixed key without
-   accounts).
+   accounts). `collectUnanswered` picks opt-in (false) or opt-out (true) for
+   a user who never answered, as the spec says.
 5. `flutter run` on the iOS simulator; confirm sign-up
    works end to end. Commit, push, tick nothing yet.
 
