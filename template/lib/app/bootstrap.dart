@@ -9,7 +9,12 @@ import 'app.dart';
 /// Composition root: every feature module is registered here.
 Future<void> bootstrap(AppEnv env, FirebaseOptions options) async {
   WidgetsFlutterBinding.ensureInitialized();
-  final telemetry = await initFirebase(options: options, env: env);
+  // Opt-in: a user who never answered is not collected for.
+  final telemetry = await initFirebase(
+    options: options,
+    env: env,
+    collectUnanswered: false,
+  );
   // Collection stays off until the app applies an answer through telemetry.
   await telemetry.restore(null);
   sl.registerSingleton<AppEnv>(env);

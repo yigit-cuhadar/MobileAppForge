@@ -3,15 +3,18 @@ import 'result.dart';
 /// Analytics and crash reporting on this device. Collection is per user,
 /// never per device: it follows one user's own answer, and is off while
 /// that is unknown. A uid is whatever identifies who answered: the signed-in
-/// user's id, or one fixed key in an app without accounts.
+/// user's id, or one fixed key in an app without accounts. While collecting,
+/// that uid is also the analytics and crash reporting user id.
 abstract interface class Telemetry {
   /// From now on collection follows [uid] (null: nobody). Another user than
   /// before turns it off until [apply] gives their answer.
   Future<Result<void>> follow(String? uid);
 
   /// Collects for [uid] only with [consent], from now on and when the app
-  /// next starts with them signed in. Of quick answers the latest wins.
-  Future<Result<void>> apply(String uid, bool consent);
+  /// next starts with them signed in. A null [consent] means they never
+  /// answered, and the app's default for that applies. Of quick answers the
+  /// latest wins.
+  Future<Result<void>> apply(String uid, bool? consent);
 
   /// After [uid]'s account is deleted: records no for them, stops
   /// collecting, and drops this device's analytics id and unsent crash
@@ -22,4 +25,11 @@ abstract interface class Telemetry {
   /// drops it otherwise. Never fails: an event that cannot be recorded is
   /// only logged, as losing one is expected.
   Future<void> logEvent(String name, [Map<String, Object> parameters]);
+
+  /// Records that the screen [name] showed. Never fails, like [logEvent].
+  Future<void> logScreen(String name);
+
+  /// Sets the user property [name] to [value] (null: removes it). Never
+  /// fails, like [logEvent].
+  Future<void> setUserProperty(String name, String? value);
 }

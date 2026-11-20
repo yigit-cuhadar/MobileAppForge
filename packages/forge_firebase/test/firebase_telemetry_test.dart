@@ -19,15 +19,27 @@ void main() {
   /// What the SDKs were last told; null before anything.
   bool? collecting;
 
+  /// The user ids Analytics and Crashlytics were last given.
+  String? analyticsId;
+  String? crashlyticsId;
+
   setUp(() {
     directory = Directory.systemTemp.createTempSync('telemetry');
     analytics = MockAnalytics();
     crashlytics = MockCrashlytics();
     collecting = null;
+    analyticsId = null;
+    crashlyticsId = null;
     when(() => analytics.setAnalyticsCollectionEnabled(any())).thenAnswer(
       (call) async => collecting = call.positionalArguments.first as bool,
     );
     when(() => analytics.resetAnalyticsData()).thenAnswer((_) async {});
+    when(() => analytics.setUserId(id: any(named: 'id'))).thenAnswer(
+      (call) async => analyticsId = call.namedArguments[#id] as String?,
+    );
+    when(() => crashlytics.setUserIdentifier(any())).thenAnswer(
+      (call) async => crashlyticsId = call.positionalArguments.first as String,
+    );
     when(() => crashlytics.setCrashlyticsCollectionEnabled(any()))
         .thenAnswer((_) async {});
     when(() => crashlytics.deleteUnsentReports()).thenAnswer((_) async {});
@@ -35,8 +47,12 @@ void main() {
 
   tearDown(() => directory.deleteSync(recursive: true));
 
-  FirebaseTelemetry telemetry({bool allowed = true}) => FirebaseTelemetry(
+  FirebaseTelemetry telemetry({
+    bool allowed = true,
+    bool collectUnanswered = false,
+  }) => FirebaseTelemetry(
     allowed: allowed,
+    collectUnanswered: collectUnanswered,
     // Not created yet, as app support is on a first run.
     directory: () async => Directory('${directory.path}/support'),
     analytics: analytics,
@@ -170,6 +186,141 @@ void main() {
       expect((await subject.apply('u1', false)).isOk, isFalse);
     },
   );
+
+  group('opt-out', () {
+    FirebaseTelemetry optOut() => telemetry(collectUnanswered: true);
+
+    test('collects for a user who never answered once that is '
+        'known', () async {
+      final subject = optOut();
+      await subject.follow('u1');
+      expect(collecting, isFalse);
+      await subject.apply('u1', null);
+      expect(collecting, isTrue);
+
+      await optOut().restore('u1');
+      expect(collecting, isTrue);
+    });
+
+    test('collects nothing at launch for a user with no answer '
+        'here', () async {
+      await optOut().restore('u1');
+      expect(collecting, isFalse);
+    });
+
+    test('an explicit no still wins', () async {
+      final subject = optOut();
+      await subject.follow('u1');
+      await subject.apply('u1', false);
+      expect(collecting, isFalse);
+      await optOut().restore('u1');
+      expect(collecting, isFalse);
+    });
+
+    test('crash reports recorded while collecting by default are '
+        'kept', () async {
+      final subject = optOut();
+      await subject.follow('u1');
+      await subject.apply('u1', null);
+      verify(() => crashlytics.deleteUnsentReports()).called(1);
+      await subject.apply('u1', null);
+      await subject.apply('u1', true);
+      verifyNever(() => crashlytics.deleteUnsentReports());
+    });
+
+    test(
+      'a user who never answered is not collected for when opt-in',
+      () async {
+        final subject = telemetry();
+        await subject.follow('u1');
+        await subject.apply('u1', null);
+        expect(collecting, isFalse);
+        await telemetry().restore('u1');
+        expect(collecting, isFalse);
+      },
+    );
+  });
+
+  group('user id', () {
+    test('is the followed uid while collecting', () async {
+      final subject = await answered('u1', true);
+      expect(analyticsId, 'u1');
+      expect(crashlyticsId, 'u1');
+
+      await subject.follow('u2');
+      expect(analyticsId, isNull);
+      expect(crashlyticsId, isEmpty);
+      await subject.apply('u2', true);
+      expect(analyticsId, 'u2');
+
+      await subject.follow(null);
+      expect(analyticsId, isNull);
+    });
+
+    test('is set at launch only when collecting', () async {
+      await answered('u1', true);
+      await answered('u2', false);
+      await telemetry().restore('u1');
+      expect(analyticsId, 'u1');
+      await telemetry().restore('u2');
+      expect(analyticsId, isNull);
+    });
+
+    test('is never set where collection is not allowed', () async {
+      final subject = telemetry(allowed: false);
+      await subject.follow('u1');
+      await subject.apply('u1', true);
+      verifyNever(() => analytics.setUserId(id: 'u1'));
+      verifyNever(() => crashlytics.setUserIdentifier('u1'));
+    });
+
+    test('is cleared on forget', () async {
+      final subject = await answered('u1', true);
+      await subject.forget('u1');
+      expect(analyticsId, isNull);
+      expect(crashlyticsId, isEmpty);
+    });
+  });
+
+  group('logScreen and setUserProperty', () {
+    test('forward to Analytics', () async {
+      when(() => analytics.logScreenView(screenName: any(named: 'screenName')))
+          .thenAnswer((_) async {});
+      when(
+        () => analytics.setUserProperty(
+          name: any(named: 'name'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await telemetry().logScreen('today');
+      await telemetry().setUserProperty('level', 'beginner');
+      await telemetry().setUserProperty('level', null);
+
+      verify(() => analytics.logScreenView(screenName: 'today')).called(1);
+      verify(() => analytics.setUserProperty(name: 'level', value: 'beginner'))
+          .called(1);
+      verify(() => analytics.setUserProperty(name: 'level', value: null))
+          .called(1);
+    });
+
+    test('a failure is swallowed', () async {
+      when(() => analytics.logScreenView(screenName: any(named: 'screenName')))
+          .thenThrow(Exception('no plugin'));
+      when(
+        () => analytics.setUserProperty(
+          name: any(named: 'name'),
+          value: any(named: 'value'),
+        ),
+      ).thenThrow(Exception('no plugin'));
+
+      await expectLater(telemetry().logScreen('today'), completes);
+      await expectLater(
+        telemetry().setUserProperty('level', 'beginner'),
+        completes,
+      );
+    });
+  });
 
   group('logEvent', () {
     test('forwards the name and parameters to Analytics', () async {

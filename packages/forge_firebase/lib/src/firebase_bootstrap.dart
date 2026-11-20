@@ -27,13 +27,15 @@ import 'firebase_telemetry.dart';
 /// the main entry point calls [FirebaseTelemetry.restore] and the app
 /// applies answers through the returned [Telemetry]. It only ever collects
 /// in release builds of the prod environment, so development never
-/// pollutes production data.
+/// pollutes production data. [collectUnanswered] is whether a user who
+/// never answered is collected for (opt-out) or not (opt-in).
 ///
 /// Keep the instance the main entry point gets and register it once; a
 /// background entry point ignores the return value.
 Future<FirebaseTelemetry> initFirebase({
   required FirebaseOptions options,
   required AppEnv env,
+  required bool collectUnanswered,
 }) async {
   await Firebase.initializeApp(options: options);
   await FirebaseAppCheck.instance.activate(
@@ -56,6 +58,7 @@ Future<FirebaseTelemetry> initFirebase({
 
   return FirebaseTelemetry(
     allowed: env.isProd && kReleaseMode,
+    collectUnanswered: collectUnanswered,
     directory: getApplicationSupportDirectory,
     analytics: FirebaseAnalytics.instance,
     crashlytics: crashlytics,
