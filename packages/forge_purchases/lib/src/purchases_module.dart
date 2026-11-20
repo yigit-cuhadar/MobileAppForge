@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/ad_services_attribution.dart';
 import 'data/fake_purchases_repository.dart';
@@ -53,6 +54,7 @@ class PurchasesModule implements FeatureModule {
                 : appleApiKey,
             entitlementId: entitlementId,
             adServices: AdServicesAttribution(),
+            preferences: SharedPreferencesAsync(),
           ),
         );
       case FakeBackend(:final plans):

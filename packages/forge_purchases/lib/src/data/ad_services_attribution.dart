@@ -28,9 +28,9 @@ class AdServicesAttribution {
 
   /// The Apple Search Ads campaign this install came from; null when Apple
   /// attributes it to none, or the device has no token (before iOS 14.3, a
-  /// simulator). A developer-mode device gets Apple's test record, campaign
-  /// 1234567890. Throws a [NetworkFailure] when Apple cannot be reached or
-  /// has no record yet.
+  /// simulator): both final. A developer-mode device gets Apple's test
+  /// record, campaign 1234567890. Throws a [NetworkFailure] when Apple
+  /// cannot be reached or has no record yet: no answer, ask again later.
   Future<int?> campaignId() async {
     final token = await _channel.invokeMethod<String>('attributionToken');
     if (token == null) return null;

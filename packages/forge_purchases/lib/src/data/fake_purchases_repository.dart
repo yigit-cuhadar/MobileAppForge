@@ -88,7 +88,8 @@ class FakePurchasesRepository implements PurchasesRepository {
 
   /// No ad network: the fake's [metadata] stands in for targeting.
   @override
-  Future<Result<bool>> recordAdAttribution() async => const Ok(false);
+  Future<Result<bool>> recordAdAttribution({required bool lookUp}) async =>
+      const Ok(false);
 
   @override
   Future<Result<Entitlement>> purchase(Plan plan) => guard(() async {

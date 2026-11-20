@@ -11,6 +11,9 @@ import 'package:forge_purchases/src/data/revenuecat_purchases_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' as rc;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 import 'revenuecat_payloads.dart';
 
@@ -32,6 +35,7 @@ void main() {
 
   /// Apple's attribution API; attributed to campaign 542370539 by default.
   late Future<http.Response> Function() adServices;
+  late int appleAsked;
 
   PlatformException rcError(rc.PurchasesErrorCode code) =>
       PlatformException(code: '${code.index}', message: code.name);
@@ -66,6 +70,9 @@ void main() {
           calls.add(call);
           return answers[call.method]!(call);
         });
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+    appleAsked = 0;
     adServices = () async => http.Response(
       jsonEncode({'attribution': true, 'campaignId': 542370539}),
       200,
@@ -76,9 +83,13 @@ void main() {
       apiKey: 'goog_test',
       entitlementId: 'premium',
       adServices: AdServicesAttribution(
-        client: MockClient((_) => adServices()),
+        client: MockClient((_) {
+          appleAsked++;
+          return adServices();
+        }),
         retryDelay: Duration.zero,
       ),
+      preferences: SharedPreferencesAsync(),
       attributionWait: const Duration(milliseconds: 100),
     );
     await repository.configure();
@@ -279,7 +290,10 @@ void main() {
         (await repository.offering()).valueOrNull!.metadata['dismissible'];
 
     test('an attributed install is marked and its offering reloaded', () async {
-      expect((await repository.recordAdAttribution()).valueOrNull, isTrue);
+      expect(
+        (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+        isTrue,
+      );
 
       expect(
         callsTo('enableAdServicesAttributionTokenCollection'),
@@ -299,7 +313,10 @@ void main() {
       adServices = () async =>
           http.Response(jsonEncode({'attribution': false}), 200);
 
-      expect((await repository.recordAdAttribution()).valueOrNull, isFalse);
+      expect(
+        (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+        isFalse,
+      );
       expect(callsTo('setAttributes'), isEmpty);
       expect(await dismissible(), isTrue);
     });
@@ -312,7 +329,10 @@ void main() {
       ];
       adServices = () async => responses.removeAt(0);
 
-      expect((await repository.recordAdAttribution()).valueOrNull, isTrue);
+      expect(
+        (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+        isTrue,
+      );
       expect(
         (callsTo('setAttributes').single.arguments as Map)['attributes'],
         containsPair('ad_campaign_id', '7'),
@@ -320,16 +340,19 @@ void main() {
     });
 
     test('Apple failing leaves the offering as it was, unlogged', () async {
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
+      appleAsked = 0;
       adServices = () async => http.Response('', 404);
 
-      final result = await repository.recordAdAttribution();
+      final result = await repository.recordAdAttribution(lookUp: true);
       expect(result.failureOrNull, isA<NetworkFailure>());
       expect(callsTo('setAttributes'), isEmpty);
       expect(await dismissible(), isTrue);
 
       adServices = () => throw http.ClientException('offline');
       expect(
-        (await repository.recordAdAttribution()).failureOrNull,
+        (await repository.recordAdAttribution(lookUp: true)).failureOrNull,
         isA<NetworkFailure>(),
       );
       expect(logged, isEmpty);
@@ -339,15 +362,77 @@ void main() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(adServicesChannel, (call) async => null);
 
-      expect((await repository.recordAdAttribution()).valueOrNull, isFalse);
+      expect(
+        (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+        isFalse,
+      );
       expect(callsTo('setAttributes'), isEmpty);
+    });
+
+    test('Apple is asked once per install; its answer is applied to every '
+        'user', () async {
+      await repository.recordAdAttribution(lookUp: true);
+      await repository.identify('other');
+      expect(
+        (await repository.recordAdAttribution(lookUp: false)).valueOrNull,
+        isTrue,
+      );
+
+      expect(appleAsked, 1);
+      expect(callsTo('setAttributes'), hasLength(2));
+      expect(callsTo('syncAttributesAndOfferingsIfNeeded'), hasLength(2));
+    });
+
+    test('a final "not attributed" is kept too', () async {
+      adServices = () async =>
+          http.Response(jsonEncode({'attribution': false}), 200);
+      await repository.recordAdAttribution(lookUp: true);
+      await repository.recordAdAttribution(lookUp: true);
+
+      expect(appleAsked, 1);
+      expect(callsTo('setAttributes'), isEmpty);
+    });
+
+    test('without an answer yet, Apple is asked only with lookUp', () async {
+      expect(
+        (await repository.recordAdAttribution(lookUp: false)).valueOrNull,
+        isFalse,
+      );
+      expect(appleAsked, 0);
+    });
+
+    test('no answer is asked for again, a missing token is not', () async {
+      adServices = () async => http.Response('', 503);
+      await repository.recordAdAttribution(lookUp: true);
+      adServices = () async => http.Response(
+        jsonEncode({'attribution': true, 'campaignId': 3}),
+        200,
+      );
+      expect(
+        (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+        isTrue,
+      );
+      expect(appleAsked, 2);
+
+      // Another install, on a device without a token.
+      await SharedPreferencesAsync().clear();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(adServicesChannel, (call) async => null);
+      await repository.recordAdAttribution(lookUp: true);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(adServicesChannel, (call) async => 'token');
+      expect(
+        (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+        isFalse,
+      );
+      expect(appleAsked, 2);
     });
 
     test('the offering waits for an attribution in progress', () async {
       final apple = Completer<http.Response>();
       adServices = () => apple.future;
 
-      unawaited(repository.recordAdAttribution());
+      unawaited(repository.recordAdAttribution(lookUp: true));
       final offering = repository.offering();
       apple.complete(
         http.Response(jsonEncode({'attribution': true, 'campaignId': 1}), 200),
@@ -359,7 +444,7 @@ void main() {
     test('the offering does not wait for a slow attribution', () async {
       adServices = () => Completer<http.Response>().future;
 
-      unawaited(repository.recordAdAttribution());
+      unawaited(repository.recordAdAttribution(lookUp: true));
 
       expect(await dismissible(), isTrue);
     });
@@ -372,7 +457,10 @@ void main() {
       return http.Response('{}', 200);
     };
 
-    expect((await repository.recordAdAttribution()).valueOrNull, isFalse);
+    expect(
+      (await repository.recordAdAttribution(lookUp: true)).valueOrNull,
+      isFalse,
+    );
     expect(asked, isFalse);
     expect(callsTo('enableAdServicesAttributionTokenCollection'), isEmpty);
   });

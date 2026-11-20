@@ -55,13 +55,12 @@ class GetOffering implements UseCase<Offering, NoParams> {
       _repository.offering();
 }
 
-class RecordAdAttribution implements UseCase<bool, NoParams> {
+class RecordAdAttribution {
   const RecordAdAttribution(this._repository);
   final PurchasesRepository _repository;
 
-  @override
-  Future<Result<bool>> call([NoParams params = const NoParams()]) =>
-      _repository.recordAdAttribution();
+  Future<Result<bool>> call({required bool lookUp}) =>
+      _repository.recordAdAttribution(lookUp: lookUp);
 }
 
 class PurchasePlan implements UseCase<Entitlement, Plan> {

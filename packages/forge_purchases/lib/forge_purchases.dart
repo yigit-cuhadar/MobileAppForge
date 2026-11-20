@@ -36,9 +36,10 @@
 ///   service account key uploaded to RevenueCat, Real-time developer
 ///   notifications sent to RevenueCat, license testers for test purchases.
 ///
-/// **Paid traffic.** `RecordAdAttribution` after the user is identified
-/// asks Apple Search Ads (AdServices, iOS 14.3+, no tracking prompt)
-/// whether the install came from a campaign; if so it sets the RevenueCat
+/// **Paid traffic.** `RecordAdAttribution` after every user switch applies
+/// this install's Apple Search Ads attribution (AdServices, iOS 14.3+, no
+/// tracking prompt), asked once per install while the app passes `lookUp`
+/// and kept on the device; if attributed it sets the RevenueCat
 /// custom attributes `ad_network` = `apple_search_ads` and `ad_campaign_id`
 /// = the campaign id, and reloads the offering. A Targeting rule on those
 /// attributes then serves another offering (e.g. one whose metadata makes
