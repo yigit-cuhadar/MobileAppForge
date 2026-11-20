@@ -78,7 +78,9 @@ class _VerificationViewState extends State<_VerificationView> {
             ),
             EmailVerificationStatus.failure => showForgeSnackbar(
               context,
-              message: s.verificationFailed,
+              message: EmailVerificationCubit.isThrottled(state.failure)
+                  ? s.tooManyEmails
+                  : s.verificationFailed,
               error: true,
             ),
             _ => null,
@@ -245,6 +247,7 @@ class _ChangeEmailSheetState extends State<_ChangeEmailSheet> {
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: Gap.md,
           children: [

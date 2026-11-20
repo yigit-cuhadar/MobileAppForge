@@ -59,14 +59,13 @@ class EmailVerificationCubit extends Cubit<EmailVerificationState> {
     required this._reloadUser,
     required this._sendEmailVerification,
     required this._changeEmail,
-    required GetVerificationSentAt getVerificationSentAt,
+    required this._getVerificationSentAt,
     required this._signOut,
   }) : super(const EmailVerificationState()) {
-    if (getVerificationSentAt() case final sent?) {
-      final waited = DateTime.now().difference(sent).inSeconds;
-      if (waited < resendCooldown) _startCooldown(resendCooldown - waited);
-    }
+    _catchUpCooldown();
   }
+
+  final GetVerificationSentAt _getVerificationSentAt;
 
   final ReloadUser _reloadUser;
   final SendEmailVerification _sendEmailVerification;
@@ -104,13 +103,14 @@ class EmailVerificationCubit extends Cubit<EmailVerificationState> {
       return;
     }
     _reloading = true;
+    _catchUpCooldown();
     await _reloadUser();
     _reloading = false;
   }
 
   /// Sends the link again: to the new address while a change waits.
   Future<void> resend() async {
-    if (state.isBusy || state.resendIn > 0) return;
+    if (state.isBusy || state.resendIn > 0 || _catchUpCooldown()) return;
     _emit(EmailVerificationStatus.sending);
     final pending = state.pendingEmail;
     final result = pending == null
@@ -165,8 +165,24 @@ class EmailVerificationCubit extends Cubit<EmailVerificationState> {
     }
   }
 
-  static bool _throttled(Failure failure) =>
+  /// Starts the cooldown's rest when a link went out less than
+  /// [resendCooldown] ago. The page can open while sign-up is still sending
+  /// the first link, so this runs again on every check and before a resend.
+  bool _catchUpCooldown() {
+    if (state.resendIn > 0) return true;
+    final sent = _getVerificationSentAt();
+    if (sent == null) return false;
+    final waited = DateTime.now().difference(sent).inSeconds;
+    if (waited >= resendCooldown) return false;
+    _startCooldown(resendCooldown - waited);
+    return true;
+  }
+
+  /// Whether Firebase refused [failure]'s send for sending too often.
+  static bool isThrottled(Failure? failure) =>
       failure is AuthFailure && failure.code == _throttledCode;
+
+  static bool _throttled(Failure failure) => isThrottled(failure);
 
   void _startCooldown(int seconds) {
     _cooldown?.cancel();
