@@ -91,7 +91,22 @@ class _VerificationViewState extends State<_VerificationView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ForgeIcon(ForgeIcons.mail, size: 32, color: colors.accent),
+                    Center(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colors.surfaceSunken,
+                        ),
+                        child: ForgeIcon(
+                          ForgeIcons.mail,
+                          size: 32,
+                          color: colors.accent,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: Gap.md),
                     Text(
                       s.verifyEmailTitle,
