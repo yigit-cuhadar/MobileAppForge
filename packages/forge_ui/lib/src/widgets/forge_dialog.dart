@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../spacing.dart';
 import '../theme/forge_style.dart';
+import '../theme/forge_theme.dart';
 import 'list_row.dart';
 import 'or_divider.dart';
 
@@ -23,7 +24,25 @@ class ForgeDialog extends StatelessWidget {
     required this.action,
     this.alternative,
     required this.cancel,
-  }) : list = null;
+  }) : list = null,
+       close = null,
+       _choice = false;
+
+  /// A question with two answers side by side, [cancel] (the other answer,
+  /// secondary) on the start side and [action] on the end, and [close], a
+  /// [ForgeIconButton] with [ForgeIcons.close], in the top end corner for
+  /// leaving without an answer.
+  const ForgeDialog.choice({
+    super.key,
+    required this.title,
+    this.message,
+    required this.action,
+    required this.cancel,
+    required Widget this.close,
+  }) : field = null,
+       list = null,
+       alternative = null,
+       _choice = true;
 
   /// The title over a list to choose from, such as [ListRow]s with
   /// checkboxes: the rows sit flush with the title, untinted, and the list
@@ -37,7 +56,9 @@ class ForgeDialog extends StatelessWidget {
     required this.cancel,
   }) : message = null,
        field = null,
-       alternative = null;
+       alternative = null,
+       close = null,
+       _choice = false;
 
   final String title;
   final String? message;
@@ -52,25 +73,46 @@ class ForgeDialog extends StatelessWidget {
   final Widget? alternative;
   final Widget cancel;
 
+  /// Leaves without an answer, in the top end corner ([ForgeDialog.choice]).
+  final Widget? close;
+  final bool _choice;
+
   static const double maxWidth = 320;
 
   @override
   Widget build(BuildContext context) {
     final theme = DialogTheme.of(context);
-    final heading = Text(
-      title,
-      textAlign: TextAlign.center,
-      style: theme.titleTextStyle,
+    final close = this.close;
+    final heading = Padding(
+      // Clear of the close button in the corner.
+      padding: EdgeInsets.symmetric(
+        horizontal: close == null ? 0 : ForgeTheme.tapMin - Gap.lg + Gap.xs,
+      ),
+      child: Text(
+        title,
+        textAlign: TextAlign.center,
+        style: theme.titleTextStyle,
+      ),
     );
     final buttons = [
       const SizedBox(height: 20),
-      action,
-      if (alternative case final alternative?) ...[
-        const SizedBox(height: Gap.md),
-        alternative,
+      if (_choice)
+        Row(
+          spacing: Gap.sm,
+          children: [
+            Expanded(child: cancel),
+            Expanded(child: action),
+          ],
+        )
+      else ...[
+        action,
+        if (alternative case final alternative?) ...[
+          const SizedBox(height: Gap.md),
+          alternative,
+        ],
+        const SizedBox(height: Gap.sm),
+        cancel,
       ],
-      const SizedBox(height: Gap.sm),
-      cancel,
     ];
     final list = this.list;
     return Dialog(
@@ -98,33 +140,46 @@ class ForgeDialog extends StatelessWidget {
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(Gap.lg),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      heading,
-                      if (message case final message?) ...[
-                        const SizedBox(height: Gap.sm),
-                        Text(
-                          message,
-                          textAlign: TextAlign.center,
-                          style: theme.contentTextStyle,
-                        ),
+              : _withClose(
+                  close,
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(Gap.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        heading,
+                        if (message case final message?) ...[
+                          const SizedBox(height: Gap.sm),
+                          Text(
+                            message,
+                            textAlign: TextAlign.center,
+                            style: theme.contentTextStyle,
+                          ),
+                        ],
+                        if (field case final field?) ...[
+                          const SizedBox(height: Gap.md),
+                          field,
+                        ],
+                        ...buttons,
                       ],
-                      if (field case final field?) ...[
-                        const SizedBox(height: Gap.md),
-                        field,
-                      ],
-                      ...buttons,
-                    ],
+                    ),
                   ),
                 ),
         ),
       ),
     );
   }
+
+  /// [content] with [close] over its top end corner.
+  static Widget _withClose(Widget? close, Widget content) => close == null
+      ? content
+      : Stack(
+          children: [
+            content,
+            PositionedDirectional(top: Gap.xs, end: Gap.xs, child: close),
+          ],
+        );
 }
 
 /// [rows] in a scroll view whose bottom fades into the dialog's surface
