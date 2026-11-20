@@ -36,6 +36,18 @@
 ///   service account key uploaded to RevenueCat, Real-time developer
 ///   notifications sent to RevenueCat, license testers for test purchases.
 ///
+/// **Paid traffic.** `RecordAdAttribution` after the user is identified
+/// asks Apple Search Ads (AdServices, iOS 14.3+, no tracking prompt)
+/// whether the install came from a campaign; if so it sets the RevenueCat
+/// custom attributes `ad_network` = `apple_search_ads` and `ad_campaign_id`
+/// = the campaign id, and reloads the offering. A Targeting rule on those
+/// attributes then serves another offering (e.g. one whose metadata makes
+/// the paywall hard). Target campaign ids, not just the network: a device
+/// in developer mode gets Apple's test record, campaign 1234567890. Add the
+/// Apple AdServices integration (Basic) in RevenueCat for its own charts.
+/// App Store privacy: declare Advertising Data (Usage Data), linked to the
+/// user, not used for tracking.
+///
 /// **Server-trusted entitlements.** The client's entitlement is for UI gating
 /// only; it can be tampered with. Anything that costs money or exposes paid
 /// data is enforced by the backend: a RevenueCat webhook (with an

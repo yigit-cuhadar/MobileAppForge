@@ -27,8 +27,18 @@ abstract interface class PurchasesRepository {
 
   /// Never empty: no plans is a [PurchaseFailureReason.productNotAvailable].
   /// Trials, intro and win-back offers appear only when the user is
-  /// eligible.
+  /// eligible. Waits a few seconds for a [recordAdAttribution] in progress,
+  /// so the store setup's targeting sees it; a slower one is not waited
+  /// for.
   Future<Result<Offering>> offering();
+
+  /// Asks the platform's ad network whether this install came from one of
+  /// its ads and, when it did, stores that on the current user for the
+  /// store setup's targeting and reloads the offering. True when
+  /// attributed; false when not, or where no ad network answers (only Apple
+  /// Search Ads on iOS does). Call it after [identify] or [reset], as the
+  /// attribution belongs to that user.
+  Future<Result<bool>> recordAdAttribution();
 
   /// Resolves to the entitlement after the purchase, with the plan's
   /// win-back offer applied when it carries one.
