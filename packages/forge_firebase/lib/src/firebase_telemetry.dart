@@ -37,6 +37,10 @@ class FirebaseTelemetry implements Telemetry {
 
   /// The user collection follows; see [follow].
   String? _uid;
+
+  /// The user properties last set, sent again whenever collection turns on:
+  /// Analytics drops what is set while it does not collect.
+  final _properties = <String, String?>{};
   Future<void> _tail = Future.value();
   int _latest = 0;
 
@@ -97,6 +101,7 @@ class FirebaseTelemetry implements Telemetry {
     return _run(() async {
       await _setCollection(false);
       await _save(uid, false);
+      _properties.clear();
       await _analytics.resetAnalyticsData();
       await _crashlytics.deleteUnsentReports();
     });
@@ -125,6 +130,7 @@ class FirebaseTelemetry implements Telemetry {
 
   @override
   Future<void> setUserProperty(String name, String? value) async {
+    _properties[name] = value;
     try {
       await _analytics.setUserProperty(name: name, value: value);
     } catch (error) {
@@ -139,15 +145,24 @@ class FirebaseTelemetry implements Telemetry {
   }
 
   /// Collects for the followed user with their [consent], identified by
-  /// their uid. Turning on sets the id first and turning off clears it last,
-  /// so nothing is collected under a wrong id, nor kept on by a failure.
+  /// their uid, with the user properties set so far. Analytics drops an id
+  /// or a property set while it does not collect, so turning on sets them
+  /// after collection starts; turning off stops collection first, so a
+  /// failure never leaves it on.
   Future<void> _setCollection(bool consent) async {
     final collect = _allowed && consent;
-    if (!collect) await _enableCollection(false);
-    final id = collect ? _uid : null;
-    await _analytics.setUserId(id: id);
-    await _crashlytics.setUserIdentifier(id ?? '');
-    if (collect) await _enableCollection(true);
+    if (!collect) {
+      await _enableCollection(false);
+      await _analytics.setUserId(id: null);
+      await _crashlytics.setUserIdentifier('');
+      return;
+    }
+    await _enableCollection(true);
+    await _analytics.setUserId(id: _uid);
+    await _crashlytics.setUserIdentifier(_uid ?? '');
+    for (final MapEntry(:key, :value) in _properties.entries) {
+      await _analytics.setUserProperty(name: key, value: value);
+    }
   }
 
   Future<void> _enableCollection(bool enabled) async {
