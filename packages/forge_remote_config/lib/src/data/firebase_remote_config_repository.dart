@@ -9,7 +9,9 @@ import 'remote_values.dart';
 
 /// [RemoteConfigRepository] on Firebase Remote Config. The SDK is not given
 /// the defaults: a key without a server value reads the app's default here,
-/// so reads are the same before and after [initialize].
+/// so reads are the same before and after [initialize]. The SDK activates
+/// all keys at once, so the first [refresh] keeps the values of the keys it
+/// was not asked for, as they were, for the rest of the session.
 class FirebaseRemoteConfigRepository implements RemoteConfigRepository {
   /// [defaults] are bools, numbers and strings.
   FirebaseRemoteConfigRepository(
@@ -22,16 +24,22 @@ class FirebaseRemoteConfigRepository implements RemoteConfigRepository {
   final Map<String, Object> _defaults;
   final Duration _minimumFetchInterval;
 
+  /// Keys read from the SDK's active values after a [refresh].
+  final _live = <String>{};
+
+  /// The other keys' values, kept at the first [refresh].
+  Map<String, Object?>? _session;
+
+  RemoteConfigSettings get _settings => RemoteConfigSettings(
+    // The SDK's default; nothing waits for the fetch.
+    fetchTimeout: const Duration(minutes: 1),
+    minimumFetchInterval: _minimumFetchInterval,
+  );
+
   @override
   Future<Result<void>> initialize() async {
     final ready = await guard(() async {
-      await _config.setConfigSettings(
-        RemoteConfigSettings(
-          // The SDK's default; nothing waits for the fetch.
-          fetchTimeout: const Duration(minutes: 1),
-          minimumFetchInterval: _minimumFetchInterval,
-        ),
-      );
+      await _config.setConfigSettings(_settings);
       await _config.ensureInitialized();
       await _config.activate();
     }, mapper: mapFirebaseError);
@@ -42,6 +50,26 @@ class FirebaseRemoteConfigRepository implements RemoteConfigRepository {
       ),
     );
     return ready;
+  }
+
+  @override
+  Future<Result<void>> refresh(Set<String> keys) {
+    _session ??= {for (final key in _defaults.keys) key: _active(key)};
+    _live.addAll(keys);
+    return guard(() async {
+      await _config.setConfigSettings(
+        RemoteConfigSettings(
+          // Someone waits for this one, e.g. on a Retry.
+          fetchTimeout: const Duration(seconds: 15),
+          minimumFetchInterval: Duration.zero,
+        ),
+      );
+      try {
+        await _config.fetchAndActivate();
+      } finally {
+        await _config.setConfigSettings(_settings);
+      }
+    }, mapper: mapFirebaseError);
   }
 
   @override
@@ -56,7 +84,13 @@ class FirebaseRemoteConfigRepository implements RemoteConfigRepository {
   @override
   double getDouble(String key) => readDouble(_value(key));
 
-  Object? _value(String key) {
+  Object? _value(String key) => switch (_session) {
+    final session? when !_live.contains(key) && session.containsKey(key) =>
+      session[key],
+    _ => _active(key),
+  };
+
+  Object? _active(String key) {
     final value = _config.getValue(key);
     return value.source == ValueSource.valueRemote
         ? value.asString()

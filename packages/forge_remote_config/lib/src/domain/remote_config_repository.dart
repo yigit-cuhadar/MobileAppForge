@@ -5,7 +5,8 @@ import 'package:forge_core/forge_core.dart';
 ///
 /// One session sees one set of values: what an earlier launch fetched, or
 /// the app's defaults for keys the server has not sent. Values fetched in
-/// this session apply from the next launch. Reads never fail and never
+/// this session apply from the next launch, except for the keys the app
+/// [refresh]es, such as a kill switch. Reads never fail and never
 /// wait; a number default serves both [getInt] (when integral) and
 /// [getDouble]; a key without a value or default reads as `''`, `false` or
 /// `0`.
@@ -15,6 +16,11 @@ abstract interface class RemoteConfigRepository {
   /// startup, before the first read. A failed fetch keeps the current
   /// values and never reaches the app.
   Future<Result<void>> initialize();
+
+  /// Fetches the server's values now, whenever the last fetch was, and
+  /// from then on [keys] read them; every other key keeps this session's
+  /// value. On a failure (offline, throttled) all keys keep their values.
+  Future<Result<void>> refresh(Set<String> keys);
 
   String getString(String key);
 
