@@ -16,15 +16,20 @@ class DeviceReviewRepository implements ReviewRepository {
 
   static const _events = 'forge_review.events';
   static const _lastEventId = 'forge_review.lastEventId';
+  static const _openDays = 'forge_review.openDays';
+  static const _lastOpenDay = 'forge_review.lastOpenDay';
   static const _askedAt = 'forge_review.askedAtMs';
   static const _askedVersion = 'forge_review.askedVersion';
 
   @override
   Future<Result<ReviewHistory>> load() => guard(() async {
     final askedAt = await _preferences.getInt(_askedAt);
+    final lastOpenDay = await _preferences.getString(_lastOpenDay);
     return ReviewHistory(
       events: await _preferences.getInt(_events) ?? 0,
       lastEventId: await _preferences.getString(_lastEventId),
+      openDays: await _preferences.getInt(_openDays) ?? 0,
+      lastOpenDay: lastOpenDay == null ? null : DateTime.tryParse(lastOpenDay),
       askedAt: askedAt == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(askedAt),
@@ -37,6 +42,14 @@ class DeviceReviewRepository implements ReviewRepository {
     await _preferences.setInt(_events, history.events);
     if (history.lastEventId case final id?) {
       await _preferences.setString(_lastEventId, id);
+    }
+    await _preferences.setInt(_openDays, history.openDays);
+    if (history.lastOpenDay case final day?) {
+      // The local date alone, so a change of time zone keeps the day.
+      await _preferences.setString(
+        _lastOpenDay,
+        day.toIso8601String().substring(0, 10),
+      );
     }
     if (history.askedAt case final at?) {
       await _preferences.setInt(_askedAt, at.millisecondsSinceEpoch);

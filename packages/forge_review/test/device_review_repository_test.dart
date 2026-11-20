@@ -29,6 +29,8 @@ void main() {
     final history = ReviewHistory(
       events: 4,
       lastEventId: 'w4',
+      openDays: 3,
+      lastOpenDay: DateTime(2026, 11, 20),
       askedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
       askedVersion: '1.2.0',
     );

@@ -23,6 +23,7 @@ const _strings = ReviewPromptStrings(
 
 void main() {
   group('ReviewPromptCubit', () {
+    setUpAll(() => registerFallbackValue(const ReviewAppOpened(canAsk: false)));
     late _MockReach reach;
     late _MockRequest request;
 
@@ -37,7 +38,7 @@ void main() {
     blocTest<ReviewPromptCubit, ReviewPromptState>(
       'asks when the moment is due',
       setUp: () =>
-          when(() => reach((id: 'w', highlight: true, canAsk: true)))
+          when(() => reach(any(that: isA<ReviewEvent>())))
               .thenAnswer((_) async => const Ok(true)),
       build: build,
       act: (cubit) => cubit.moment(id: 'w', highlight: true, canAsk: true),
@@ -47,11 +48,21 @@ void main() {
     blocTest<ReviewPromptCubit, ReviewPromptState>(
       'stays quiet when not due or failing',
       setUp: () =>
-          when(() => reach((id: 'w', highlight: false, canAsk: true)))
+          when(() => reach(any()))
               .thenAnswer((_) async => const Err(UnknownFailure('x'))),
       build: build,
       act: (cubit) => cubit.moment(id: 'w', highlight: false, canAsk: true),
       expect: () => <ReviewPromptState>[],
+    );
+
+    blocTest<ReviewPromptCubit, ReviewPromptState>(
+      'an app open asks when due',
+      setUp: () =>
+          when(() => reach(any(that: isA<ReviewAppOpened>())))
+              .thenAnswer((_) async => const Ok(true)),
+      build: build,
+      act: (cubit) => cubit.opened(canAsk: true),
+      expect: () => [ReviewPromptState.ask],
     );
 
     test('rate opens the platform prompt', () async {
