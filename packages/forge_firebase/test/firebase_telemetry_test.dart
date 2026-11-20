@@ -367,18 +367,16 @@ void main() {
 
     setUp(() {
       sent = [];
-      when(() => analytics.setAnalyticsCollectionEnabled(any())).thenAnswer((
-        call,
-      ) async {
-        collecting = call.positionalArguments.first as bool;
-        sent.add('collect $collecting');
-      });
-      when(() => analytics.setUserId(id: any(named: 'id'))).thenAnswer((
-        call,
-      ) async {
-        analyticsId = call.namedArguments[#id] as String?;
-        sent.add('id $analyticsId');
-      });
+      when(() => analytics.setAnalyticsCollectionEnabled(any()))
+          .thenAnswer((call) async {
+            collecting = call.positionalArguments.first as bool;
+            sent.add('collect $collecting');
+          });
+      when(() => analytics.setUserId(id: any(named: 'id')))
+          .thenAnswer((call) async {
+            analyticsId = call.namedArguments[#id] as String?;
+            sent.add('id $analyticsId');
+          });
       when(
         () => analytics.setUserProperty(
           name: any(named: 'name'),
@@ -400,12 +398,7 @@ void main() {
 
       await subject.apply('u1', null);
 
-      expect(sent, [
-        'collect true',
-        'id u1',
-        'level beginner',
-        'goal null',
-      ]);
+      expect(sent, ['collect true', 'id u1', 'level beginner', 'goal null']);
     });
 
     test('a forgotten user leaves no properties behind', () async {
