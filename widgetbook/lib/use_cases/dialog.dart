@@ -44,6 +44,33 @@ Widget mainActionDialog(BuildContext context) => _shown(
   ),
 );
 
+/// Two answers side by side, closed without one from the corner.
+@widgetbook.UseCase(name: 'Choice with close', type: ForgeDialog)
+Widget choiceDialog(BuildContext context) => _shown(
+  context,
+  ForgeDialog.choice(
+    title: context.knobs.string(
+      label: 'Title',
+      initialValue: 'Enjoying [APP NAME]?',
+    ),
+    message: context.knobs.string(
+      label: 'Message',
+      initialValue: 'Your answer helps us improve.',
+    ),
+    action: ForgeButton(label: 'Yes!', onPressed: () {}),
+    cancel: ForgeButton(
+      label: 'Not really',
+      onPressed: () {},
+      variant: ForgeButtonVariant.secondary,
+    ),
+    close: ForgeIconButton(
+      icon: ForgeIcons.close,
+      label: 'Close',
+      onPressed: () {},
+    ),
+  ),
+);
+
 @widgetbook.UseCase(name: 'With field, error', type: ForgeDialog)
 Widget fieldDialog(BuildContext context) => _shown(
   context,

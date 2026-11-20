@@ -203,6 +203,53 @@ void main() {
       expect(find.byType(ForgeDialog), findsNothing);
     });
 
+    testWidgets('a choice puts its answers side by side, the main one at '
+        'the end, and closes from its corner', (tester) async {
+      await pump(
+        tester,
+        (context) => showForgeDialog<void>(
+          context: context,
+          builder: (context) => ForgeDialog.choice(
+            title: 'Enjoying [APP NAME]?',
+            message: 'Your answer helps us improve.',
+            action: FilledButton(onPressed: () {}, child: const Text('Yes')),
+            cancel: ElevatedButton(onPressed: () {}, child: const Text('No')),
+            close: ForgeIconButton(
+              icon: ForgeIcons.close,
+              label: 'Close',
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+      );
+      await open(tester);
+
+      final yes = tester.getRect(find.byType(FilledButton));
+      final no = tester.getRect(find.byType(ElevatedButton));
+      expect(no.top, yes.top);
+      expect(no.right, lessThan(yes.left));
+      expect(no.width, yes.width);
+      final dialog = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(ForgeDialog),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      final close = tester.getRect(find.byType(ForgeIconButton));
+      expect(close.right, lessThan(dialog.right));
+      expect(close.right, greaterThan(dialog.right - Gap.md));
+      expect(
+        close.top,
+        lessThan(tester.getRect(find.text('Enjoying [APP NAME]?')).top),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ForgeDialog), findsNothing);
+    });
+
     testWidgets('puts the field between the text and the buttons', (
       tester,
     ) async {
