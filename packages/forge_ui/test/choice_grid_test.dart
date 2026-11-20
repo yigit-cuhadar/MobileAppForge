@@ -237,6 +237,67 @@ void main() {
       );
     });
 
+    group('tag', () {
+      Future<void> pumpTag(
+        WidgetTester tester,
+        ChoiceListForm form, {
+        double scale = 1,
+      }) => tester.pumpWidget(
+        MaterialApp(
+          theme: ForgeTheme.light(),
+          builder: (context, page) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(scale)),
+            child: page!,
+          ),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SizedBox(
+                width: 390,
+                child: ChoiceGrid.list(
+                  form: form,
+                  options: const [
+                    ChoiceOption(label: 'Option one', hint: '[HINT]'),
+                    ChoiceOption(
+                      label: 'Option two',
+                      hint: '[HINT]',
+                      tag: ForgeTag('[TAG]', kind: ForgeTagKind.record),
+                    ),
+                  ],
+                  selected: null,
+                  onSelected: picks.add,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      testWidgets('sits right after its label, and a tap on it picks', (
+        tester,
+      ) async {
+        await pumpTag(tester, ChoiceListForm.stacked);
+
+        expect(find.byType(ForgeTag), findsOneWidget);
+        final label = tester.getRect(find.text('Option two'));
+        final tag = tester.getRect(find.byType(ForgeTag));
+        expect(tag.left - label.right, Gap.sm);
+        expect(tag.center.dy, closeTo(label.center.dy, 1));
+
+        await tester.tap(find.text('[TAG]'));
+        expect(picks, [1]);
+      });
+
+      for (final scale in [1.0, 2.0, 3.0]) {
+        testWidgets('lays out at ${scale}x text', (tester) async {
+          for (final form in ChoiceListForm.values) {
+            await pumpTag(tester, form, scale: scale);
+            expect(tester.takeException(), isNull, reason: '$form');
+          }
+        });
+      }
+    });
+
     group('info button', () {
       late List<String> infos;
 
