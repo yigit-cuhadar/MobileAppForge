@@ -227,6 +227,7 @@ Paint _linePaint(Color color) => Paint()
 /// nearest day with an entry. Under the chart: the legend of an averaged
 /// series, a [range] control (a SegmentedControl), a muted [caption] and a
 /// [lockedCaption] with a lock and a chevron that the app opens.
+/// [MultiSeriesChart.shared] puts its series on one scale under a legend.
 class MultiSeriesChart extends StatelessWidget {
   const MultiSeriesChart({
     super.key,
@@ -250,6 +251,40 @@ class MultiSeriesChart extends StatelessWidget {
   }) : assert(series.length <= 3),
        assert((lockedCaption == null) == (onLockedCaptionTap == null)),
        _state = _State.filled,
+       gridlines = null,
+       _messageTitle = null,
+       message = null,
+       actions = const [],
+       onRetry = null,
+       retryLabel = null;
+
+  /// Up to three plain [series] on one value scale, named in a legend
+  /// above the chart with a sample of each line. Each of the [gridlines]
+  /// is a thin line across the chart with its label at the left end; the
+  /// scale spans them and every point. A tap shows every series' value on
+  /// the nearest day with an entry.
+  const MultiSeriesChart.shared({
+    super.key,
+    required this.title,
+    this.detail,
+    required List<ChartSeries> this.series,
+    required List<({double value, String label})> this.gridlines,
+    required DateTime this.from,
+    required DateTime this.to,
+    required String Function(DateTime day) this.dateLabel,
+    required String this.startLabel,
+    required String this.endLabel,
+    required String this.semanticLabel,
+  }) : assert(series.length <= 3),
+       _state = _State.shared,
+       onSeriesTap = null,
+       addLabel = null,
+       onAdd = null,
+       adding = false,
+       range = null,
+       caption = null,
+       lockedCaption = null,
+       onLockedCaptionTap = null,
        _messageTitle = null,
        message = null,
        actions = const [],
@@ -274,6 +309,7 @@ class MultiSeriesChart extends StatelessWidget {
       lockedCaption = null,
       onLockedCaptionTap = null,
       semanticLabel = null,
+      gridlines = null,
       _messageTitle = null,
       message = null,
       actions = const [],
@@ -308,6 +344,7 @@ class MultiSeriesChart extends StatelessWidget {
        adding = false,
        caption = null,
        semanticLabel = null,
+       gridlines = null,
        onRetry = null,
        retryLabel = null;
 
@@ -337,6 +374,7 @@ class MultiSeriesChart extends StatelessWidget {
        lockedCaption = null,
        onLockedCaptionTap = null,
        semanticLabel = null,
+       gridlines = null,
        actions = const [];
 
   final String title;
@@ -373,6 +411,9 @@ class MultiSeriesChart extends StatelessWidget {
 
   /// What the chart shows, for screen readers.
   final String? semanticLabel;
+
+  /// The shared scale's lines, each a value and its label.
+  final List<({double value, String label})>? gridlines;
   final String? _messageTitle;
   final String? message;
   final List<Widget> actions;
@@ -385,6 +426,7 @@ class MultiSeriesChart extends StatelessWidget {
     final style = ForgeStyle.of(context);
     final children = switch (_state) {
       _State.filled => _filled(context, style),
+      _State.shared => _shared(context),
       _State.loading => [
         const Wrap(
           spacing: Gap.sm,
@@ -488,6 +530,7 @@ class MultiSeriesChart extends StatelessWidget {
           for (final s in series)
             if (s.error == null) s,
         ],
+        gridlines: null,
         from: from!,
         to: to!,
         dateLabel: dateLabel!,
@@ -501,9 +544,51 @@ class MultiSeriesChart extends StatelessWidget {
         _LockedCaption(text: lockedCaption!, onTap: onLockedCaptionTap!),
     ];
   }
+
+  List<Widget> _shared(BuildContext context) {
+    final series = this.series!;
+    assert(
+      series.every(
+        (s) =>
+            !s.bars && s.average == null && s.target == null && s.error == null,
+      ),
+    );
+    return [
+      Wrap(
+        spacing: 12,
+        runSpacing: Gap.xs,
+        children: [
+          for (final s in series)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: Gap.xs,
+              children: [
+                SeriesSample(s.look),
+                Text(
+                  s.label,
+                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                    color: ForgeStyle.of(context).colors.inkMuted,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+      _Plot(
+        series: series,
+        gridlines: gridlines,
+        from: from!,
+        to: to!,
+        dateLabel: dateLabel!,
+        semanticLabel: semanticLabel!,
+      ),
+      ChartEndLabels(start: startLabel!, end: endLabel!, size: 11),
+    ];
+  }
 }
 
-enum _State { filled, loading, empty, error }
+enum _State { filled, shared, loading, empty, error }
 
 /// The legend of an averaged series: a thin line-strong sample for the
 /// daily points and a thick one in the series' colour for the average.
@@ -586,6 +671,7 @@ int _dayOf(DateTime day, DateTime from) => DateTime.utc(
 class _Plot extends StatefulWidget {
   const _Plot({
     required this.series,
+    required this.gridlines,
     required this.from,
     required this.to,
     required this.dateLabel,
@@ -593,6 +679,9 @@ class _Plot extends StatefulWidget {
   });
 
   final List<ChartSeries> series;
+
+  /// Lines of one scale shared by every series; each has its own without.
+  final List<({double value, String label})>? gridlines;
   final DateTime from;
   final DateTime to;
   final String Function(DateTime day) dateLabel;
@@ -652,9 +741,15 @@ class _PlotState extends State<_Plot> {
             double x(int day) => dayWidth * (day + 0.5);
             final entryDays = _entryDays;
             final selected = _selected;
+            final shared = _sharedScale();
+            final scales = [for (final s in widget.series) shared ?? _scale(s)];
+            final gridlines = [
+              for (final g in widget.gridlines ?? const <Never>[])
+                (g, shared!(g.value)),
+            ];
             final targets = [
-              for (final s in widget.series)
-                if (s.target != null) (s, _scale(s).call(s.target!)),
+              for (final (i, s) in widget.series.indexed)
+                if (s.target != null) (s, scales[i](s.target!)),
             ];
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -675,12 +770,28 @@ class _PlotState extends State<_Plot> {
                         series: widget.series,
                         from: widget.from,
                         dayWidth: dayWidth,
-                        scales: [for (final s in widget.series) _scale(s)],
+                        scales: scales,
+                        gridlines: [for (final (_, y) in gridlines) y],
                         selected: selected,
                         colors: p,
                       ),
                     ),
                   ),
+                  for (final (g, y) in gridlines)
+                    Positioned(
+                      left: 0,
+                      bottom: _Plot.height - y + 2,
+                      // The chart's label tells screen readers what it shows.
+                      child: ExcludeSemantics(
+                        child: Text(
+                          g.label,
+                          style: style.data.copyWith(
+                            fontSize: 10,
+                            color: p.inkMuted,
+                          ),
+                        ),
+                      ),
+                    ),
                   for (final (s, y) in targets)
                     Positioned(
                       right: 0,
@@ -733,6 +844,22 @@ class _PlotState extends State<_Plot> {
     );
   }
 
+  /// The scale every series shares, from the lowest of the gridlines and
+  /// points on the baseline to the highest; none without gridlines.
+  double Function(double)? _sharedScale() {
+    final gridlines = widget.gridlines;
+    if (gridlines == null) return null;
+    final all = [
+      for (final g in gridlines) g.value,
+      for (final s in widget.series)
+        for (final p in s.points) p.value,
+    ];
+    if (all.isEmpty) return (_) => _Plot.baseline;
+    final min = all.reduce(math.min);
+    final max = all.reduce(math.max);
+    return (v) => scaleY(v, min, max, _Plot.lineTop, _Plot.baseline);
+  }
+
   /// A series' own scale: lines across their range, bars up from zero.
   double Function(double) _scale(ChartSeries s) {
     if (s.bars) {
@@ -758,6 +885,7 @@ class _PlotPainter extends CustomPainter {
     required this.from,
     required this.dayWidth,
     required this.scales,
+    required this.gridlines,
     required this.selected,
     required this.colors,
   });
@@ -766,6 +894,9 @@ class _PlotPainter extends CustomPainter {
   final DateTime from;
   final double dayWidth;
   final List<double Function(double)> scales;
+
+  /// The gridlines' heights.
+  final List<double> gridlines;
   final int? selected;
   final ForgePalette colors;
 
@@ -777,11 +908,10 @@ class _PlotPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawLine(
-      const Offset(0, _Plot.baseline),
-      Offset(size.width, _Plot.baseline),
-      Paint()..color = colors.line,
-    );
+    final grid = Paint()..color = colors.line;
+    for (final y in [...gridlines, _Plot.baseline]) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
     for (final (i, s) in series.indexed) {
       if (!s.bars) continue;
       final paint = Paint()..color = colors.info.withValues(alpha: 0.4);
