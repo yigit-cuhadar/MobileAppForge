@@ -843,6 +843,12 @@ void main() {
     Rect plot(WidgetTester tester) =>
         tester.getRect(find.bySemanticsLabel('Three series over 12 weeks'));
 
+    // The gridline labels' column is 40px wide; the lines start after it.
+    Rect lines(WidgetTester tester) {
+      final box = plot(tester);
+      return Rect.fromLTRB(box.left + 40, box.top, box.right, box.bottom);
+    }
+
     testWidgets('the legend above the chart names each series with its '
         'line', (tester) async {
       await pump(tester, chart());
@@ -853,6 +859,7 @@ void main() {
         final label = find.text('Series ${'ABC'[i]}');
         expect(label, findsOneWidget);
         expect(tester.getBottomLeft(label).dy, lessThan(plot(tester).top));
+        expect(tester.widget<Text>(label).style?.fontSize, 12);
         expect(
           tester
               .widget<SeriesSample>(
@@ -867,16 +874,22 @@ void main() {
       }
     });
 
-    testWidgets('gridline labels sit on one scale, the highest on top', (
-      tester,
-    ) async {
+    testWidgets('gridline labels sit on one scale in a column left of the '
+        'lines, the dates under the lines\' ends', (tester) async {
       await pump(tester, chart());
 
-      final box = plot(tester);
+      final box = lines(tester);
       final ys = [
         for (final label in ['50%', '25%', '0%'])
-          tester.getBottomLeft(find.text(label)).dy,
+          tester.getCenter(find.text(label)).dy,
       ];
+      for (final label in ['50%', '25%', '0%']) {
+        expect(tester.getTopRight(find.text(label)).dx, lessThan(box.left));
+        expect(
+          tester.getTopLeft(find.text(label)).dx,
+          moreOrLessEquals(plot(tester).left),
+        );
+      }
       expect(ys[0], lessThan(ys[1]));
       expect(ys[1], lessThan(ys[2]));
       // Evenly spaced values sit evenly apart.
@@ -884,15 +897,21 @@ void main() {
       for (final y in ys) {
         expect(y, inInclusiveRange(box.top, box.bottom));
       }
-      expect(find.text('Aug 25'), findsOneWidget);
-      expect(find.text('Nov 16'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Aug 25')).dx,
+        moreOrLessEquals(box.left),
+      );
+      expect(
+        tester.getTopRight(find.text('Nov 16')).dx,
+        moreOrLessEquals(box.right),
+      );
     });
 
     testWidgets('a tap shows every series that has a value on the nearest '
         'day', (tester) async {
       await pump(tester, chart());
 
-      final box = plot(tester);
+      final box = lines(tester);
       // Week 1 of 12: every series has it.
       await tester.tapAt(
         Offset(box.left + box.width * 10.5 / 84, box.center.dy),

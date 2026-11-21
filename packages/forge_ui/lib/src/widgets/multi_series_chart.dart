@@ -259,10 +259,11 @@ class MultiSeriesChart extends StatelessWidget {
        retryLabel = null;
 
   /// Up to three plain [series] on one value scale, named in a legend
-  /// above the chart with a sample of each line. Each of the [gridlines]
-  /// is a thin line across the chart with its label at the left end; the
-  /// scale spans them and every point. A tap shows every series' value on
-  /// the nearest day with an entry.
+  /// above the chart with a sample of each line, with no dot at their
+  /// ends. Each of the [gridlines] is a thin line across the chart with its
+  /// label centred on it in a column to the left; the scale spans them and
+  /// every point. The end labels sit under the chart's ends. A tap shows
+  /// every series' value on the nearest day with an entry.
   const MultiSeriesChart.shared({
     super.key,
     required this.title,
@@ -555,7 +556,7 @@ class MultiSeriesChart extends StatelessWidget {
     );
     return [
       Wrap(
-        spacing: 12,
+        spacing: _legendGap,
         runSpacing: Gap.xs,
         children: [
           for (final s in series)
@@ -566,10 +567,8 @@ class MultiSeriesChart extends StatelessWidget {
                 SeriesSample(s.look),
                 Text(
                   s.label,
-                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                    color: ForgeStyle.of(context).colors.inkMuted,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: Theme.of(context).textTheme.labelMedium!
+                      .copyWith(color: ForgeStyle.of(context).colors.inkMuted),
                 ),
               ],
             ),
@@ -583,9 +582,15 @@ class MultiSeriesChart extends StatelessWidget {
         dateLabel: dateLabel!,
         semanticLabel: semanticLabel!,
       ),
-      ChartEndLabels(start: startLabel!, end: endLabel!, size: 11),
+      Padding(
+        padding: const EdgeInsets.only(left: _Plot.labelColumn),
+        child: ChartEndLabels(start: startLabel!, end: endLabel!, size: 11),
+      ),
     ];
   }
+
+  /// The space between the shared form's legend items.
+  static const double _legendGap = 18;
 }
 
 enum _State { filled, shared, loading, empty, error }
@@ -702,6 +707,9 @@ class _Plot extends StatefulWidget {
   /// The share of its week a bar is wide.
   static const double barShare = 0.52;
 
+  /// The width of the gridline labels' column left of a shared scale.
+  static const double labelColumn = 40;
+
   @override
   State<_Plot> createState() => _PlotState();
 }
@@ -728,119 +736,134 @@ class _PlotState extends State<_Plot> {
   Widget build(BuildContext context) {
     final style = ForgeStyle.of(context);
     final p = style.colors;
-    return Semantics(
-      container: true,
-      label: widget.semanticLabel,
-      child: SizedBox(
-        height: _Plot.height,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final dayWidth = width / _days;
-            // A day's centre.
-            double x(int day) => dayWidth * (day + 0.5);
-            final entryDays = _entryDays;
-            final selected = _selected;
-            final shared = _sharedScale();
-            final scales = [for (final s in widget.series) shared ?? _scale(s)];
-            final gridlines = [
-              for (final g in widget.gridlines ?? const <Never>[])
-                (g, shared!(g.value)),
-            ];
-            final targets = [
-              for (final (i, s) in widget.series.indexed)
-                if (s.target != null) (s, scales[i](s.target!)),
-            ];
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: entryDays.isEmpty
-                  ? null
-                  : (details) => setState(
-                      () => _selected =
-                          entryDays[nearest([
-                            for (final d in entryDays) x(d),
-                          ], details.localPosition.dx)],
+    final shared = _sharedScale();
+    final scales = [for (final s in widget.series) shared ?? _scale(s)];
+    final gridlines = [
+      for (final g in widget.gridlines ?? const <Never>[])
+        (g, shared!(g.value)),
+    ];
+    final plot = SizedBox(
+      height: _Plot.height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final dayWidth = width / _days;
+          // A day's centre.
+          double x(int day) => dayWidth * (day + 0.5);
+          final entryDays = _entryDays;
+          final selected = _selected;
+          final targets = [
+            for (final (i, s) in widget.series.indexed)
+              if (s.target != null) (s, scales[i](s.target!)),
+          ];
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: entryDays.isEmpty
+                ? null
+                : (details) => setState(
+                    () => _selected =
+                        entryDays[nearest([
+                          for (final d in entryDays) x(d),
+                        ], details.localPosition.dx)],
+                  ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _PlotPainter(
+                      series: widget.series,
+                      from: widget.from,
+                      dayWidth: dayWidth,
+                      scales: scales,
+                      gridlines: [for (final (_, y) in gridlines) y],
+                      endDots: shared == null,
+                      selected: selected,
+                      colors: p,
                     ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _PlotPainter(
-                        series: widget.series,
-                        from: widget.from,
-                        dayWidth: dayWidth,
-                        scales: scales,
-                        gridlines: [for (final (_, y) in gridlines) y],
-                        selected: selected,
-                        colors: p,
+                  ),
+                ),
+                for (final (s, y) in targets)
+                  Positioned(
+                    right: 0,
+                    top: y - 18,
+                    child: Container(
+                      color: p.surface,
+                      padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+                      child: Text(
+                        s.targetLabel!,
+                        style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _color(s.look, p),
+                        ),
                       ),
                     ),
                   ),
-                  for (final (g, y) in gridlines)
-                    Positioned(
-                      left: 0,
-                      bottom: _Plot.height - y + 2,
-                      // The chart's label tells screen readers what it shows.
-                      child: ExcludeSemantics(
-                        child: Text(
-                          g.label,
-                          style: style.data.copyWith(
-                            fontSize: 10,
-                            color: p.inkMuted,
+                if (selected != null)
+                  Positioned.fill(
+                    child: CustomSingleChildLayout(
+                      delegate: _TagLayout(x(selected)),
+                      child: _Tag(
+                        date: widget.dateLabel(
+                          DateTime(
+                            widget.from.year,
+                            widget.from.month,
+                            widget.from.day + selected,
                           ),
                         ),
+                        rows: [
+                          for (final s in widget.series)
+                            for (final point in s.points)
+                              if (_dayOf(point.day, widget.from) == selected)
+                                (
+                                  s,
+                                  s.formatPoint?.call(point) ??
+                                      s.format(point.value),
+                                ),
+                        ],
                       ),
                     ),
-                  for (final (s, y) in targets)
-                    Positioned(
-                      right: 0,
-                      top: y - 18,
-                      child: Container(
-                        color: p.surface,
-                        padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-                        child: Text(
-                          s.targetLabel!,
-                          style: Theme.of(context).textTheme.labelSmall!
-                              .copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: _color(s.look, p),
-                              ),
-                        ),
-                      ),
-                    ),
-                  if (selected != null)
-                    Positioned.fill(
-                      child: CustomSingleChildLayout(
-                        delegate: _TagLayout(x(selected)),
-                        child: _Tag(
-                          date: widget.dateLabel(
-                            DateTime(
-                              widget.from.year,
-                              widget.from.month,
-                              widget.from.day + selected,
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final label = style.data.copyWith(fontSize: 12, color: p.inkMuted);
+    return Semantics(
+      container: true,
+      label: widget.semanticLabel,
+      child: shared == null
+          ? plot
+          : Row(
+              children: [
+                SizedBox(
+                  width: _Plot.labelColumn,
+                  height: _Plot.height,
+                  // The chart's label tells screen readers what it shows.
+                  child: ExcludeSemantics(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        for (final (g, y) in gridlines)
+                          Positioned(
+                            left: 0,
+                            top: y,
+                            // Centred on its line.
+                            child: FractionalTranslation(
+                              translation: const Offset(0, -0.5),
+                              child: Text(g.label, style: label),
                             ),
                           ),
-                          rows: [
-                            for (final s in widget.series)
-                              for (final point in s.points)
-                                if (_dayOf(point.day, widget.from) == selected)
-                                  (
-                                    s,
-                                    s.formatPoint?.call(point) ??
-                                        s.format(point.value),
-                                  ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+                  ),
+                ),
+                Expanded(child: plot),
+              ],
+            ),
     );
   }
 
@@ -886,6 +909,7 @@ class _PlotPainter extends CustomPainter {
     required this.dayWidth,
     required this.scales,
     required this.gridlines,
+    required this.endDots,
     required this.selected,
     required this.colors,
   });
@@ -897,6 +921,9 @@ class _PlotPainter extends CustomPainter {
 
   /// The gridlines' heights.
   final List<double> gridlines;
+
+  /// A dot on each line's last point.
+  final bool endDots;
   final int? selected;
   final ForgePalette colors;
 
@@ -957,7 +984,7 @@ class _PlotPainter extends CustomPainter {
           _linePaint(color)..strokeWidth = _averageWidth,
         );
       }
-      if (this.selected == null && main.isNotEmpty) {
+      if (endDots && this.selected == null && main.isNotEmpty) {
         canvas.drawCircle(main.last, _endDot, Paint()..color = color);
       }
       final target = s.target;
