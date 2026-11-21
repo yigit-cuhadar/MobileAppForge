@@ -143,7 +143,8 @@ void main() {
       source: '[SOURCE]',
     );
 
-    test('have their own access, granted on request', () async {
+    test('have their own access, granted by the one request', () async {
+      fake.permissionStatus = HealthPermission.denied;
       expect(
         (await fake.workouts(
           DateTime(2026, 5, 1),
@@ -152,14 +153,30 @@ void main() {
         isA<PermissionFailure>(),
       );
       expect(
-        (await fake.requestWorkoutsPermission()).valueOrNull,
+        (await fake.requestPermission()).valueOrNull,
         HealthPermission.granted,
       );
       expect(
         (await fake.workoutsPermission()).valueOrNull,
         HealthPermission.granted,
       );
-      expect(fake.permissionStatus, HealthPermission.granted);
+      expect(
+        (await fake.workouts(DateTime(2026, 5, 1), DateTime(2026, 5, 2))).isOk,
+        isTrue,
+      );
+    });
+
+    test('the request answers for steps', () async {
+      fake.permissionStatus = HealthPermission.granted;
+      fake.grantOnRequest = HealthPermission.denied;
+      expect(
+        (await fake.requestPermission()).valueOrNull,
+        HealthPermission.granted,
+      );
+      expect(
+        (await fake.workoutsPermission()).valueOrNull,
+        HealthPermission.denied,
+      );
     });
 
     test('are the ones started on the days asked, oldest first', () async {

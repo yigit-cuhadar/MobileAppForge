@@ -33,11 +33,10 @@ class HealthModule implements FeatureModule {
     sl
       ..registerFactory(() => GetHealthAvailability(sl()))
       ..registerFactory(() => GetStepsPermission(sl()))
-      ..registerFactory(() => RequestStepsPermission(sl()))
+      ..registerFactory(() => RequestHealthPermission(sl()))
       ..registerFactory(() => GetStepsOn(sl()))
       ..registerFactory(() => GetDailySteps(sl()))
       ..registerFactory(() => GetWorkoutsPermission(sl()))
-      ..registerFactory(() => RequestWorkoutsPermission(sl()))
       ..registerFactory(() => GetHealthWorkouts(sl()))
       ..registerFactory(() => OpenHealthSettings(sl()));
   }

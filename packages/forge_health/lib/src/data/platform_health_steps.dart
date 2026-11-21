@@ -35,15 +35,13 @@ class PlatformHealthSteps implements HealthSteps {
     switch (_platform) {
       case _Platform.android:
         // The plugin's request can hang when access is already granted.
-        if (await _source.hasStepsPermission() ?? false) {
-          return HealthPermission.granted;
-        }
-        return await _source.requestStepsPermission()
-            ? HealthPermission.granted
-            : HealthPermission.denied;
+        if (await _allGranted()) return HealthPermission.granted;
+        await _source.requestPermissions();
+        // The request answers for all types; steps may be granted alone.
+        return _permission(await _source.hasStepsPermission());
       case _Platform.ios:
         await _requireIosStore();
-        if (!await _source.requestStepsPermission()) {
+        if (!await _source.requestPermissions()) {
           throw const UnknownFailure('HealthKit authorization failed');
         }
         return HealthPermission.undetermined;
@@ -52,34 +50,22 @@ class PlatformHealthSteps implements HealthSteps {
     }
   });
 
+  Future<bool> _allGranted() async {
+    for (final has in [
+      _source.hasStepsPermission,
+      _source.hasWorkoutsPermission,
+      _source.hasHeartRatePermission,
+    ]) {
+      if (await has() != true) return false;
+    }
+    return true;
+  }
+
   @override
   Future<Result<HealthPermission>> workoutsPermission() => _guard(() async {
     await _requireIosStore();
     return _permission(await _source.hasWorkoutsPermission());
   });
-
-  @override
-  Future<Result<HealthPermission>> requestWorkoutsPermission() =>
-      _guard(() async {
-        switch (_platform) {
-          case _Platform.android:
-            // As for steps: the request can hang when access is granted.
-            if (await _source.hasWorkoutsPermission() ?? false) {
-              return HealthPermission.granted;
-            }
-            return await _source.requestWorkoutsPermission()
-                ? HealthPermission.granted
-                : HealthPermission.denied;
-          case _Platform.ios:
-            await _requireIosStore();
-            if (!await _source.requestWorkoutsPermission()) {
-              throw const UnknownFailure('HealthKit authorization failed');
-            }
-            return HealthPermission.undetermined;
-          case _Platform.other:
-            throw const HealthFailure();
-        }
-      });
 
   @override
   Future<Result<List<HealthWorkout>>> workouts(DateTime first, DateTime last) =>
