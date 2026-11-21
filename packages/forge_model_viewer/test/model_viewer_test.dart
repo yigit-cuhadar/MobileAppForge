@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -276,5 +278,108 @@ void main() {
     expect(at(60), isNot(anyOf(red, 0)));
     expect(at(104), isNot(anyOf(red, 0)));
     expect([at(10), at(186)], everyElement(0));
+  });
+
+  group('auto turn', () {
+    // One second in frames, as the ticker skips long gaps.
+    Future<void> second(WidgetTester tester) async {
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 1000 ~/ 60));
+      }
+    }
+
+    final perSecond = 2 * math.pi / ModelViewer.turnPeriod.inSeconds;
+
+    Future<ModelViewerController> pumpTurning(
+      WidgetTester tester, {
+      bool autoTurn = true,
+      bool interactive = true,
+      bool disableAnimations = false,
+      bool ticking = true,
+      ModelViewerController? controller,
+    }) async {
+      if (controller == null) {
+        controller = ModelViewerController();
+        addTearDown(controller.dispose);
+      }
+      await tester.pumpWidget(
+        inApp(
+          MediaQuery(
+            data: MediaQueryData(disableAnimations: disableAnimations),
+            child: TickerMode(
+              enabled: ticking,
+              child: SizedBox(
+                width: 200,
+                height: 200,
+                child: ModelViewer(
+                  model: model,
+                  controller: controller,
+                  autoTurn: autoTurn,
+                  interactive: interactive,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return controller;
+    }
+
+    testWidgets('is off by default', (tester) async {
+      final controller = await pumpTurning(tester, autoTurn: false);
+      await second(tester);
+      expect(controller.yaw, 0);
+    });
+
+    testWidgets('turns the yaw slowly, also when not interactive', (
+      tester,
+    ) async {
+      for (final interactive in [true, false]) {
+        final controller = await pumpTurning(tester, interactive: interactive);
+        await second(tester);
+        expect(controller.yaw, closeTo(perSecond, perSecond * 0.05));
+        expect(controller.pitch, 0);
+      }
+    });
+
+    testWidgets('holds while a finger is on it, then goes on', (tester) async {
+      final controller = await pumpTurning(tester);
+      final gesture = await tester.startGesture(miss);
+      await second(tester);
+      expect(controller.yaw, 0);
+
+      await gesture.up();
+      await second(tester);
+      expect(controller.yaw, closeTo(perSecond, perSecond * 0.05));
+    });
+
+    testWidgets('holds while its tickers are muted, without a jump after', (
+      tester,
+    ) async {
+      final controller = await pumpTurning(tester, ticking: false);
+      await second(tester);
+      expect(controller.yaw, 0);
+
+      await pumpTurning(tester, controller: controller);
+      await tester.pump(const Duration(seconds: 5));
+      await second(tester);
+      expect(controller.yaw, closeTo(perSecond, perSecond * 0.05));
+    });
+
+    testWidgets('holds when the platform asks for less motion', (tester) async {
+      var controller = await pumpTurning(tester, disableAnimations: true);
+      await second(tester);
+      expect(controller.yaw, 0);
+
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(reduceMotion: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pumpWidget(const SizedBox());
+      controller = await pumpTurning(tester);
+      await second(tester);
+      expect(controller.yaw, 0);
+    });
   });
 }

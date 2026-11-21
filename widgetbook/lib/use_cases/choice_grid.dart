@@ -161,3 +161,76 @@ Widget choiceListTagged(BuildContext context) => ListView(
     ),
   ],
 );
+
+/// A neutral stand-in for the app's picture: a grey figure.
+class _Figure extends StatelessWidget {
+  const _Figure();
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    child: ForgeIcon(
+      ForgeIcons.person,
+      color: ForgeStyle.of(context).colors.inkSubtle,
+    ),
+  );
+}
+
+class _LiveTiles extends StatefulWidget {
+  const _LiveTiles({super.key, required this.selected, required this.options});
+
+  final int? selected;
+  final List<ChoiceOption> options;
+
+  @override
+  State<_LiveTiles> createState() => _LiveTilesState();
+}
+
+class _LiveTilesState extends State<_LiveTiles> {
+  late int? _selected = widget.selected;
+
+  @override
+  Widget build(BuildContext context) => ChoiceGrid.pictures(
+    options: widget.options,
+    selected: _selected,
+    onSelected: (index) => setState(() => _selected = index),
+  );
+}
+
+@widgetbook.UseCase(name: 'Picture tiles', type: ChoiceGrid)
+Widget choicePictureTiles(BuildContext context) {
+  final selected = context.knobs.boolean(label: 'Selected', initialValue: true);
+  return ListView(
+    padding: const EdgeInsets.all(Gap.md),
+    children: [
+      _LiveTiles(
+        // A new key starts the tiles over when the knob changes.
+        key: ValueKey(selected),
+        selected: selected ? 1 : null,
+        options: const [
+          ChoiceOption(label: 'Option one', picture: _Figure()),
+          ChoiceOption(label: 'Option two', picture: _Figure()),
+        ],
+      ),
+    ],
+  );
+}
+
+@widgetbook.UseCase(name: 'Picture tiles, hints and disabled', type: ChoiceGrid)
+Widget choicePictureTilesDisabled(BuildContext context) => ListView(
+  padding: const EdgeInsets.all(Gap.md),
+  children: const [
+    _LiveTiles(
+      selected: 0,
+      options: [
+        ChoiceOption(label: 'Option one', hint: '[HINT]', picture: _Figure()),
+        ChoiceOption(label: 'Option two', hint: '[HINT]', picture: _Figure()),
+        ChoiceOption(
+          label: 'Option three',
+          hint: '[HINT]',
+          picture: _Figure(),
+          enabled: false,
+        ),
+      ],
+    ),
+  ],
+);

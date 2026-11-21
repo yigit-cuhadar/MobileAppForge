@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../model.dart';
 import '../render/mesh_renderer.dart';
@@ -25,6 +26,12 @@ import 'viewer_gesture_recognizer.dart';
 ///
 /// When not [interactive] the viewer takes no gestures at all, for static
 /// previews; a [controller] can still move the camera.
+///
+/// With [autoTurn] the model turns slowly round its vertical axis, one turn
+/// in [turnPeriod]: it holds still while a finger is on the viewer, while
+/// the viewer's tickers are muted (a covered route, a hidden tab) and when
+/// the platform asks for reduced motion. It moves the [controller]'s yaw, so
+/// it cuts short a running `animateTo`.
 class ModelViewer extends StatefulWidget {
   const ModelViewer({
     super.key,
@@ -42,8 +49,12 @@ class ModelViewer extends StatefulWidget {
     this.onScrub,
     this.onScrubEnd,
     this.interactive = true,
+    this.autoTurn = false,
     this.semanticLabel,
   });
+
+  /// How long one full [autoTurn] takes.
+  static const turnPeriod = Duration(seconds: 20);
 
   final Model3D model;
 
@@ -80,6 +91,7 @@ class ModelViewer extends StatefulWidget {
   final ValueChanged<String?>? onScrub;
   final ValueChanged<String?>? onScrubEnd;
   final bool interactive;
+  final bool autoTurn;
 
   /// Describes the model to screen readers.
   final String? semanticLabel;
@@ -88,8 +100,12 @@ class ModelViewer extends StatefulWidget {
   State<ModelViewer> createState() => _ModelViewerState();
 }
 
-class _ModelViewerState extends State<ModelViewer> {
+class _ModelViewerState extends State<ModelViewer>
+    with SingleTickerProviderStateMixin {
   late MeshRenderer _renderer = MeshRenderer(meshOf(widget.model));
+  late final Ticker _turn = createTicker(_onTurn);
+  Duration _turnedTo = Duration.zero;
+  int _pointers = 0;
   ModelViewerController? _ownController;
   double _pinchStartZoom = 1;
   bool _scrubbing = false;
@@ -101,8 +117,15 @@ class _ModelViewerState extends State<ModelViewer> {
   bool get _scrubs => widget.onScrub != null || widget.onScrubEnd != null;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTurn();
+  }
+
+  @override
   void didUpdateWidget(ModelViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncTurn();
     if (widget.model != oldWidget.model) {
       _renderer = MeshRenderer(meshOf(widget.model));
     }
@@ -121,6 +144,7 @@ class _ModelViewerState extends State<ModelViewer> {
 
   @override
   void dispose() {
+    _turn.dispose();
     _endScrub(widget.onScrubEnd, deferred: true, cancelled: true);
     _ownController?.dispose();
     super.dispose();
@@ -144,6 +168,34 @@ class _ModelViewerState extends State<ModelViewer> {
   }
 
   static bool _selectAll(String part) => true;
+
+  void _syncTurn() {
+    // iOS reports Reduce Motion apart from disableAnimations.
+    final turns =
+        widget.autoTurn &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        !View.of(context).platformDispatcher.accessibilityFeatures.reduceMotion;
+    if (!widget.interactive) _pointers = 0;
+    if (turns == _turn.isActive) return;
+    if (turns) {
+      _turnedTo = Duration.zero;
+      _turn.start();
+    } else {
+      _turn.stop();
+    }
+  }
+
+  void _onTurn(Duration elapsed) {
+    // A muted ticker keeps counting; resume from where the model stood.
+    final step = elapsed - _turnedTo;
+    _turnedTo = elapsed;
+    if (_pointers > 0 || step > const Duration(milliseconds: 100)) return;
+    _controller.yaw +=
+        2 *
+        math.pi *
+        step.inMicroseconds /
+        ModelViewer.turnPeriod.inMicroseconds;
+  }
 
   void _onTap(Offset position) {
     final onPartTap = widget.onPartTap;
@@ -236,6 +288,13 @@ class _ModelViewerState extends State<ModelViewer> {
                       _endScrub(widget.onScrubEnd, cancelled: true)),
               ),
         },
+        child: viewer,
+      );
+      // Fingers on the viewer hold an auto turn.
+      viewer = Listener(
+        onPointerDown: (_) => _pointers++,
+        onPointerUp: (_) => _pointers--,
+        onPointerCancel: (_) => _pointers--,
         child: viewer,
       );
     }
