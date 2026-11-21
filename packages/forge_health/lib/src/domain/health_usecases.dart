@@ -22,8 +22,9 @@ class GetStepsPermission implements UseCase<HealthPermission, NoParams> {
       _repository.permission();
 }
 
-class RequestStepsPermission implements UseCase<HealthPermission, NoParams> {
-  const RequestStepsPermission(this._repository);
+/// Asks for steps, workouts and heart rate; answers for steps.
+class RequestHealthPermission implements UseCase<HealthPermission, NoParams> {
+  const RequestHealthPermission(this._repository);
   final HealthSteps _repository;
 
   @override
@@ -66,15 +67,6 @@ class GetWorkoutsPermission implements UseCase<HealthPermission, NoParams> {
   @override
   Future<Result<HealthPermission>> call([NoParams params = const NoParams()]) =>
       _repository.workoutsPermission();
-}
-
-class RequestWorkoutsPermission implements UseCase<HealthPermission, NoParams> {
-  const RequestWorkoutsPermission(this._repository);
-  final HealthSteps _repository;
-
-  @override
-  Future<Result<HealthPermission>> call([NoParams params = const NoParams()]) =>
-      _repository.requestWorkoutsPermission();
 }
 
 class GetHealthWorkouts

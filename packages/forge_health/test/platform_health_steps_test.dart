@@ -33,6 +33,8 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     Log.onError = (_, _, _) {};
     when(source.hasStepsPermission).thenAnswer((_) async => true);
+    when(source.hasWorkoutsPermission).thenAnswer((_) async => true);
+    when(source.hasHeartRatePermission).thenAnswer((_) async => true);
     when(source.isHealthKitAvailable).thenAnswer((_) async => true);
   });
 
@@ -152,7 +154,7 @@ void main() {
         (await repository.requestPermission()).failureOrNull,
         isA<HealthFailure>(),
       );
-      verifyNever(source.requestStepsPermission);
+      verifyNever(source.requestPermissions);
     });
 
     test('other platforms are unavailable', () async {
@@ -165,44 +167,68 @@ void main() {
   });
 
   group('requestPermission', () {
-    test('Android skips the dialog when already granted', () async {
+    test('Android skips the dialog when all is already granted', () async {
       expect(
         (await repository.requestPermission()).valueOrNull,
         HealthPermission.granted,
       );
-      verifyNever(source.requestStepsPermission);
+      verifyNever(source.requestPermissions);
     });
 
-    test('Android returns the dialog outcome', () async {
-      when(source.hasStepsPermission).thenAnswer((_) async => false);
-      when(source.requestStepsPermission).thenAnswer((_) async => true);
+    for (final missing in ['steps', 'workouts', 'heart rate']) {
+      test('Android asks once when $missing is missing', () async {
+        when(switch (missing) {
+          'steps' => source.hasStepsPermission,
+          'workouts' => source.hasWorkoutsPermission,
+          _ => source.hasHeartRatePermission,
+        }).thenAnswer((_) async => false);
+        when(source.requestPermissions).thenAnswer((_) async => false);
+        await repository.requestPermission();
+        verify(source.requestPermissions).called(1);
+      });
+    }
+
+    test('Android answers for steps, whatever the rest got', () async {
+      when(source.hasWorkoutsPermission).thenAnswer((_) async => false);
+      when(source.requestPermissions).thenAnswer((_) async => false);
       expect(
         (await repository.requestPermission()).valueOrNull,
         HealthPermission.granted,
       );
-      when(source.requestStepsPermission).thenAnswer((_) async => false);
+
+      when(source.hasStepsPermission).thenAnswer((_) async => false);
+      when(source.requestPermissions).thenAnswer((_) async => true);
       expect(
         (await repository.requestPermission()).valueOrNull,
         HealthPermission.denied,
       );
     });
 
-    test('iOS stays undetermined after the sheet', () async {
+    test('iOS shows one sheet and stays undetermined', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      when(source.requestStepsPermission).thenAnswer((_) async => true);
+      when(source.requestPermissions).thenAnswer((_) async => true);
       expect(
         (await repository.requestPermission()).valueOrNull,
         HealthPermission.undetermined,
       );
+      verify(source.requestPermissions).called(1);
       verifyNever(source.hasStepsPermission);
     });
 
     test('a failed iOS sheet fails', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      when(source.requestStepsPermission).thenAnswer((_) async => false);
+      when(source.requestPermissions).thenAnswer((_) async => false);
       expect(
         (await repository.requestPermission()).failureOrNull,
         isA<UnknownFailure>(),
+      );
+    });
+
+    test('other platforms are unavailable', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      expect(
+        (await repository.requestPermission()).failureOrNull,
+        isA<HealthFailure>(),
       );
     });
   });
@@ -511,37 +537,19 @@ void main() {
     );
 
     setUp(() {
-      when(source.hasWorkoutsPermission).thenAnswer((_) async => true);
-      when(source.hasHeartRatePermission).thenAnswer((_) async => true);
       when(() => source.heartRates(any(), any()))
           .thenAnswer((_) async => const []);
     });
 
-    test('Android asks once unless already granted', () async {
-      expect(
-        (await repository.requestWorkoutsPermission()).valueOrNull,
-        HealthPermission.granted,
-      );
-      verifyNever(source.requestWorkoutsPermission);
-
+    test('access is read apart from steps', () async {
       when(source.hasWorkoutsPermission).thenAnswer((_) async => false);
-      when(source.requestWorkoutsPermission).thenAnswer((_) async => false);
-      expect(
-        (await repository.requestWorkoutsPermission()).valueOrNull,
-        HealthPermission.denied,
-      );
       expect(
         (await repository.workoutsPermission()).valueOrNull,
         HealthPermission.denied,
       );
-    });
-
-    test('iOS stays undetermined after the sheet', () async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      when(source.requestWorkoutsPermission).thenAnswer((_) async => true);
       expect(
-        (await repository.requestWorkoutsPermission()).valueOrNull,
-        HealthPermission.undetermined,
+        (await repository.permission()).valueOrNull,
+        HealthPermission.granted,
       );
     });
 

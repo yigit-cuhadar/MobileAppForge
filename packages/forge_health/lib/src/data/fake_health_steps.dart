@@ -27,8 +27,8 @@ class FakeHealthSteps implements HealthSteps {
 
   HealthPermission workoutsPermissionStatus;
 
-  /// What [requestPermission] changes [permissionStatus] to, and
-  /// [requestWorkoutsPermission] [workoutsPermissionStatus].
+  /// What [requestPermission] changes a denied [permissionStatus] and
+  /// [workoutsPermissionStatus] to.
   HealthPermission grantOnRequest;
 
   /// Every workout in the store, in any order.
@@ -62,6 +62,9 @@ class FakeHealthSteps implements HealthSteps {
     if (permissionStatus == HealthPermission.denied) {
       permissionStatus = grantOnRequest;
     }
+    if (workoutsPermissionStatus == HealthPermission.denied) {
+      workoutsPermissionStatus = grantOnRequest;
+    }
     return permissionStatus;
   });
 
@@ -78,16 +81,6 @@ class FakeHealthSteps implements HealthSteps {
     _requireAvailable();
     return workoutsPermissionStatus;
   });
-
-  @override
-  Future<Result<HealthPermission>> requestWorkoutsPermission() =>
-      _run(() async {
-        _requireAvailable();
-        if (workoutsPermissionStatus == HealthPermission.denied) {
-          workoutsPermissionStatus = grantOnRequest;
-        }
-        return workoutsPermissionStatus;
-      });
 
   @override
   Future<Result<List<HealthWorkout>>> workouts(DateTime first, DateTime last) =>

@@ -53,9 +53,6 @@ class HealthDataSource {
   /// [UnsupportedError] on Android without a working Health Connect.
   Future<bool?> hasStepsPermission() => _health.hasPermissions(_steps);
 
-  /// Android: whether it was granted. iOS: whether the sheet was handled.
-  Future<bool> requestStepsPermission() => _health.requestAuthorization(_steps);
-
   /// Null when the platform does not tell (iOS read access). Throws
   /// [UnsupportedError] on Android without a working Health Connect.
   Future<bool?> hasWorkoutsPermission() => _health.hasPermissions(_workouts);
@@ -64,10 +61,12 @@ class HealthDataSource {
   /// is read from but does not need.
   Future<bool?> hasHeartRatePermission() => _health.hasPermissions(_heartRate);
 
-  /// Asks for workouts and heart rate in one sheet. Android: whether all
-  /// were granted. iOS: whether the sheet was handled.
-  Future<bool> requestWorkoutsPermission() =>
-      _health.requestAuthorization([..._workouts, ..._heartRate]);
+  /// Asks for steps, workouts and heart rate in one sheet: iOS shows no
+  /// second sheet right after the first closes. Android: whether all were
+  /// granted. iOS: whether the sheet was handled.
+  Future<bool> requestPermissions() => _health.requestAuthorization([
+    ...{..._steps, ..._workouts, ..._heartRate},
+  ]);
 
   /// The workouts that started in [start, end). Android returns none, with
   /// no error, when a read it needs was refused.

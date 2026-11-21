@@ -7,7 +7,7 @@ import 'health_models.dart';
 const maxStepDays = 366;
 
 /// Step counts and workouts from the platform health store, read only.
-/// Steps and workouts have their own access. Failures are
+/// Steps and workouts have their own access, asked for together. Failures are
 /// [HealthFailure] (no usable store), [PermissionFailure] (Android: read
 /// access missing), [ValidationFailure] or [UnknownFailure].
 abstract interface class HealthSteps {
@@ -15,9 +15,10 @@ abstract interface class HealthSteps {
 
   Future<Result<HealthPermission>> permission();
 
-  /// Shows the platform's permission sheet when it still can, then returns
-  /// the outcome. iOS shows it only the first time, so calling this whenever
-  /// steps are first needed is harmless there.
+  /// Shows the platform's permission sheet for steps, workouts and heart
+  /// rate when it still can, then returns the outcome for steps. iOS shows
+  /// it only the first time, so calling this whenever steps are first
+  /// needed is harmless there. [workoutsPermission] tells the rest.
   Future<Result<HealthPermission>> requestPermission();
 
   /// Steps of the local calendar day containing [day]; the current day
@@ -30,12 +31,8 @@ abstract interface class HealthSteps {
   /// Android reads only 30 days before the permission was first granted.
   Future<Result<List<DailySteps>>> dailySteps(DateTime first, DateTime last);
 
-  /// Read access to workouts, asked for apart from steps.
+  /// Read access to workouts, asked for by [requestPermission].
   Future<Result<HealthPermission>> workoutsPermission();
-
-  /// Shows the platform's permission sheet for workouts when it still can,
-  /// then returns the outcome, as [requestPermission] does for steps.
-  Future<Result<HealthPermission>> requestWorkoutsPermission();
 
   /// The workouts that started on the local calendar days from [first] to
   /// [last] inclusive, oldest first. At most [maxStepDays] days.
