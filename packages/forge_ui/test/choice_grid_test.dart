@@ -378,4 +378,198 @@ void main() {
       }
     });
   });
+
+  group('picture tiles', () {
+    // A picture that takes hits, asking for more room than the tile gives.
+    Widget picture(int i) => ColoredBox(
+      key: ValueKey('picture $i'),
+      color: const Color(0x00000000),
+      child: SizedBox(
+        height: 1000,
+        child: Semantics(label: '[PICTURE]', image: true),
+      ),
+    );
+
+    Future<void> pumpTiles(
+      WidgetTester tester, {
+      int? selected,
+      int count = 2,
+      bool disabledLast = false,
+      double scale = 1,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        theme: ForgeTheme.light(),
+        builder: (context, page) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(scale)),
+          child: page!,
+        ),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: 358,
+              child: ChoiceGrid.pictures(
+                options: [
+                  for (var i = 0; i < count; i++)
+                    ChoiceOption(
+                      label: 'Option $i',
+                      hint: i == 0 ? '[HINT]' : null,
+                      picture: picture(i),
+                      enabled: !(disabledLast && i == count - 1),
+                    ),
+                ],
+                selected: selected,
+                onSelected: picks.add,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Finder pictureOf(int i) => find.byKey(ValueKey('picture $i'));
+    Finder tileOf(String label) => find
+        .ancestor(of: find.text(label), matching: find.byType(Container))
+        .last;
+
+    testWidgets('a tap on a tile, its picture too, picks it', (tester) async {
+      await pumpTiles(tester);
+
+      await tester.tap(pictureOf(1));
+      await tester.tap(find.text('Option 0'));
+
+      expect(picks, [1, 0]);
+    });
+
+    testWidgets('lays tiles two to a row with 9:16 pictures', (tester) async {
+      await pumpTiles(tester, count: 3);
+
+      final first = tester.getRect(pictureOf(0));
+      final second = tester.getRect(pictureOf(1));
+      final third = tester.getRect(pictureOf(2));
+      expect(second.top, first.top);
+      expect(second.left - first.right, Gap.sm);
+      expect(third.left, first.left);
+      expect(third.top, greaterThan(first.bottom));
+      expect(first.width, (358 - Gap.sm) / 2);
+      // The picture sits under a 16px top inset of the 9:16 box.
+      expect(first.height + Gap.md, closeTo(first.width * 16 / 9, 0.01));
+    });
+
+    testWidgets('tiles of a row share one height', (tester) async {
+      await pumpTiles(tester);
+
+      expect(
+        tester.getSize(tileOf('Option 0')).height,
+        tester.getSize(tileOf('Option 1')).height,
+      );
+    });
+
+    testWidgets('reads as a radio group with the chosen tile checked', (
+      tester,
+    ) async {
+      await pumpTiles(tester, selected: 1);
+
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics && w.properties.role == SemanticsRole.radioGroup,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSemantics(find.text('Option 1')),
+        matchesSemantics(
+          label: 'Option 1',
+          hasCheckedState: true,
+          isChecked: true,
+          isInMutuallyExclusiveGroup: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.text('Option 0')),
+        matchesSemantics(
+          label: 'Option 0\n[HINT]',
+          hasCheckedState: true,
+          isInMutuallyExclusiveGroup: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+    });
+
+    testWidgets('the chosen tile sits on accent-soft with a filled radio', (
+      tester,
+    ) async {
+      await pumpTiles(tester, selected: 0);
+      final colors = ForgeStyle.of(tester.element(find.text('Option 0')))
+          .colors;
+
+      Color? groundOf(String label) =>
+          (tester.widget<Container>(tileOf(label)).decoration as BoxDecoration?)
+              ?.color;
+      expect(groundOf('Option 0'), colors.accentSoft);
+      expect(groundOf('Option 1'), colors.surface);
+      expect(
+        tester
+            .widgetList<RadioMark>(find.byType(RadioMark))
+            .map((r) => r.selected),
+        [true, false],
+      );
+    });
+
+    testWidgets('a focused tile takes Enter', (tester) async {
+      await pumpTiles(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+
+      expect(picks, [1]);
+    });
+
+    testWidgets('a disabled tile fades, takes no tap and reads as disabled', (
+      tester,
+    ) async {
+      await pumpTiles(tester, disabledLast: true);
+
+      await tester.tap(pictureOf(1));
+      expect(picks, isEmpty);
+      expect(
+        tester
+            .widget<Opacity>(
+              find.ancestor(
+                of: find.text('Option 1'),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .opacity,
+        0.4,
+      );
+      expect(
+        tester.getSemantics(find.text('Option 1')),
+        matchesSemantics(
+          label: 'Option 1',
+          hasCheckedState: true,
+          isInMutuallyExclusiveGroup: true,
+          hasEnabledState: true,
+        ),
+      );
+    });
+
+    for (final scale in [1.0, 2.0, 3.0]) {
+      testWidgets('lays out at ${scale}x text', (tester) async {
+        await pumpTiles(tester, count: 3, scale: scale);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
 }
