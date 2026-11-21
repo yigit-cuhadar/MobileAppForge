@@ -210,6 +210,53 @@ Widget addSeriesList(BuildContext context) => _page([
   ),
 ]);
 
+/// A share from 0 to 1 a week, falling by [step]; [weeks] of the 12 have
+/// one, the latest missing.
+ChartSeries _share(
+  String label,
+  SeriesLook look,
+  double first,
+  double step,
+  int weeks,
+) => ChartSeries(
+  label: label,
+  points: _weekly([for (var i = 0; i < weeks; i++) first - i * step]),
+  format: _format,
+  look: look,
+);
+
+@widgetbook.UseCase(name: 'Shared scale', type: MultiSeriesChart)
+Widget sharedScale(BuildContext context) {
+  final count = context.knobs.int.slider(
+    label: 'Series',
+    initialValue: 3,
+    min: 1,
+    max: 3,
+  );
+  return _page([
+    MultiSeriesChart.shared(
+      title: 'Series',
+      detail: '12 weeks',
+      series: [
+        _share('Series A', SeriesLook.accent, 0.58, 0.008, 12),
+        _share('Series B', SeriesLook.info, 0.31, 0.006, 11),
+        _share('Series C', SeriesLook.success, 0.16, 0.004, 8),
+      ].take(count).toList(),
+      gridlines: const [
+        (value: 0, label: '0%'),
+        (value: 0.25, label: '25%'),
+        (value: 0.5, label: '50%'),
+      ],
+      from: _from,
+      to: DateTime(2025, 11, 10),
+      dateLabel: _date,
+      startLabel: 'Aug 25',
+      endLabel: 'Nov 10',
+      semanticLabel: 'Series over 12 weeks',
+    ),
+  ]);
+}
+
 @widgetbook.UseCase(name: 'Loading', type: MultiSeriesChart)
 Widget loadingSeries(BuildContext context) => _page([
   const MultiSeriesChart.loading(title: 'Series', detail: '12 weeks'),

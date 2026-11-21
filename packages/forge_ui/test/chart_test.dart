@@ -798,6 +798,141 @@ void main() {
     });
   });
 
+  group('MultiSeriesChart.shared', () {
+    String percent(double v) => '${(v * 100).round()}%';
+    ChartPoint week(int i, double value) =>
+        (day: DateTime(2025, 8, 25 + i * 7), value: value);
+
+    Widget chart() => MultiSeriesChart.shared(
+      title: 'Series',
+      detail: '12 weeks',
+      series: [
+        ChartSeries(
+          label: 'Series A',
+          points: [for (var i = 0; i < 12; i++) week(i, 0.6 - i * 0.01)],
+          format: percent,
+          look: SeriesLook.accent,
+        ),
+        ChartSeries(
+          label: 'Series B',
+          points: [for (var i = 0; i < 11; i++) week(i, 0.3 - i * 0.01)],
+          format: percent,
+          look: SeriesLook.info,
+        ),
+        // Fewer points: the last weeks have no value yet.
+        ChartSeries(
+          label: 'Series C',
+          points: [for (var i = 0; i < 8; i++) week(i, 0.15 - i * 0.01)],
+          format: percent,
+          look: SeriesLook.success,
+        ),
+      ],
+      gridlines: const [
+        (value: 0, label: '0%'),
+        (value: 0.25, label: '25%'),
+        (value: 0.5, label: '50%'),
+      ],
+      from: DateTime(2025, 8, 25),
+      to: DateTime(2025, 11, 16),
+      dateLabel: (day) => 'Week of ${day.month}/${day.day}',
+      startLabel: 'Aug 25',
+      endLabel: 'Nov 16',
+      semanticLabel: 'Three series over 12 weeks',
+    );
+
+    Rect plot(WidgetTester tester) =>
+        tester.getRect(find.bySemanticsLabel('Three series over 12 weeks'));
+
+    // The gridline labels' column is 40px wide; the lines start after it.
+    Rect lines(WidgetTester tester) {
+      final box = plot(tester);
+      return Rect.fromLTRB(box.left + 40, box.top, box.right, box.bottom);
+    }
+
+    testWidgets('the legend above the chart names each series with its '
+        'line', (tester) async {
+      await pump(tester, chart());
+
+      expect(find.byType(ForgeChip), findsNothing);
+      expect(find.byType(SeriesSample), findsNWidgets(3));
+      for (final (i, look) in SeriesLook.values.indexed) {
+        final label = find.text('Series ${'ABC'[i]}');
+        expect(label, findsOneWidget);
+        expect(tester.getBottomLeft(label).dy, lessThan(plot(tester).top));
+        expect(tester.widget<Text>(label).style?.fontSize, 12);
+        expect(
+          tester
+              .widget<SeriesSample>(
+                find.descendant(
+                  of: find.ancestor(of: label, matching: find.byType(Row)),
+                  matching: find.byType(SeriesSample),
+                ),
+              )
+              .look,
+          look,
+        );
+      }
+    });
+
+    testWidgets('gridline labels sit on one scale in a column left of the '
+        'lines, the dates under the lines\' ends', (tester) async {
+      await pump(tester, chart());
+
+      final box = lines(tester);
+      final ys = [
+        for (final label in ['50%', '25%', '0%'])
+          tester.getCenter(find.text(label)).dy,
+      ];
+      for (final label in ['50%', '25%', '0%']) {
+        expect(tester.getTopRight(find.text(label)).dx, lessThan(box.left));
+        expect(
+          tester.getTopLeft(find.text(label)).dx,
+          moreOrLessEquals(plot(tester).left),
+        );
+      }
+      expect(ys[0], lessThan(ys[1]));
+      expect(ys[1], lessThan(ys[2]));
+      // Evenly spaced values sit evenly apart.
+      expect(ys[2] - ys[1], moreOrLessEquals(ys[1] - ys[0], epsilon: 0.01));
+      for (final y in ys) {
+        expect(y, inInclusiveRange(box.top, box.bottom));
+      }
+      expect(
+        tester.getTopLeft(find.text('Aug 25')).dx,
+        moreOrLessEquals(box.left),
+      );
+      expect(
+        tester.getTopRight(find.text('Nov 16')).dx,
+        moreOrLessEquals(box.right),
+      );
+    });
+
+    testWidgets('a tap shows every series that has a value on the nearest '
+        'day', (tester) async {
+      await pump(tester, chart());
+
+      final box = lines(tester);
+      // Week 1 of 12: every series has it.
+      await tester.tapAt(
+        Offset(box.left + box.width * 10.5 / 84, box.center.dy),
+      );
+      await tester.pump();
+      expect(find.text('Week of 9/1'), findsOneWidget);
+      expect(find.text('59%'), findsOneWidget);
+      expect(find.text('29%'), findsOneWidget);
+      expect(find.text('14%'), findsOneWidget);
+
+      // The last week: Series B and C end earlier.
+      await tester.tapAt(Offset(box.right - 4, box.center.dy));
+      await tester.pump();
+      expect(find.text('Week of 11/10'), findsOneWidget);
+      expect(find.text('49%'), findsOneWidget);
+      expect(find.text('Series A'), findsNWidgets(2));
+      expect(find.text('Series B'), findsOneWidget);
+      expect(find.text('Series C'), findsOneWidget);
+    });
+  });
+
   group('Sparkline', () {
     testWidgets('the card opens its page', (tester) async {
       var taps = 0;
