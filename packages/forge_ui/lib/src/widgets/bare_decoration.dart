@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A text field's decoration inside a Forge control that draws its own
 /// frame: no fill, padding or border. `InputDecoration.collapsed` is not

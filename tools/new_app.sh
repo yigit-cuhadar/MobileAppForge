@@ -95,7 +95,8 @@ else
     deps+=("$p:{\"git\":{\"url\":\"$url\",\"ref\":\"$ref\",\"path\":\"packages/$p\"}}")
   done
 fi
-flutter pub add "${deps[@]}" firebase_core flutter_bloc get_it go_router \
+flutter pub remove cupertino_icons >/dev/null
+flutter pub add "${deps[@]}" firebase_core flutter_bloc get_it go_router material_ui \
   dev:bloc_test dev:mocktail >/dev/null
 
 # The app's Widgetbook: the template's catalog files over a web scaffold.
@@ -112,7 +113,7 @@ else
 fi
 (
   cd widgetbook
-  flutter pub add "$ui" "$name:{\"path\":\"..\"}" widgetbook widgetbook_annotation \
+  flutter pub add "$ui" "$name:{\"path\":\"..\"}" material_ui widgetbook widgetbook_annotation \
     dev:widgetbook_generator dev:build_runner >/dev/null
 )
 

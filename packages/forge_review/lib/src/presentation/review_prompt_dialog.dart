@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:forge_ui/forge_ui.dart';
 
 /// The text of the review prompt. The app writes it, with its name.

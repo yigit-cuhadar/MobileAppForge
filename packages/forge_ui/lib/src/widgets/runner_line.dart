@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A thin track with a runner crossing it again and again: work under way
 /// whose end is unknown. Still while the platform asks for less motion.
