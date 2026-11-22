@@ -98,14 +98,14 @@ Widget infoHintRow(BuildContext context) => _page(
     children: [
       ListRow(
         title: 'Field',
-        onInfo: () => showModalBottomSheet<void>(
+        onInfo: () => showForgeBottomSheet<void>(
           context: context,
-          showDragHandle: true,
-          builder: (context) => const Padding(
-            padding: EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.lg),
+          builder: (_) => const ForgeBottomSheet(
+            title: 'About this field',
             child: Text('One line that explains the field.'),
           ),
         ),
+        infoLabel: 'About this field',
         trailing: ForgeNumberField(
           label: '[VALUE]',
           unit: 'kg',
