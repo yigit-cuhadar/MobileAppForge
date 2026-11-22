@@ -351,10 +351,14 @@ void main() {
       verifyNever(() => source.totalSteps(any(), any()));
     });
 
-    test('a missing total with access granted is unknown', () async {
+    test('a failed read with access granted is unknown', () async {
       stepsByDayOfMonth();
-      when(() => source.totalSteps(DateTime(2026, 5, 2), any()))
-          .thenAnswer((_) async => null);
+      when(() => source.totalSteps(DateTime(2026, 5, 2), any())).thenThrow(
+        HealthPlatformException(
+          HealthDataType.STEPS,
+          PlatformException(code: 'UNAVAILABLE'),
+        ),
+      );
       expect(
         (await repository.dailySteps(
           DateTime(2026, 5, 1),
@@ -610,6 +614,39 @@ void main() {
       );
       expect(result.valueOrNull!.single.averageHeartRate, isNull);
       verifyNever(() => source.heartRates(any(), any()));
+    });
+
+    test('a failed heart rate read leaves the average out', () async {
+      when(() => source.workouts(any(), any()))
+          .thenAnswer((_) async => [raw('a', DateTime(2026, 5, 10, 7))]);
+      when(() => source.heartRates(any(), any())).thenThrow(
+        HealthPlatformException(
+          HealthDataType.HEART_RATE,
+          PlatformException(code: 'RATE_LIMIT_EXCEEDED'),
+        ),
+      );
+
+      final result = await repository.workouts(
+        DateTime(2026, 5, 10),
+        DateTime(2026, 5, 10),
+      );
+      expect(result.valueOrNull!.single.averageHeartRate, isNull);
+    });
+
+    test('a failed read is unknown', () async {
+      when(() => source.workouts(any(), any())).thenThrow(
+        HealthPlatformException(
+          HealthDataType.WORKOUT,
+          PlatformException(code: 'UNAVAILABLE'),
+        ),
+      );
+      expect(
+        (await repository.workouts(
+          DateTime(2026, 5, 10),
+          DateTime(2026, 5, 10),
+        )).failureOrNull,
+        isA<UnknownFailure>(),
+      );
     });
 
     test('a read without Android access is a permission failure', () async {

@@ -111,7 +111,13 @@ class PlatformHealthSteps implements HealthSteps {
       });
 
   Future<int?> _averageHeartRate(DateTime start, DateTime end) async {
-    final rates = await _source.heartRates(start, end);
+    final List<num> rates;
+    try {
+      rates = await _source.heartRates(start, end);
+    } on HealthException {
+      // Optional, as without access: a failed read leaves the average out.
+      return null;
+    }
     if (rates.isEmpty) return null;
     return (rates.reduce((a, b) => a + b) / rates.length).round();
   }
@@ -201,8 +207,8 @@ class PlatformHealthSteps implements HealthSteps {
     switch (_platform) {
       case _Platform.android:
         // The plugin's step total skips its Health Connect check, and a
-        // refused read comes back only as a missing total; asking first
-        // tells both apart (a missing Health Connect throws here).
+        // refused read fails like any other; asking first tells them apart
+        // (a missing Health Connect throws here).
         if (await _source.hasStepsPermission() == false) {
           throw const PermissionFailure('Steps read access not granted');
         }
@@ -213,13 +219,12 @@ class PlatformHealthSteps implements HealthSteps {
     }
     final counts = <int>[];
     for (var i = 0; i < days.length; i += _parallelReads) {
-      final batch = await Future.wait([
-        for (final day in days.skip(i).take(_parallelReads))
-          _source.totalSteps(day.start, day.end),
-      ]);
-      for (final count in batch) {
-        counts.add(count ?? (throw const UnknownFailure('Steps unreadable')));
-      }
+      counts.addAll(
+        await Future.wait([
+          for (final day in days.skip(i).take(_parallelReads))
+            _source.totalSteps(day.start, day.end),
+        ]),
+      );
     }
     return [
       for (var i = 0; i < days.length; i++)
