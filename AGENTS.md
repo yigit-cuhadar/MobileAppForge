@@ -200,3 +200,7 @@ sub-agents plays all roles itself, in order.
 | Implementer | One feature end to end, with tests | `implementer` agent, Opus |
 | Reviewer | Reviews each feature diff against this file and the spec | `reviewer` agent, Opus |
 | Scaffolder | Mechanical work: scaffolding, renames, test boilerplate, config | `scaffolder` agent, Sonnet |
+
+The Architect may give an Implementer or Scaffolder brief to the `codex`
+agent instead: it runs the Codex CLI (`codex exec`), then checks the result
+itself. It counts as one of the three sub-agents.
