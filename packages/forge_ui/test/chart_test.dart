@@ -1281,5 +1281,25 @@ void main() {
       expect(find.text('Metric B'), findsOneWidget);
       expect(find.text('—'), findsOneWidget);
     });
+
+    testWidgets('an empty tile with an action runs it, not its tap', (
+      tester,
+    ) async {
+      var actions = 0;
+      var taps = 0;
+      await pump(
+        tester,
+        StatTile.empty(
+          title: 'Metric B',
+          onTap: () => taps++,
+          message: 'Nothing yet',
+          actionLabel: 'Add one',
+          onAction: () => actions++,
+        ),
+      );
+      await tester.tap(find.text('Add one'));
+      expect(actions, 1);
+      expect(taps, 0);
+    });
   });
 }
