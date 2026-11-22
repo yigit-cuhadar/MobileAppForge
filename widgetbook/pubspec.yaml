@@ -3,7 +3,7 @@ description: Widgetbook of the forge_ui components.
 publish_to: 'none'
 
 environment:
-  sdk: ^3.13.1
+  sdk: ^3.14.0
 
 dependencies:
   flutter:
@@ -12,6 +12,7 @@ dependencies:
     path: ../packages/forge_app_gate
   forge_ui:
     path: ../packages/forge_ui
+  material_ui: ^1.11.1
   widgetbook: ^3.25.0
   widgetbook_annotation: ^3.11.0
 

@@ -4,8 +4,8 @@ version: 0.1.0
 publish_to: none
 
 environment:
-  sdk: ^3.13.1
-  flutter: ">=3.47.0"
+  sdk: ^3.14.0
+  flutter: ">=3.50.0"
 
 dependencies:
   flutter:
@@ -17,6 +17,7 @@ dependencies:
     path: ../forge_ui
   get_it: ^9.3.0
   in_app_review: ^2.0.12
+  material_ui: ^1.11.1
   package_info_plus: ^10.2.2
   shared_preferences: ^2.5.6
 
