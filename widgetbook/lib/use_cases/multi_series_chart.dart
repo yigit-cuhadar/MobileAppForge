@@ -145,6 +145,26 @@ Widget averagedSeries(BuildContext context) => _page([
   ]),
 ]);
 
+@widgetbook.UseCase(name: 'One point', type: MultiSeriesChart)
+Widget onePointSeries(BuildContext context) {
+  final point = (day: DateTime(2025, 11, 16), value: 80.0);
+  return _page([
+    _chart([
+      ChartSeries.averaged(
+        label: 'Series A',
+        points: [point],
+        average: [point],
+        dailyLabel: 'daily value',
+        averageLabel: '7-day average',
+        format: _format,
+        look: SeriesLook.accent,
+        target: 74,
+        targetLabel: 'Target',
+      ),
+    ]),
+  ]);
+}
+
 @widgetbook.UseCase(name: 'Range and locked caption', type: MultiSeriesChart)
 Widget rangeSeries(BuildContext context) => _page([
   _chart(

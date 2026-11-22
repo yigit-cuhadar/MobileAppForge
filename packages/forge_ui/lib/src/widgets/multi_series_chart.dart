@@ -260,7 +260,7 @@ class MultiSeriesChart extends StatelessWidget {
 
   /// Up to three plain [series] on one value scale, named in a legend
   /// above the chart with a sample of each line, with no dot at their
-  /// ends. Each of the [gridlines] is a thin line across the chart with its
+  /// ends but a lone point's. Each of the [gridlines] is a thin line across the chart with its
   /// label centred on it in a column to the left; the scale spans them and
   /// every point. The end labels sit under the chart's ends. A tap shows
   /// every series' value on the nearest day with an entry.
@@ -922,7 +922,7 @@ class _PlotPainter extends CustomPainter {
   /// The gridlines' heights.
   final List<double> gridlines;
 
-  /// A dot on each line's last point.
+  /// A dot on each line's last point; a line of one point always has it.
   final bool endDots;
   final int? selected;
   final ForgePalette colors;
@@ -984,7 +984,9 @@ class _PlotPainter extends CustomPainter {
           _linePaint(color)..strokeWidth = _averageWidth,
         );
       }
-      if (endDots && this.selected == null && main.isNotEmpty) {
+      // A lone point has no line to show it, so it keeps its dot.
+      if (main.length == 1 ||
+          endDots && this.selected == null && main.isNotEmpty) {
         canvas.drawCircle(main.last, _endDot, Paint()..color = color);
       }
       final target = s.target;
