@@ -33,7 +33,7 @@
 /// workout's source by package name only, and has no stationary bike kind
 /// the plugin maps (it reads as [HealthWorkoutType.other]).
 ///
-/// ## App setup (health 13.3)
+/// ## App setup (health 14.0)
 ///
 /// iOS (15+): the HealthKit capability on the Runner target (Signing &
 /// Capabilities; it adds the `com.apple.developer.healthkit` entitlement and
@@ -47,7 +47,9 @@
 /// iOS setup; the same reason covers them.
 ///
 /// Android: `minSdk = 26` (Health Connect itself needs Android 9+; older
-/// devices report [HealthAvailability.unsupported]) and `MainActivity`
+/// devices report [HealthAvailability.unsupported]), `compileSdk = 37` with
+/// AGP 9.1+ and Gradle 9.3.1+ (the plugin's Health Connect client needs
+/// them), and `MainActivity`
 /// extending `FlutterFragmentActivity`, which the permission dialog needs:
 /// ```kotlin
 /// class MainActivity : FlutterFragmentActivity()

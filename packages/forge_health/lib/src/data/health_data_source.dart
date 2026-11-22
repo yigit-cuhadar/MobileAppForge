@@ -26,8 +26,8 @@ class HealthDataSource {
   static const _steps = [HealthDataType.STEPS];
 
   /// What reading a workout needs. On Android the plugin also reads the
-  /// distance, energy and steps recorded during each workout, and a refused
-  /// one of them empties the whole read, so all are asked together.
+  /// distance, energy and steps recorded during each workout, so all are
+  /// asked together.
   static List<HealthDataType> get _workouts =>
       defaultTargetPlatform == TargetPlatform.android
       ? const [
@@ -69,7 +69,8 @@ class HealthDataSource {
   ]);
 
   /// The workouts that started in [start, end). Android returns none, with
-  /// no error, when a read it needs was refused.
+  /// no error, when the workout read was refused. Throws
+  /// [HealthPlatformException] when the platform could not read.
   Future<List<RawWorkout>> workouts(DateTime start, DateTime end) async {
     final points = await _health.getHealthDataFromTypes(
       types: const [HealthDataType.WORKOUT],
@@ -92,6 +93,7 @@ class HealthDataSource {
   }
 
   /// The heart rate samples, in beats per minute, taken in [start, end].
+  /// Throws [HealthPlatformException] when the platform could not read.
   Future<List<num>> heartRates(DateTime start, DateTime end) async {
     final points = await _health.getHealthDataFromTypes(
       types: _heartRate,
@@ -104,9 +106,9 @@ class HealthDataSource {
     ];
   }
 
-  /// The platform's aggregate of [start, end). Null when Health Connect
-  /// could not read; the plugin does not say why.
-  Future<int?> totalSteps(DateTime start, DateTime end) =>
+  /// The platform's aggregate of [start, end). Throws
+  /// [HealthPlatformException] when the platform could not read.
+  Future<int> totalSteps(DateTime start, DateTime end) =>
       _health.getTotalStepsInInterval(start, end);
 
   /// The app's own package name (Android) or bundle id (iOS).
