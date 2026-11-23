@@ -747,6 +747,47 @@ void main() {
       expect(find.textContaining('Day'), findsNothing);
     });
 
+    Finder plotPaint() => find.byWidgetPredicate(
+      (w) =>
+          w is CustomPaint &&
+          w.painter.runtimeType.toString() == '_PlotPainter',
+    );
+
+    for (final averaged in [false, true]) {
+      testWidgets('a line with one point draws it as a dot '
+          '(${averaged ? 'averaged' : 'plain'})', (tester) async {
+        await pump(
+          tester,
+          chart(
+            series: [
+              if (averaged)
+                ChartSeries.averaged(
+                  label: 'Series A',
+                  points: [at(40, 80)],
+                  average: [at(40, 80)],
+                  dailyLabel: 'daily value',
+                  averageLabel: '7-day average',
+                  format: format,
+                  look: SeriesLook.accent,
+                  target: 75,
+                  targetLabel: 'Target',
+                )
+              else
+                ChartSeries(
+                  label: 'Series A',
+                  points: [at(40, 80)],
+                  format: format,
+                  look: SeriesLook.accent,
+                  target: 75,
+                  targetLabel: 'Target',
+                ),
+            ],
+          ),
+        );
+        expect(plotPaint(), paints..circle(color: colors(tester).accent));
+      });
+    }
+
     testWidgets('empty keeps the range and the locked caption', (tester) async {
       var opened = 0;
       await pump(
@@ -848,6 +889,48 @@ void main() {
       final box = plot(tester);
       return Rect.fromLTRB(box.left + 40, box.top, box.right, box.bottom);
     }
+
+    testWidgets('a line of one point keeps its dot; longer lines have none', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        MultiSeriesChart.shared(
+          title: 'Series',
+          series: [
+            ChartSeries(
+              label: 'Series A',
+              points: [week(3, 0.4)],
+              format: percent,
+              look: SeriesLook.accent,
+            ),
+            ChartSeries(
+              label: 'Series B',
+              points: [week(0, 0.2), week(5, 0.3)],
+              format: percent,
+              look: SeriesLook.info,
+            ),
+          ],
+          gridlines: const [
+            (value: 0, label: '0%'),
+            (value: 0.5, label: '50%'),
+          ],
+          from: DateTime(2025, 8, 25),
+          to: DateTime(2025, 11, 16),
+          dateLabel: (day) => 'Week of ${day.month}/${day.day}',
+          startLabel: 'Aug 25',
+          endLabel: 'Nov 16',
+          semanticLabel: 'Two series over 12 weeks',
+        ),
+      );
+      final plotPaint = find.byWidgetPredicate(
+        (w) =>
+            w is CustomPaint &&
+            w.painter.runtimeType.toString() == '_PlotPainter',
+      );
+      expect(plotPaint, paints..circle(color: colors(tester).accent));
+      expect(plotPaint, paintsExactlyCountTimes(#drawCircle, 1));
+    });
 
     testWidgets('the legend above the chart names each series with its '
         'line', (tester) async {
@@ -1197,6 +1280,26 @@ void main() {
       expect(find.byType(SkeletonBar), findsNWidgets(2));
       expect(find.text('Metric B'), findsOneWidget);
       expect(find.text('—'), findsOneWidget);
+    });
+
+    testWidgets('an empty tile with an action runs it, not its tap', (
+      tester,
+    ) async {
+      var actions = 0;
+      var taps = 0;
+      await pump(
+        tester,
+        StatTile.empty(
+          title: 'Metric B',
+          onTap: () => taps++,
+          message: 'Nothing yet',
+          actionLabel: 'Add one',
+          onAction: () => actions++,
+        ),
+      );
+      await tester.tap(find.text('Add one'));
+      expect(actions, 1);
+      expect(taps, 0);
     });
   });
 }

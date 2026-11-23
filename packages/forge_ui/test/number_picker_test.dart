@@ -196,6 +196,22 @@ void main() {
       expect(find.text('200'), findsOneWidget);
     });
 
+    testWidgets('the value stays in mono through a drag', (tester) async {
+      await pump(tester, ruler(step: 1, value: 80));
+      final mono = ForgeStyle.of(tester.element(find.byType(NumberPicker)))
+          .data
+          .fontFamily;
+      String? family(String value) => tester
+          .renderObject<RenderParagraph>(find.text(value))
+          .text
+          .style
+          ?.fontFamily;
+
+      expect(family('80'), mono);
+      await drag(tester, const Offset(-unit * 2, 0));
+      expect(family('82'), mono);
+    });
+
     testWidgets('never reports past max when the range is no whole number '
         'of steps', (tester) async {
       await pump(tester, ruler(min: 0, max: 10, step: 4, value: 4));

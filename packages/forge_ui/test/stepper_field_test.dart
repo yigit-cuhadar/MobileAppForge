@@ -317,20 +317,11 @@ void main() {
       reps.dispose();
     });
 
-    Future<void> pumpRow(
-      WidgetTester tester, {
-      bool bar = true,
-      double scale = 1,
-    }) async {
+    Future<void> pumpRow(WidgetTester tester) async {
       var values = <String, double?>{'kg': 100, 'reps': 10};
       await tester.pumpWidget(
         MaterialApp(
           theme: ForgeTheme.light(),
-          builder: (context, page) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(scale)),
-            child: page!,
-          ),
           home: Scaffold(
             body: StatefulBuilder(
               builder: (context, setState) => Column(
@@ -339,9 +330,9 @@ void main() {
                   Row(
                     spacing: Gap.sm,
                     children: [
-                      for (final (unit, node, next) in [
-                        ('kg', weight, reps),
-                        ('reps', reps, null),
+                      for (final (unit, node) in [
+                        ('kg', weight),
+                        ('reps', reps),
                       ])
                         Expanded(
                           child: StepperField(
@@ -349,14 +340,6 @@ void main() {
                             unit: unit,
                             step: 1,
                             focusNode: node,
-                            nextLabel: bar ? 'Next' : null,
-                            onNext: next == null || !bar
-                                ? null
-                                : () {
-                                    log.add('next');
-                                    next.requestFocus();
-                                  },
-                            doneLabel: bar ? 'Done' : null,
                             onChanged: (v) {
                               log.add('$unit $v');
                               setState(() => values = {...values, unit: v});
@@ -386,7 +369,6 @@ void main() {
         box(tester, 0).controller!.selection,
         const TextSelection(baseOffset: 0, extentOffset: 3),
       );
-      expect(find.text('Done'), findsOneWidget);
     });
 
     testWidgets('one tap types the value with the keyboard open', (
@@ -399,54 +381,11 @@ void main() {
       expect(weight.hasFocus, isTrue);
       expect(tester.testTextInput.hasAnyClients, isTrue);
       expect(tester.testTextInput.isVisible, isTrue);
-      expect(find.text('Done'), findsOneWidget);
-    });
-
-    testWidgets('the bar sits on the keyboard, which the Scaffold hides '
-        'from the field', (tester) async {
-      addTearDown(tester.view.resetViewInsets);
-      await pumpRow(tester);
-      await tester.tap(find.text('100'));
-      await tester.pump();
-      tester.view.viewInsets = const FakeViewPadding(bottom: 900);
-      await tester.pump();
-
-      final keyboardTop =
-          tester.view.physicalSize.height / tester.view.devicePixelRatio -
-          900 / tester.view.devicePixelRatio;
-      expect(
-        tester
-            .getRect(
-              find.ancestor(
-                of: find.text('Done'),
-                matching: find.byType(Container),
-              ),
-            )
-            .bottom,
-        keyboardTop,
-      );
-      expect(weight.hasFocus, isTrue);
-    });
-
-    testWidgets('Next sits at the bar\'s start and Done at its end', (
-      tester,
-    ) async {
-      await pumpRow(tester);
-      await tester.tap(find.text('100'));
-      await tester.pump();
-
-      final bar = tester.getRect(
-        find
-            .ancestor(of: find.text('Done'), matching: find.byType(Container))
-            .first,
-      );
-      expect(tester.getTopLeft(find.text('Next')).dx, bar.left + Gap.md);
-      expect(tester.getTopRight(find.text('Done')).dx, bar.right - Gap.md);
     });
 
     testWidgets('one tap on the next value moves the typing there and '
         'keeps what was typed', (tester) async {
-      await pumpRow(tester, bar: false);
+      await pumpRow(tester);
       await tester.tap(find.text('100'));
       await tester.pump();
       await tester.enterText(find.byType(TextField).at(0), '102');
@@ -469,66 +408,7 @@ void main() {
       await tester.tap(find.text('Elsewhere'));
       await tester.pump();
       expect(weight.hasFocus, isFalse);
-      expect(find.text('Done'), findsNothing);
+      expect(tester.testTextInput.isVisible, isFalse);
     });
-
-    testWidgets('Next moves on, Done closes the keyboard', (tester) async {
-      await pumpRow(tester);
-      await tester.tap(find.text('100'));
-      await tester.pump();
-
-      final bar = tester.getRect(
-        find.ancestor(of: find.text('Done'), matching: find.byType(Container)),
-      );
-      expect(bar.height, StepperField.barHeight);
-      final colors = ForgeStyle.of(tester.element(find.text('Done'))).colors;
-      final frame = tester.widget<Container>(
-        find.ancestor(of: find.text('Done'), matching: find.byType(Container)),
-      );
-      expect((frame.decoration! as BoxDecoration).color, colors.surfaceBar);
-      expect(bar.bottom, tester.getRect(find.byType(Scaffold)).bottom);
-      expect(
-        tester.getCenter(find.text('Next')).dx,
-        lessThan(tester.getCenter(find.text('Done')).dx),
-      );
-
-      await tester.tap(find.text('Next'));
-      await tester.pump();
-      expect(log, ['next']);
-      expect(reps.hasFocus, isTrue);
-      expect(find.text('Done'), findsOneWidget);
-
-      // The last field has no next: Next is greyed and does nothing.
-      expect(
-        tester.widget<Text>(find.text('Next')).style!.color,
-        colors.lineStrong,
-      );
-      await tester.tap(find.text('Next'));
-      await tester.pump();
-      expect(log, ['next']);
-
-      await tester.tap(find.text('Done'));
-      await tester.pump();
-      expect(reps.hasFocus, isFalse);
-      expect(find.text('Done'), findsNothing);
-    });
-
-    testWidgets('without a Done label there is no bar', (tester) async {
-      await pumpRow(tester, bar: false);
-      await tester.tap(find.text('100'));
-      await tester.pump();
-      expect(weight.hasFocus, isTrue);
-      expect(find.text('Done'), findsNothing);
-    });
-
-    for (final scale in [1.0, 2.0, 3.0]) {
-      testWidgets('the bar lays out at ${scale}x text', (tester) async {
-        await pumpRow(tester, scale: scale);
-        weight.requestFocus();
-        await tester.pump();
-        expect(tester.takeException(), isNull);
-        expect(find.text('Next'), findsOneWidget);
-      });
-    }
   });
 }

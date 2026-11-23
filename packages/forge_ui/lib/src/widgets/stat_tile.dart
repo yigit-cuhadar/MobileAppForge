@@ -36,7 +36,9 @@ class StatTile extends StatelessWidget {
        _form = _Form.tile,
        message = null,
        onRetry = null,
-       retryLabel = null;
+       retryLabel = null,
+       actionLabel = null,
+       onAction = null;
 
   /// No title row, just the [figure] with its [unit] and the [caption];
   /// not a tap target.
@@ -55,7 +57,9 @@ class StatTile extends StatelessWidget {
        changeIsGood = null,
        message = null,
        onRetry = null,
-       retryLabel = null;
+       retryLabel = null,
+       actionLabel = null,
+       onAction = null;
 
   /// A small tile: the [label], the [figure] and an optional [change] line
   /// in data, success when it goes the way the app calls good
@@ -76,7 +80,9 @@ class StatTile extends StatelessWidget {
        progress = null,
        message = null,
        onRetry = null,
-       retryLabel = null;
+       retryLabel = null,
+       actionLabel = null,
+       onAction = null;
 
   /// Two points in time: the [label], the [change] large and [fromTo]
   /// ("old → new") under it in ink-muted.
@@ -97,7 +103,9 @@ class StatTile extends StatelessWidget {
        changeIsGood = null,
        message = null,
        onRetry = null,
-       retryLabel = null;
+       retryLabel = null,
+       actionLabel = null,
+       onAction = null;
 
   /// A [StatTile.compact] loading: two shimmering bars.
   const StatTile.compactLoading({super.key})
@@ -114,7 +122,9 @@ class StatTile extends StatelessWidget {
       changeIsGood = null,
       message = null,
       onRetry = null,
-      retryLabel = null;
+      retryLabel = null,
+      actionLabel = null,
+      onAction = null;
 
   /// A [StatTile.change] loading: two shimmering bars.
   const StatTile.changeLoading({super.key})
@@ -131,7 +141,9 @@ class StatTile extends StatelessWidget {
       changeIsGood = null,
       message = null,
       onRetry = null,
-      retryLabel = null;
+      retryLabel = null,
+      actionLabel = null,
+      onAction = null;
 
   /// The title row stays; the figure and caption shimmer.
   const StatTile.loading({
@@ -149,16 +161,26 @@ class StatTile extends StatelessWidget {
        changeIsGood = null,
        message = null,
        onRetry = null,
-       retryLabel = null;
+       retryLabel = null,
+       actionLabel = null,
+       onAction = null;
 
-  /// Nothing yet: a dash for the figure and one muted [message].
+  /// Nothing yet: a dash for the figure and one muted [message], with an
+  /// optional full-width secondary button under it ([actionLabel],
+  /// [onAction]) for the way to fill it.
   const StatTile.empty({
     super.key,
     required String this.title,
     this.detail,
     required VoidCallback this.onTap,
     required String this.message,
-  }) : _form = _Form.empty,
+    this.actionLabel,
+    this.onAction,
+  }) : assert(
+         (actionLabel == null) == (onAction == null),
+         'An action needs both its label and its callback.',
+       ),
+       _form = _Form.empty,
        chart = null,
        figure = null,
        unit = null,
@@ -186,7 +208,9 @@ class StatTile extends StatelessWidget {
        caption = null,
        progress = null,
        change = null,
-       changeIsGood = false;
+       changeIsGood = false,
+       actionLabel = null,
+       onAction = null;
 
   final String? title;
   final String? detail;
@@ -207,6 +231,8 @@ class StatTile extends StatelessWidget {
   final String? message;
   final VoidCallback? onRetry;
   final String? retryLabel;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   final _Form _form;
 
   @override
@@ -338,6 +364,12 @@ class StatTile extends StatelessWidget {
             _titleRow(context),
             dash,
             Text(message!, style: small),
+            if (actionLabel case final label?)
+              ForgeButton(
+                label: label,
+                onPressed: onAction,
+                variant: ForgeButtonVariant.secondary,
+              ),
           ],
         );
       case _Form.error:

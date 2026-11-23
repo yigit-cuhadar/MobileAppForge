@@ -26,9 +26,7 @@ import 'bare_decoration.dart';
 /// A row of fields types one after another: with a [focusNode] the app can
 /// start typing in a field ([FocusNode.requestFocus]), and a tap on another
 /// field's value moves the typing there at once, keeping the keyboard up.
-/// With a [doneLabel], a bar above the keyboard holds [nextLabel] at its
-/// start, calling [onNext] (the app focuses the next field; without it Next
-/// is greyed), and [doneLabel] at its end, which closes the keyboard.
+/// A tap outside the fields closes the keyboard.
 class StepperField extends StatefulWidget {
   const StepperField({
     super.key,
@@ -46,14 +44,7 @@ class StepperField extends StatefulWidget {
     this.invalid = false,
     this.compact = false,
     this.focusNode,
-    this.nextLabel,
-    this.onNext,
-    this.doneLabel,
-  }) : assert(
-         nextLabel == null || doneLabel != null,
-         'Next sits on the keyboard bar, which needs a Done label.',
-       ),
-       assert(onNext == null || nextLabel != null);
+  });
 
   final double? value;
   final String unit;
@@ -79,12 +70,6 @@ class StepperField extends StatefulWidget {
 
   /// Typing in the field holds this node's focus.
   final FocusNode? focusNode;
-  final String? nextLabel;
-  final VoidCallback? onNext;
-  final String? doneLabel;
-
-  /// The keyboard bar's height.
-  static const double barHeight = 44;
 
   static const double height = 50;
   static const double buttonSize = 36;
@@ -102,7 +87,6 @@ class StepperField extends StatefulWidget {
 class _StepperFieldState extends State<StepperField> {
   FocusNode? _ownFocus;
   final _controller = TextEditingController();
-  final _bar = OverlayPortalController();
 
   bool _typing = false;
 
@@ -142,7 +126,7 @@ class _StepperFieldState extends State<StepperField> {
     super.dispose();
   }
 
-  /// Typing follows the focus, whoever moves it: a tap, the app or Next.
+  /// Typing follows the focus, whoever moves it: a tap or the app.
   void _focusChanged() {
     final typing = _focus.hasFocus;
     if (typing == _typing) return;
@@ -157,11 +141,6 @@ class _StepperFieldState extends State<StepperField> {
             ),
           );
     setState(() => _typing = typing);
-    if (typing && widget.doneLabel != null) {
-      _bar.show();
-    } else if (_bar.isShowing) {
-      _bar.hide();
-    }
   }
 
   void _startTyping() => _focus.requestFocus();
@@ -362,7 +341,7 @@ class _StepperFieldState extends State<StepperField> {
       ),
     );
 
-    final field = Opacity(
+    return Opacity(
       opacity: enabled ? 1 : 0.4,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -380,115 +359,6 @@ class _StepperFieldState extends State<StepperField> {
             ),
         ],
       ),
-    );
-    if (widget.doneLabel == null) return field;
-    // The root overlay covers the whole view, so the bar can sit on the
-    // keyboard however the routes and tabs in between are laid out.
-    return OverlayPortal(
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      controller: _bar,
-      overlayChildBuilder: _keyboardBar,
-      child: field,
-    );
-  }
-
-  /// The Next / Done bar, sitting on the keyboard.
-  Widget _keyboardBar(BuildContext context) {
-    final colors = ForgeStyle.of(context).colors;
-    final label = Theme.of(context).textTheme.bodyLarge!.copyWith(fontSize: 16);
-    Widget action(String text, VoidCallback? onTap, FontWeight weight) =>
-        Semantics(
-          button: true,
-          enabled: onTap != null,
-          child: Pressable(
-            onTap: onTap,
-            height: StepperField.barHeight,
-            builder: (context, pressed) => Opacity(
-              opacity: pressed ? 0.6 : 1,
-              child: Text(
-                text,
-                style: label.copyWith(
-                  fontWeight: weight,
-                  color: onTap == null ? colors.lineStrong : colors.accent,
-                ),
-              ),
-            ),
-          ),
-        );
-    return _OnKeyboard(
-      // Part of the field: its taps do not end the typing.
-      child: TextFieldTapRegion(
-        child: Container(
-          constraints: const BoxConstraints(minHeight: StepperField.barHeight),
-          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-          decoration: BoxDecoration(
-            color: colors.surfaceBar,
-            border: Border(top: BorderSide(color: colors.line)),
-          ),
-          child: Row(
-            children: [
-              if (widget.nextLabel case final next?)
-                Flexible(
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: action(next, widget.onNext, FontWeight.w500),
-                  ),
-                ),
-              const Spacer(),
-              Flexible(
-                child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: action(
-                    widget.doneLabel!,
-                    _focus.unfocus,
-                    FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Places [child] across the bottom of the overlay, right on top of the
-/// keyboard. The keyboard's height comes from the view: a Scaffold takes
-/// it out of the MediaQuery its body (and so the field) sees.
-class _OnKeyboard extends StatefulWidget {
-  const _OnKeyboard({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_OnKeyboard> createState() => _OnKeyboardState();
-}
-
-class _OnKeyboardState extends State<_OnKeyboard> with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() => setState(() {});
-
-  @override
-  Widget build(BuildContext context) {
-    final view = View.of(context);
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: view.viewInsets.bottom / view.devicePixelRatio,
-      child: widget.child,
     );
   }
 }

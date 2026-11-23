@@ -191,6 +191,18 @@ Widget emptyStatTile(BuildContext context) => _grid([
   ),
 ]);
 
+@widgetbook.UseCase(name: 'Empty with an action', type: StatTile)
+Widget emptyActionStatTile(BuildContext context) => _grid([
+  StatTile.empty(
+    title: 'Metric A',
+    detail: 'This week',
+    onTap: () {},
+    message: 'Nothing this week.',
+    actionLabel: 'Add [ITEM]',
+    onAction: () {},
+  ),
+]);
+
 @widgetbook.UseCase(name: 'Error', type: StatTile)
 Widget errorStatTile(BuildContext context) => _grid([
   StatTile.error(
