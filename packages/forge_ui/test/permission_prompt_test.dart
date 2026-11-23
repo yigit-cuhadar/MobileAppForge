@@ -32,6 +32,33 @@ void main() {
     expect(allowed, 1);
   });
 
+  testWidgets('while asking the main button spins and no button takes a tap', (
+    tester,
+  ) async {
+    var allowed = 0;
+    var skipped = 0;
+    await pump(
+      tester,
+      PermissionPrompt.ask(
+        icon: ForgeIcons.favorite,
+        title: 'See your [DATA] here',
+        message: 'Nothing else is read.',
+        allowLabel: 'Allow access',
+        onAllow: () => allowed++,
+        skipLabel: 'Skip',
+        onSkip: () => skipped++,
+        page: true,
+        asking: true,
+      ),
+    );
+
+    expect(button(tester, 'Allow access').loading, isTrue);
+    await tester.tap(find.byType(ForgeButton).first);
+    await tester.tap(find.text('Skip'));
+    expect(allowed, 0);
+    expect(skipped, 0);
+  });
+
   testWidgets('a note sits muted under the buttons', (tester) async {
     await pump(
       tester,

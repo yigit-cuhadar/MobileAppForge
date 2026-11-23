@@ -19,7 +19,8 @@ import 'forge_dialog.dart';
 /// for consent with two equal buttons, and [PermissionPrompt.dialog] asks
 /// at the moment an action needs the permission.
 class PermissionPrompt extends StatelessWidget {
-  /// Asks for access; [icon] names what it is for.
+  /// Asks for access; [icon] names what it is for. Set [asking] while
+  /// the system's prompt is awaited.
   const PermissionPrompt.ask({
     super.key,
     required ForgeIconData this.icon,
@@ -31,6 +32,7 @@ class PermissionPrompt extends StatelessWidget {
     this.onSkip,
     this.note,
     this.page = false,
+    this.asking = false,
   }) : _state = _State.ask,
        actionLabel = allowLabel,
        onAction = onAllow;
@@ -49,6 +51,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onDecline,
     this.page = false,
   }) : _state = _State.consent,
+       asking = false,
        note = null,
        actionLabel = allowLabel,
        onAction = onAllow,
@@ -69,6 +72,7 @@ class PermissionPrompt extends StatelessWidget {
     required String notNowLabel,
     required VoidCallback onNotNow,
   }) : _state = _State.dialog,
+       asking = false,
        note = null,
        page = false,
        actionLabel = allowLabel,
@@ -88,6 +92,7 @@ class PermissionPrompt extends StatelessWidget {
     VoidCallback? onAskAgain,
     this.page = false,
   }) : _state = _State.refused,
+       asking = false,
        note = null,
        icon = null,
        actionLabel = settingsLabel,
@@ -104,6 +109,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onRetry,
     this.page = false,
   }) : _state = _State.failed,
+       asking = false,
        note = null,
        icon = null,
        actionLabel = retryLabel,
@@ -123,6 +129,7 @@ class PermissionPrompt extends StatelessWidget {
     required VoidCallback onNotNow,
     this.page = false,
   }) : _state = _State.missing,
+       asking = false,
        note = null,
        icon = null,
        actionLabel = getLabel,
@@ -143,6 +150,7 @@ class PermissionPrompt extends StatelessWidget {
     this.page = false,
   }) : assert((skipLabel == null) == (onSkip == null)),
        _state = _State.unavailable,
+       asking = false,
        note = null,
        actionLabel = skipLabel,
        onAction = onSkip,
@@ -162,6 +170,10 @@ class PermissionPrompt extends StatelessWidget {
   /// A muted line under the buttons, such as where to turn access back on.
   final String? note;
   final bool page;
+
+  /// The system's own prompt is on its way: the main button spins and
+  /// neither button takes a tap, so a slow prompt is not asked for twice.
+  final bool asking;
   final _State _state;
 
   static const double _circle = 64;
@@ -189,6 +201,7 @@ class PermissionPrompt extends StatelessWidget {
           ForgeButton(
             label: actionLabel,
             onPressed: onAction,
+            loading: asking,
             variant: switch (_state) {
               _State.failed => ForgeButtonVariant.outline,
               _State.unavailable ||
@@ -210,7 +223,7 @@ class PermissionPrompt extends StatelessWidget {
                 )
               : ForgeButton(
                   label: skipLabel,
-                  onPressed: onSkip,
+                  onPressed: asking ? null : onSkip,
                   variant: ForgeButtonVariant.text,
                 ),
         if (note case final note?)
