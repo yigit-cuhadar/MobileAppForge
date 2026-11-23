@@ -10,7 +10,9 @@ import 'runner_line.dart';
 /// under it, centred on the app's [background]; [foreground] is the colour
 /// on it. No spinner: once [slowAfter] has passed, a thin indeterminate
 /// line appears under the name. [SplashScreen.failed] keeps the mark and
-/// the name and adds one [message] line and an outline Retry.
+/// the name and adds one [message] line and an outline Retry. A [logo]
+/// that already holds the mark and its ground (the app's launch artwork)
+/// takes the place of the tile and the name, which it then reads as.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({
     super.key,
@@ -19,6 +21,7 @@ class SplashScreen extends StatefulWidget {
     required this.background,
     required this.foreground,
     required Duration this.slowAfter,
+    this.logo,
   }) : message = null,
        retryLabel = null,
        onRetry = null;
@@ -32,11 +35,17 @@ class SplashScreen extends StatefulWidget {
     required String this.message,
     required String this.retryLabel,
     required VoidCallback this.onRetry,
+    this.logo,
   }) : slowAfter = null;
 
   /// Drawn in [background] on a 64px [foreground] tile.
   final Widget mark;
   final String name;
+
+  /// Shown alone, [logoSize] square, in place of the mark's tile and the
+  /// name.
+  final Widget? logo;
+  static const double logoSize = 240;
   final Color background;
   final Color foreground;
   final Duration? slowAfter;
@@ -89,33 +98,44 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final on = widget.foreground;
+    final logo = widget.logo;
     final children = [
-      Container(
-        width: _tile,
-        height: _tile,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: on,
-          borderRadius: BorderRadius.circular(_tileRadius),
-        ),
-        child: IconTheme.merge(
-          data: IconThemeData(color: widget.background),
-          child: DefaultTextStyle.merge(
-            style: TextStyle(color: widget.background),
-            child: widget.mark,
+      if (logo != null)
+        Semantics(
+          label: widget.name,
+          child: SizedBox.square(
+            dimension: SplashScreen.logoSize,
+            child: ExcludeSemantics(child: logo),
+          ),
+        )
+      else ...[
+        Container(
+          width: _tile,
+          height: _tile,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: on,
+            borderRadius: BorderRadius.circular(_tileRadius),
+          ),
+          child: IconTheme.merge(
+            data: IconThemeData(color: widget.background),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(color: widget.background),
+              child: widget.mark,
+            ),
           ),
         ),
-      ),
-      Text(
-        widget.name,
-        textAlign: TextAlign.center,
-        style: text.titleLarge!.copyWith(
-          fontSize: 20,
-          height: 1.2,
-          letterSpacing: -0.2,
-          color: on,
+        Text(
+          widget.name,
+          textAlign: TextAlign.center,
+          style: text.titleLarge!.copyWith(
+            fontSize: 20,
+            height: 1.2,
+            letterSpacing: -0.2,
+            color: on,
+          ),
         ),
-      ),
+      ],
       if (widget.onRetry case final onRetry?) ...[
         Padding(
           // The message stands apart from the name.
