@@ -845,7 +845,20 @@ void main() {
       );
     });
 
-    test('only the last row may be destructive', () {
+    test('destructive rows may end the menu together', () {
+      expect(
+        ForgeMenu(
+          items: [
+            ForgeMenuItem(label: 'Edit', onTap: () {}),
+            ForgeMenuItem(label: 'Stop', destructive: true, onTap: () {}),
+            ForgeMenuItem(label: 'Delete', destructive: true, onTap: () {}),
+          ],
+        ).items,
+        hasLength(3),
+      );
+    });
+
+    test('destructive rows sit last', () {
       expect(
         () => ForgeMenu(
           items: [
