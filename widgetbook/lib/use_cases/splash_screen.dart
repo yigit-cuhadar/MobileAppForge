@@ -49,3 +49,27 @@ Widget failedSplash(BuildContext context) {
     onRetry: () {},
   );
 }
+
+@widgetbook.UseCase(name: 'Logo', type: SplashScreen)
+Widget logoSplash(BuildContext context) {
+  final colors = ForgeStyle.of(context).colors;
+  return SplashScreen(
+    mark: const _Mark(),
+    name: '[APP NAME]',
+    background: colors.onFeatured,
+    foreground: colors.featured,
+    slowAfter: const Duration(days: 1),
+    logo: DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.onFeatured,
+        border: Border.all(color: colors.featured, width: 2),
+      ),
+      child: Center(
+        child: Text(
+          '[LOGO]',
+          style: TextStyle(color: colors.featured, fontSize: 32),
+        ),
+      ),
+    ),
+  );
+}

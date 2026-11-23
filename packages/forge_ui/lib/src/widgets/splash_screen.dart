@@ -10,7 +10,9 @@ import 'runner_line.dart';
 /// under it, centred on the app's [background]; [foreground] is the colour
 /// on it. No spinner: once [slowAfter] has passed, a thin indeterminate
 /// line appears under the name. [SplashScreen.failed] keeps the mark and
-/// the name and adds one [message] line and an outline Retry.
+/// the name and adds one [message] line and an outline Retry. A [logo]
+/// that already holds the mark and its ground (the app's launch artwork)
+/// takes the place of the tile and the name, which it then reads as.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({
     super.key,
@@ -19,6 +21,7 @@ class SplashScreen extends StatefulWidget {
     required this.background,
     required this.foreground,
     required Duration this.slowAfter,
+    this.logo,
   }) : message = null,
        retryLabel = null,
        onRetry = null;
@@ -32,11 +35,17 @@ class SplashScreen extends StatefulWidget {
     required String this.message,
     required String this.retryLabel,
     required VoidCallback this.onRetry,
+    this.logo,
   }) : slowAfter = null;
 
   /// Drawn in [background] on a 64px [foreground] tile.
   final Widget mark;
   final String name;
+
+  /// Shown alone, [logoSize] square, in place of the mark's tile and the
+  /// name.
+  final Widget? logo;
+  static const double logoSize = 240;
   final Color background;
   final Color foreground;
   final Duration? slowAfter;
@@ -89,6 +98,27 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final on = widget.foreground;
+    final rest = [
+      if (widget.onRetry case final onRetry?) ...[
+        Padding(
+          // The message stands apart from the name.
+          padding: const EdgeInsets.only(top: Gap.lg),
+          child: Text(
+            widget.message!,
+            textAlign: TextAlign.center,
+            style: text.bodyLarge!.copyWith(height: 21 / 15, color: on),
+          ),
+        ),
+        ForgeButton(
+          label: widget.retryLabel!,
+          onPressed: onRetry,
+          variant: ForgeButtonVariant.outline,
+        ),
+      ] else if (_slow)
+        RunnerLine(color: on, width: 96),
+    ];
+    final logo = widget.logo;
+    if (logo != null) return _withLogo(logo, rest);
     final children = [
       Container(
         width: _tile,
@@ -116,23 +146,7 @@ class _SplashScreenState extends State<SplashScreen> {
           color: on,
         ),
       ),
-      if (widget.onRetry case final onRetry?) ...[
-        Padding(
-          // The message stands apart from the name.
-          padding: const EdgeInsets.only(top: Gap.lg),
-          child: Text(
-            widget.message!,
-            textAlign: TextAlign.center,
-            style: text.bodyLarge!.copyWith(height: 21 / 15, color: on),
-          ),
-        ),
-        ForgeButton(
-          label: widget.retryLabel!,
-          onPressed: onRetry,
-          variant: ForgeButtonVariant.outline,
-        ),
-      ] else if (_slow)
-        RunnerLine(color: on, width: 96),
+      ...rest,
     ];
     return ColoredBox(
       color: widget.background,
@@ -150,4 +164,37 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   }
+
+  /// The logo stays in the middle of the whole screen, where a native
+  /// launch screen draws it, so the handover does not move it; the slow
+  /// line or the failure sits under it.
+  Widget _withLogo(Widget logo, List<Widget> rest) => ColoredBox(
+    color: widget.background,
+    child: LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        children: [
+          Center(
+            child: Semantics(
+              label: widget.name,
+              child: SizedBox.square(
+                dimension: SplashScreen.logoSize,
+                child: ExcludeSemantics(child: logo),
+              ),
+            ),
+          ),
+          if (rest.isNotEmpty)
+            Positioned(
+              top: (constraints.maxHeight + SplashScreen.logoSize) / 2,
+              left: Gap.lg,
+              right: Gap.lg,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: Gap.md,
+                children: rest,
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
