@@ -116,5 +116,10 @@ void main() {
     expect(find.text('mark'), findsNothing);
     expect(find.text('[APP NAME]'), findsNothing);
     expect(find.bySemanticsLabel('[APP NAME]'), findsOneWidget);
+    // In the middle of the whole screen, as a native launch screen has it.
+    expect(
+      tester.getCenter(find.byKey(const Key('logo'))),
+      tester.getCenter(find.byType(SplashScreen)),
+    );
   });
 }

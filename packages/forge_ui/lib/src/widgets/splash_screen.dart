@@ -98,44 +98,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final on = widget.foreground;
-    final logo = widget.logo;
-    final children = [
-      if (logo != null)
-        Semantics(
-          label: widget.name,
-          child: SizedBox.square(
-            dimension: SplashScreen.logoSize,
-            child: ExcludeSemantics(child: logo),
-          ),
-        )
-      else ...[
-        Container(
-          width: _tile,
-          height: _tile,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: on,
-            borderRadius: BorderRadius.circular(_tileRadius),
-          ),
-          child: IconTheme.merge(
-            data: IconThemeData(color: widget.background),
-            child: DefaultTextStyle.merge(
-              style: TextStyle(color: widget.background),
-              child: widget.mark,
-            ),
-          ),
-        ),
-        Text(
-          widget.name,
-          textAlign: TextAlign.center,
-          style: text.titleLarge!.copyWith(
-            fontSize: 20,
-            height: 1.2,
-            letterSpacing: -0.2,
-            color: on,
-          ),
-        ),
-      ],
+    final rest = [
       if (widget.onRetry case final onRetry?) ...[
         Padding(
           // The message stands apart from the name.
@@ -154,6 +117,37 @@ class _SplashScreenState extends State<SplashScreen> {
       ] else if (_slow)
         RunnerLine(color: on, width: 96),
     ];
+    final logo = widget.logo;
+    if (logo != null) return _withLogo(logo, rest);
+    final children = [
+      Container(
+        width: _tile,
+        height: _tile,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on,
+          borderRadius: BorderRadius.circular(_tileRadius),
+        ),
+        child: IconTheme.merge(
+          data: IconThemeData(color: widget.background),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: widget.background),
+            child: widget.mark,
+          ),
+        ),
+      ),
+      Text(
+        widget.name,
+        textAlign: TextAlign.center,
+        style: text.titleLarge!.copyWith(
+          fontSize: 20,
+          height: 1.2,
+          letterSpacing: -0.2,
+          color: on,
+        ),
+      ),
+      ...rest,
+    ];
     return ColoredBox(
       color: widget.background,
       child: SafeArea(
@@ -170,4 +164,37 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   }
+
+  /// The logo stays in the middle of the whole screen, where a native
+  /// launch screen draws it, so the handover does not move it; the slow
+  /// line or the failure sits under it.
+  Widget _withLogo(Widget logo, List<Widget> rest) => ColoredBox(
+    color: widget.background,
+    child: LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        children: [
+          Center(
+            child: Semantics(
+              label: widget.name,
+              child: SizedBox.square(
+                dimension: SplashScreen.logoSize,
+                child: ExcludeSemantics(child: logo),
+              ),
+            ),
+          ),
+          if (rest.isNotEmpty)
+            Positioned(
+              top: (constraints.maxHeight + SplashScreen.logoSize) / 2,
+              left: Gap.lg,
+              right: Gap.lg,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: Gap.md,
+                children: rest,
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
