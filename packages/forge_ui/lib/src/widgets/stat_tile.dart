@@ -165,7 +165,7 @@ class StatTile extends StatelessWidget {
        actionLabel = null,
        onAction = null;
 
-  /// Nothing yet: a dash for the figure and one muted [message], with an
+  /// Nothing yet: one muted [message] under the title, no figure, with an
   /// optional full-width secondary button under it ([actionLabel],
   /// [onAction]) for the way to fill it.
   const StatTile.empty({
@@ -362,7 +362,6 @@ class StatTile extends StatelessWidget {
           gap: Gap.md,
           children: [
             _titleRow(context),
-            dash,
             Text(message!, style: small),
             if (actionLabel case final label?)
               ForgeButton(

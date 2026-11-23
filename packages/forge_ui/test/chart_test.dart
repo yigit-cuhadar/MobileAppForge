@@ -1279,7 +1279,9 @@ void main() {
       );
       expect(find.byType(SkeletonBar), findsNWidgets(2));
       expect(find.text('Metric B'), findsOneWidget);
-      expect(find.text('—'), findsOneWidget);
+      expect(find.text('Nothing yet'), findsOneWidget);
+      // An empty tile draws no figure, not even a dash.
+      expect(find.text('—'), findsNothing);
     });
 
     testWidgets('an empty tile with an action runs it, not its tap', (
