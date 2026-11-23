@@ -39,6 +39,19 @@ Widget askFullPage(BuildContext context) => PermissionPrompt.ask(
   page: true,
 );
 
+@widgetbook.UseCase(name: 'Ask · full page, asking', type: PermissionPrompt)
+Widget askFullPageAsking(BuildContext context) => PermissionPrompt.ask(
+  icon: ForgeIcons.notifications,
+  title: 'Turn on reminders?',
+  message: 'One reminder at the time you choose.',
+  allowLabel: 'Turn on reminders',
+  onAllow: () {},
+  skipLabel: 'Not now',
+  onSkip: () {},
+  page: true,
+  asking: true,
+);
+
 @widgetbook.UseCase(name: 'Consent · full page', type: PermissionPrompt)
 Widget consentFullPage(BuildContext context) => PermissionPrompt.consent(
   icon: ForgeIcons.barChart,
