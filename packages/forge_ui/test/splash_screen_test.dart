@@ -92,4 +92,29 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(find.byType(ClipRRect), findsOneWidget);
   });
+
+  testWidgets('a logo stands alone in place of the tile and the name', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const SplashScreen(
+        mark: Text('mark'),
+        name: '[APP NAME]',
+        background: foreground,
+        foreground: background,
+        slowAfter: Duration(days: 1),
+        logo: ColoredBox(key: Key('logo'), color: background),
+      ),
+    );
+
+    expect(find.byKey(const Key('logo')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('logo'))),
+      const Size.square(SplashScreen.logoSize),
+    );
+    expect(find.text('mark'), findsNothing);
+    expect(find.text('[APP NAME]'), findsNothing);
+    expect(find.bySemanticsLabel('[APP NAME]'), findsOneWidget);
+  });
 }
