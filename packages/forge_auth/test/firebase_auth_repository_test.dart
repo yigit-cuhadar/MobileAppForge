@@ -702,6 +702,46 @@ void main() {
       );
     });
 
+    test('replacing the guest signs in to the account that already exists, '
+        'asking Google once', () async {
+      final guest = signedInGuest();
+      when(() => guest.linkWithCredential(any()))
+          .thenThrow(FirebaseAuthException(code: 'credential-already-in-use'));
+      when(() => auth.signInWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
+
+      await repository.signInWithProvider(SocialProvider.google);
+      final result = await repository.signInWithProvider(
+        SocialProvider.google,
+        replaceGuest: true,
+      );
+
+      expect(result.isOk, isTrue);
+      final linked = verify(() => guest.linkWithCredential(captureAny()))
+          .captured
+          .single;
+      final signedIn = verify(() => auth.signInWithCredential(captureAny()))
+          .captured
+          .single;
+      expect(signedIn, same(linked));
+      verify(google.idToken).called(1);
+    });
+
+    test('replacing the guest with no account kept asks Google', () async {
+      signedInGuest();
+      when(() => auth.signInWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
+
+      final result = await repository.signInWithProvider(
+        SocialProvider.google,
+        replaceGuest: true,
+      );
+
+      expect(result.isOk, isTrue);
+      verify(google.idToken).called(1);
+      verify(() => auth.signInWithCredential(any())).called(1);
+    });
+
     test('a closed sheet is cancelled, signing in nothing', () async {
       when(google.idToken).thenThrow(cancelled);
 

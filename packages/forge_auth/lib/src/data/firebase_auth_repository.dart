@@ -41,6 +41,10 @@ class FirebaseAuthRepository implements AuthRepository {
   /// The address [changeEmail] sent its link to, until the session ends.
   String? _pendingEmail;
 
+  /// The Google account a guest could not link because it already exists,
+  /// so replacing the guest signs in to it without asking Google again.
+  AuthCredential? _existingGoogle;
+
   @override
   DateTime? verificationSentAt;
 
@@ -111,16 +115,27 @@ class FirebaseAuthRepository implements AuthRepository {
     bool replaceGuest = false,
   }) {
     final guest = replaceGuest ? null : _guest;
+    final existing = replaceGuest && provider == SocialProvider.google
+        ? _existingGoogle
+        : null;
+    _existingGoogle = null;
     return guard(() async {
-      final google = await _nativeGoogleCredential(provider);
+      final google = existing ?? await _nativeGoogleCredential(provider);
       final authProvider = _authProvider(provider);
-      final signedIn = switch ((guest, google)) {
-        (null, null) => _auth.signInWithProvider(authProvider),
-        (null, final google?) => _auth.signInWithCredential(google),
-        (final guest?, null) => guest.linkWithProvider(authProvider),
-        (final guest?, final google?) => guest.linkWithCredential(google),
-      };
-      return _toUser((await signedIn).user)!;
+      try {
+        final signedIn = switch ((guest, google)) {
+          (null, null) => _auth.signInWithProvider(authProvider),
+          (null, final google?) => _auth.signInWithCredential(google),
+          (final guest?, null) => guest.linkWithProvider(authProvider),
+          (final guest?, final google?) => guest.linkWithCredential(google),
+        };
+        return _toUser((await signedIn).user)!;
+      } on FirebaseAuthException catch (error) {
+        if (guest != null && _accountExistsCodes.contains(error.code)) {
+          _existingGoogle = google;
+        }
+        rethrow;
+      }
     }, mapper: _signInError);
   }
 
@@ -215,6 +230,7 @@ class FirebaseAuthRepository implements AuthRepository {
   void _forgetSession() {
     _password = null;
     _pendingEmail = null;
+    _existingGoogle = null;
     verificationSentAt = null;
   }
 
