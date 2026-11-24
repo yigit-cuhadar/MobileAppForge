@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_auth/src/data/firebase_auth_repository.dart';
+import 'package:forge_auth/src/data/native_google_sign_in.dart';
 import 'package:forge_auth/src/domain/auth_repository.dart';
 import 'package:forge_auth/src/domain/auth_user.dart';
 import 'package:forge_core/forge_core.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -22,9 +25,12 @@ class FakeAuthProvider extends Fake implements AuthProvider {}
 
 class MockUserInfo extends Mock implements UserInfo {}
 
+class MockNativeGoogleSignIn extends Mock implements NativeGoogleSignIn {}
+
 void main() {
   late MockFirebaseAuth auth;
   late MockUser user;
+  late MockNativeGoogleSignIn google;
   late FirebaseAuthRepository repository;
 
   setUpAll(() {
@@ -41,7 +47,8 @@ void main() {
     when(() => user.isAnonymous).thenReturn(false);
     when(() => user.emailVerified).thenReturn(false);
     when(() => user.providerData).thenReturn([]);
-    repository = FirebaseAuthRepository(auth);
+    google = MockNativeGoogleSignIn();
+    repository = FirebaseAuthRepository(auth, google);
   });
 
   MockUserCredential credentialFor(User user) {
@@ -139,7 +146,7 @@ void main() {
     when(() => guest.linkWithProvider(any()))
         .thenAnswer((_) async => credentialFor(user));
 
-    final result = await repository.signInWithProvider(SocialProvider.google);
+    final result = await repository.signInWithProvider(SocialProvider.apple);
 
     expect(result.isOk, isTrue);
     verifyNever(() => auth.signInWithProvider(any()));
@@ -171,7 +178,7 @@ void main() {
         .thenAnswer((_) async => credentialFor(user));
 
     final result = await repository.signInWithProvider(
-      SocialProvider.google,
+      SocialProvider.apple,
       replaceGuest: true,
     );
 
@@ -470,8 +477,11 @@ void main() {
     });
   });
 
-  group('reauthenticateWithProvider', () {
+  group('reauthenticateWithProvider through Firebase\'s flow', () {
     setUp(() {
+      // Off Android and iOS (the web), Google uses Firebase's flow too.
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       when(() => auth.currentUser).thenReturn(user);
       final providers = [provider('google.com')];
       when(() => user.providerData).thenReturn(providers);
@@ -552,7 +562,11 @@ void main() {
     setUp(() {
       nonces = [];
       appleError = null;
-      repository = FirebaseAuthRepository(auth, requestAppleId: requestAppleId);
+      repository = FirebaseAuthRepository(
+        auth,
+        google,
+        requestAppleId: requestAppleId,
+      );
       when(() => auth.currentUser).thenReturn(user);
       final providers = [provider('apple.com')];
       when(() => user.providerData).thenReturn(providers);
@@ -622,6 +636,177 @@ void main() {
         (await repository.reauthenticateWithAppleCode()).failureOrNull,
         isA<AuthFailure>().having((f) => f.code, 'code', 'user-mismatch'),
       );
+    });
+  });
+
+  group('Google on Android and iOS', () {
+    const cancelled = GoogleSignInException(
+      code: GoogleSignInExceptionCode.canceled,
+    );
+
+    setUp(() {
+      when(google.idToken).thenAnswer((_) async => 'google-token');
+    });
+
+    OAuthCredential googleCredential(AuthCredential credential) {
+      expect(credential.providerId, 'google.com');
+      return credential as OAuthCredential;
+    }
+
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      test('signs in with the native ID token on ${platform.name}', () async {
+        debugDefaultTargetPlatformOverride = platform;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        when(() => auth.signInWithCredential(any()))
+            .thenAnswer((_) async => credentialFor(user));
+
+        final result = await repository.signInWithProvider(
+          SocialProvider.google,
+        );
+
+        expect(result.valueOrNull, const AuthUser(id: 'u1', email: 'a@b.co'));
+        final used =
+            verify(() => auth.signInWithCredential(captureAny()))
+                    .captured
+                    .single
+                as AuthCredential;
+        expect(googleCredential(used).idToken, 'google-token');
+        verifyNever(() => auth.signInWithProvider(any()));
+      });
+    }
+
+    test('links a guest to the chosen Google account', () async {
+      final guest = signedInGuest();
+      when(() => guest.linkWithCredential(any()))
+          .thenAnswer((_) async => credentialFor(user));
+
+      final result = await repository.signInWithProvider(SocialProvider.google);
+
+      expect(result.isOk, isTrue);
+      final used =
+          verify(() => guest.linkWithCredential(captureAny())).captured.single
+              as AuthCredential;
+      expect(googleCredential(used).idToken, 'google-token');
+      verifyNever(() => guest.linkWithProvider(any()));
+    });
+
+    test('a Google account already in use is accountExists', () async {
+      final guest = signedInGuest();
+      when(() => guest.linkWithCredential(any()))
+          .thenThrow(FirebaseAuthException(code: 'credential-already-in-use'));
+
+      expect(
+        (await repository.signInWithProvider(SocialProvider.google))
+            .failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', accountExistsCode),
+      );
+    });
+
+    test('a closed sheet is cancelled, signing in nothing', () async {
+      when(google.idToken).thenThrow(cancelled);
+
+      expect(
+        (await repository.signInWithProvider(SocialProvider.google))
+            .failureOrNull,
+        isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode),
+      );
+      verifyNever(() => auth.signInWithCredential(any()));
+    });
+
+    test('another Google error is a failure, not a cancel', () async {
+      when(google.idToken).thenThrow(
+        const GoogleSignInException(
+          code: GoogleSignInExceptionCode.clientConfigurationError,
+        ),
+      );
+
+      final failure = (await repository.signInWithProvider(
+        SocialProvider.google,
+      )).failureOrNull;
+      expect(failure, isNotNull);
+      expect(
+        failure,
+        isNot(isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode)),
+      );
+    });
+
+    group('re-authentication', () {
+      setUp(() {
+        when(() => auth.currentUser).thenReturn(user);
+        final providers = [provider('google.com')];
+        when(() => user.providerData).thenReturn(providers);
+        when(() => user.reauthenticateWithCredential(any()))
+            .thenAnswer((_) async => credentialFor(user));
+      });
+
+      test('signs in again with the native ID token', () async {
+        expect(
+          (await repository.reauthenticateWithProvider(SocialProvider.google))
+              .isOk,
+          isTrue,
+        );
+        final used =
+            verify(() => user.reauthenticateWithCredential(captureAny()))
+                    .captured
+                    .single
+                as AuthCredential;
+        expect(googleCredential(used).idToken, 'google-token');
+        verifyNever(() => user.reauthenticateWithProvider(any()));
+      });
+
+      test('fails without Google linked, asking Google nothing', () async {
+        when(() => user.providerData).thenReturn([]);
+        expect(
+          (await repository.reauthenticateWithProvider(SocialProvider.google))
+              .failureOrNull,
+          isA<AuthFailure>().having((f) => f.code, 'code', notLinkedCode),
+        );
+        verifyNever(google.idToken);
+      });
+
+      test('a closed sheet is cancelled', () async {
+        when(google.idToken).thenThrow(cancelled);
+        expect(
+          (await repository.reauthenticateWithProvider(SocialProvider.google))
+              .failureOrNull,
+          isA<AuthFailure>().having((f) => f.code, 'code', cancelledCode),
+        );
+        verifyNever(() => user.reauthenticateWithCredential(any()));
+      });
+    });
+
+    group('sign-out', () {
+      setUp(() {
+        when(() => auth.currentUser).thenReturn(user);
+        when(() => auth.signOut()).thenAnswer((_) async {});
+      });
+
+      test('signs a Google user out of Google too', () async {
+        final providers = [provider('google.com')];
+        when(() => user.providerData).thenReturn(providers);
+        when(google.signOut).thenAnswer((_) async {});
+
+        expect((await repository.signOut()).isOk, isTrue);
+        verify(() => auth.signOut()).called(1);
+        verify(google.signOut).called(1);
+      });
+
+      test('succeeds when Google\'s sign-out fails', () async {
+        final providers = [provider('google.com')];
+        when(() => user.providerData).thenReturn(providers);
+        when(google.signOut).thenThrow(Exception('offline'));
+
+        expect((await repository.signOut()).isOk, isTrue);
+        verify(() => auth.signOut()).called(1);
+      });
+
+      test('leaves Google alone for a user without it', () async {
+        final providers = [provider('password')];
+        when(() => user.providerData).thenReturn(providers);
+
+        expect((await repository.signOut()).isOk, isTrue);
+        verifyNever(google.signOut);
+      });
     });
   });
 }

@@ -20,6 +20,7 @@ dependencies:
   forge_ui:
     path: ../forge_ui
   get_it: ^9.3.0
+  google_sign_in: ^7.2.0
   material_ui: ^1.11.1
   sign_in_with_apple: ^8.2.0
 

@@ -3,12 +3,15 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_firebase/forge_firebase.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../domain/auth_repository.dart';
 import '../domain/auth_user.dart';
+import 'native_google_sign_in.dart';
 
 /// Asks Apple for a credential natively, embedding the hashed `nonce` in
 /// its identity token.
@@ -19,10 +22,15 @@ typedef AppleIdRequest = Future<AuthorizationCredentialAppleID> Function({
 
 class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository(
-    this._auth, {
+    this._auth,
+    this._google, {
     this._requestAppleId = SignInWithApple.getAppleIDCredential,
   });
   final FirebaseAuth _auth;
+
+  /// Signs in with Google on Android and iOS; on the web Firebase's
+  /// provider flow does.
+  final NativeGoogleSignIn _google;
   final AppleIdRequest _requestAppleId;
 
   /// The password of this session's last email sign-in, sign-up or
@@ -102,24 +110,33 @@ class FirebaseAuthRepository implements AuthRepository {
     SocialProvider provider, {
     bool replaceGuest = false,
   }) {
-    final authProvider = _authProvider(provider);
     final guest = replaceGuest ? null : _guest;
-    if (guest == null) {
-      return _credential(() => _auth.signInWithProvider(authProvider));
-    }
-    return guard(
-      () async => _toUser((await guest.linkWithProvider(authProvider)).user)!,
-      mapper: (error) =>
-          error is FirebaseAuthException &&
-              _accountExistsCodes.contains(error.code)
-          ? AuthFailure(
-              error.message ?? error.code,
-              code: accountExistsCode,
-              cause: error,
-            )
-          : mapFirebaseError(error),
-    );
+    return guard(() async {
+      final google = await _nativeGoogleCredential(provider);
+      final authProvider = _authProvider(provider);
+      final signedIn = switch ((guest, google)) {
+        (null, null) => _auth.signInWithProvider(authProvider),
+        (null, final google?) => _auth.signInWithCredential(google),
+        (final guest?, null) => guest.linkWithProvider(authProvider),
+        (final guest?, final google?) => guest.linkWithCredential(google),
+      };
+      return _toUser((await signedIn).user)!;
+    }, mapper: _signInError);
   }
+
+  /// Asks Google natively for the account to sign in with, or returns null
+  /// when [provider] signs in through Firebase's provider flow instead.
+  Future<AuthCredential?> _nativeGoogleCredential(
+    SocialProvider provider,
+  ) async {
+    if (provider != SocialProvider.google || !_googleIsNative) return null;
+    return GoogleAuthProvider.credential(idToken: await _google.idToken());
+  }
+
+  static bool get _googleIsNative =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   @override
   Future<Result<void>> sendPasswordReset(String email) => guard(
@@ -170,8 +187,24 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<Result<void>> signOut() => guard(() async {
     _forgetSession();
+    final usedGoogle =
+        _auth.currentUser?.providerData.any(
+          (info) => info.providerId == GoogleAuthProvider.PROVIDER_ID,
+        ) ??
+        false;
     await _auth.signOut();
+    if (usedGoogle && _googleIsNative) await _signOutOfGoogle();
   }, mapper: mapFirebaseError);
+
+  /// Best effort: the user is already signed out of the app, and a failure
+  /// here only means the next sign-in may preselect the same account.
+  Future<void> _signOutOfGoogle() async {
+    try {
+      await _google.signOut();
+    } on Object catch (error, stack) {
+      Log.e('auth', 'Google sign-out failed', error, stack);
+    }
+  }
 
   @override
   Future<Result<void>> deleteAccount() => guard(() async {
@@ -208,7 +241,7 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<Result<void>> reauthenticateWithProvider(SocialProvider provider) =>
-      guard(() => _reauthenticate(provider), mapper: _reauthError);
+      guard(() => _reauthenticate(provider), mapper: _providerError);
 
   /// Apple's authorization code is single use, so this asks Apple natively
   /// for a fresh code and identity token, signs in again with the token and
@@ -230,7 +263,7 @@ class FirebaseAuthRepository implements AuthRepository {
           .credential(idToken: idToken, rawNonce: rawNonce),
     );
     return apple.authorizationCode;
-  }, mapper: _reauthError);
+  }, mapper: _providerError);
 
   static String _nonce() {
     const chars =
@@ -245,8 +278,11 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   Future<void> _reauthenticate(SocialProvider provider) async {
-    await _linkedUser(provider)
-        .reauthenticateWithProvider(_authProvider(provider));
+    final user = _linkedUser(provider);
+    final google = await _nativeGoogleCredential(provider);
+    await (google != null
+        ? user.reauthenticateWithCredential(google)
+        : user.reauthenticateWithProvider(_authProvider(provider)));
   }
 
   User _linkedUser(SocialProvider provider) {
@@ -261,7 +297,16 @@ class FirebaseAuthRepository implements AuthRepository {
     return user;
   }
 
-  static Failure? _reauthError(Object error) => switch (error) {
+  static Failure? _signInError(Object error) =>
+      error is FirebaseAuthException && _accountExistsCodes.contains(error.code)
+      ? AuthFailure(
+          error.message ?? error.code,
+          code: accountExistsCode,
+          cause: error,
+        )
+      : _providerError(error);
+
+  static Failure? _providerError(Object error) => switch (error) {
     FirebaseAuthException(:final code, :final message)
         when _cancelledCodes.contains(code) =>
       AuthFailure(message ?? code, code: cancelledCode, cause: error),
@@ -270,6 +315,11 @@ class FirebaseAuthRepository implements AuthRepository {
       :final message,
     ) =>
       AuthFailure(message, code: cancelledCode, cause: error),
+    GoogleSignInException(
+      code: GoogleSignInExceptionCode.canceled,
+      :final description,
+    ) =>
+      AuthFailure(description ?? 'canceled', code: cancelledCode, cause: error),
     _ => mapFirebaseError(error),
   };
 
