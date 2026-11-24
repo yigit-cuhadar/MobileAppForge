@@ -5,16 +5,33 @@ import '../icons/forge_icons.dart';
 import '../spacing.dart';
 import '../theme/forge_style.dart';
 
+/// One benefit of [BenefitList.described]: its [icon], a [title] and one
+/// [detail] line.
+typedef DescribedBenefit = ({ForgeIconData icon, String title, String detail});
+
 /// A short list of benefits, one line each. [BenefitList.numbered] marks
 /// each line with its number in an accent-soft circle (a welcome);
-/// [BenefitList.checked] with a success check (a paywall header).
+/// [BenefitList.checked] with a success check (a card's short list);
+/// [BenefitList.described] gives each an icon tile, a title and a muted
+/// line (a paywall header with few benefits).
 class BenefitList extends StatelessWidget {
-  const BenefitList.numbered(this.lines, {super.key}) : _numbered = true;
+  const BenefitList.numbered(this.lines, {super.key})
+    : _numbered = true,
+      described = const [];
 
-  const BenefitList.checked(this.lines, {super.key}) : _numbered = false;
+  const BenefitList.checked(this.lines, {super.key})
+    : _numbered = false,
+      described = const [];
+
+  const BenefitList.described(this.described, {super.key})
+    : lines = const [],
+      _numbered = false;
 
   final List<String> lines;
+  final List<DescribedBenefit> described;
   final bool _numbered;
+
+  static const double _tile = 44;
 
   static const double _circle = 28;
 
@@ -23,6 +40,47 @@ class BenefitList extends StatelessWidget {
     final style = ForgeStyle.of(context);
     final colors = style.colors;
     final text = Theme.of(context).textTheme;
+    if (described.isNotEmpty) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: Gap.md,
+        children: [
+          for (final benefit in described)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: Gap.md,
+              children: [
+                Container(
+                  width: _tile,
+                  height: _tile,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceSunken,
+                    borderRadius: BorderRadius.circular(style.radii.md),
+                  ),
+                  child: ForgeIcon(benefit.icon, size: 22, color: colors.ink),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 2,
+                    children: [
+                      Text(benefit.title, style: text.titleMedium),
+                      Text(
+                        benefit.detail,
+                        style: text.bodyMedium!.copyWith(
+                          color: colors.inkMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      );
+    }
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,

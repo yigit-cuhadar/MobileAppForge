@@ -49,8 +49,8 @@ class SubscriptionPlan {
   /// chosen.
   final String terms;
 
-  /// The line under the price in tiles ("7 days free") and single ("That
-  /// is $5.00 a month."); rows draw none.
+  /// The line under the price: in tiles "7 days free", in single "That is
+  /// $5.00 a month.", in rows "$3.33 a month".
   final String? detail;
 
   /// A record tag at the end of a row ("Best value"); rows only.
@@ -121,6 +121,7 @@ class SubscriptionPlans extends StatelessWidget {
     super.key,
     this.onClose,
     required this.title,
+    this.lead,
     required this.benefits,
     required this.layout,
     required this.plans,
@@ -149,7 +150,12 @@ class SubscriptionPlans extends StatelessWidget {
   /// the bar keeps its height.
   final VoidCallback? onClose;
   final String title;
-  final List<String> benefits;
+
+  /// A muted line under the [title] ("Logging and charts stay free.").
+  final String? lead;
+
+  /// The benefits as [BenefitList.described].
+  final List<DescribedBenefit> benefits;
   final SubscriptionLayout layout;
 
   /// Empty while [loading] or when the prices failed.
@@ -251,7 +257,14 @@ class SubscriptionPlans extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineMedium!
               .copyWith(fontSize: 26, height: 30 / 26, letterSpacing: -0.52),
         ),
-        BenefitList.checked(benefits),
+        if (lead case final lead?)
+          Text(
+            lead,
+            style: Theme.of(context).textTheme.bodyMedium!
+                .copyWith(color: ForgeStyle.of(context).colors.inkMuted),
+          ),
+        const SizedBox(height: Gap.xs),
+        BenefitList.described(benefits),
       ],
     ),
   );
@@ -586,6 +599,14 @@ class _PlanBox extends StatelessWidget {
                           children: [
                             Text(plan.name, style: text.titleMedium),
                             price,
+                            if (detail != null)
+                              Text(
+                                detail,
+                                style: text.labelSmall!.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  color: colors.inkMuted,
+                                ),
+                              ),
                             if (offer != null) ...[
                               const SizedBox(height: Gap.xs),
                               ForgeTag(offer, kind: ForgeTagKind.record),

@@ -129,11 +129,18 @@ SubscriptionPlans _paywall(
   return SubscriptionPlans(
     onClose: closable ? () {} : null,
     title: '[APP NAME] Premium',
+    lead: '[FREE FEATURES] stay free.',
     benefits: const [
-      '[PREMIUM FEATURE ONE]',
-      '[PREMIUM FEATURE TWO]',
-      '[PREMIUM FEATURE THREE]',
-      '[PREMIUM FEATURE FOUR]',
+      (
+        icon: ForgeIcons.star,
+        title: '[PREMIUM FEATURE ONE]',
+        detail: '[WHAT IT DOES, IN ONE LINE]',
+      ),
+      (
+        icon: ForgeIcons.description,
+        title: '[PREMIUM FEATURE TWO]',
+        detail: '[WHAT IT DOES, IN ONE LINE]',
+      ),
     ],
     layout: layout,
     plans: loading || noPlans ? const [] : _plans(layout, winBack: winBack),
