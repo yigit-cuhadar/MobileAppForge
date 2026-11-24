@@ -42,7 +42,14 @@ void main() {
   }) => SubscriptionPlans(
     onClose: closable ? () => taps.add('close') : null,
     title: '[APP NAME] Premium',
-    benefits: const ['[PREMIUM FEATURE ONE]'],
+    lead: '[FREE FEATURES] stay free.',
+    benefits: const [
+      (
+        icon: ForgeIcons.star,
+        title: '[PREMIUM FEATURE ONE]',
+        detail: '[WHAT IT DOES]',
+      ),
+    ],
     layout: layout,
     plans: plans,
     selected: 0,

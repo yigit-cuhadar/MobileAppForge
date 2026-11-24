@@ -62,7 +62,7 @@ class ForgeMenuItem {
   /// none.
   final ForgeIconData? icon;
 
-  /// In danger; it sits last.
+  /// In danger; destructive rows sit last, together.
   final bool destructive;
 
   /// Ticked: the current choice.
@@ -70,12 +70,14 @@ class ForgeMenuItem {
 }
 
 /// A small floating menu: text rows split by lines, each with an icon in
-/// front or none with one, one group, a destructive action last.
+/// front or none with one, one group, destructive actions last.
 class ForgeMenu extends StatelessWidget {
   ForgeMenu({super.key, required this.items})
     : assert(
-        items.every((item) => !item.destructive || item == items.last),
-        'Only the last row may be destructive.',
+        items
+            .skipWhile((item) => !item.destructive)
+            .every((i) => i.destructive),
+        'Destructive rows sit last.',
       ),
       assert(
         items.every((item) => (item.icon == null) == (items[0].icon == null)),

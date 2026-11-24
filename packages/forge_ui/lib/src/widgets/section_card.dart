@@ -185,7 +185,7 @@ class SectionCard extends StatelessWidget {
                       detail!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: style.data.copyWith(color: colors.inkMuted),
+                      style: style.figures.copyWith(color: colors.inkMuted),
                     ),
                   ),
                 ?tag,

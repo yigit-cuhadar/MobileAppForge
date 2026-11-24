@@ -21,6 +21,10 @@ void main() {
       ),
     );
 
+    // The label is read out, not drawn: the group title names the row.
+    expect(find.text('Appearance'), findsNothing);
+    expect(find.bySemanticsLabel('Appearance'), findsOneWidget);
+
     await tester.tap(find.text('Dark'));
     await tester.tap(find.text('Light'));
     expect(picked, [ThemeMode.dark, ThemeMode.light]);

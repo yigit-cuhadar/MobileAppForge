@@ -34,4 +34,20 @@ void main() {
     expect(checks.every((c) => c.color == colors.success), isTrue);
     expect(find.text('1'), findsNothing);
   });
+
+  testWidgets('described gives each an icon tile, a title and a line', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const BenefitList.described([
+        (icon: ForgeIcons.star, title: 'One', detail: 'Does one thing'),
+        (icon: ForgeIcons.check, title: 'Two', detail: 'Does another'),
+      ]),
+    );
+
+    expect(find.byType(ForgeIcon), findsNWidgets(2));
+    expect(find.text('One'), findsOneWidget);
+    expect(find.text('Does another'), findsOneWidget);
+  });
 }

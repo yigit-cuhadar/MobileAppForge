@@ -24,3 +24,19 @@ Widget checkedBenefits(BuildContext context) => _page(
     '[PREMIUM FEATURE THREE]',
   ]),
 );
+
+@widgetbook.UseCase(name: 'Described', type: BenefitList)
+Widget describedBenefits(BuildContext context) => _page(
+  const BenefitList.described([
+    (
+      icon: ForgeIcons.star,
+      title: '[PREMIUM FEATURE ONE]',
+      detail: '[WHAT IT DOES, IN ONE LINE]',
+    ),
+    (
+      icon: ForgeIcons.description,
+      title: '[PREMIUM FEATURE TWO]',
+      detail: '[WHAT IT DOES, IN ONE LINE]',
+    ),
+  ]),
+);
