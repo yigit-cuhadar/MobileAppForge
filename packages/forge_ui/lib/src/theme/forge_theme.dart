@@ -94,6 +94,13 @@ abstract final class ForgeTheme {
           radii: radii,
           cardBorder: cardBorder,
           data: _mono(preset, p, 12, 16, FontWeight.w400),
+          figures: _sans(
+            preset,
+            p,
+            12,
+            16,
+            FontWeight.w400,
+          ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           dataLg: _mono(preset, p, 22, 26, FontWeight.w400),
           buttonLg: _sans(preset, p, 15, 20, FontWeight.w600),
           heading: _sans(

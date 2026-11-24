@@ -11,6 +11,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
     required this.radii,
     required this.cardBorder,
     required this.data,
+    required this.figures,
     required this.dataLg,
     required this.buttonLg,
     required this.heading,
@@ -23,8 +24,13 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
   /// unless the preset is [ForgePreset.outlinedInDark].
   final double cardBorder;
 
-  /// Dates, counts and small values: mono 12/16 with tabular figures.
+  /// A value on its own (a count, a weight, a time): mono 12/16 with
+  /// tabular figures.
   final TextStyle data;
+
+  /// A phrase or date holding numbers ("1 of 4 days this week", "Nov
+  /// 23–29"): sans 12/16 with tabular figures, so it reads as words.
+  final TextStyle figures;
 
   /// Large values such as a stepper's weight: mono 22/26.
   final TextStyle dataLg;
@@ -48,6 +54,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
     ForgeRadii? radii,
     double? cardBorder,
     TextStyle? data,
+    TextStyle? figures,
     TextStyle? dataLg,
     TextStyle? buttonLg,
     TextStyle? heading,
@@ -56,6 +63,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
     radii: radii ?? this.radii,
     cardBorder: cardBorder ?? this.cardBorder,
     data: data ?? this.data,
+    figures: figures ?? this.figures,
     dataLg: dataLg ?? this.dataLg,
     buttonLg: buttonLg ?? this.buttonLg,
     heading: heading ?? this.heading,
@@ -69,6 +77,7 @@ class ForgeStyle extends ThemeExtension<ForgeStyle> {
       radii: t < 0.5 ? radii : other.radii,
       cardBorder: t < 0.5 ? cardBorder : other.cardBorder,
       data: TextStyle.lerp(data, other.data, t)!,
+      figures: TextStyle.lerp(figures, other.figures, t)!,
       dataLg: TextStyle.lerp(dataLg, other.dataLg, t)!,
       buttonLg: TextStyle.lerp(buttonLg, other.buttonLg, t)!,
       heading: TextStyle.lerp(heading, other.heading, t)!,
