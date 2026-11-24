@@ -112,6 +112,18 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
   });
 
+  testWidgets('a closed provider sheet keeps the sheet open, quietly', (
+    tester,
+  ) async {
+    await open(tester);
+    await tester.tap(find.text('Continue with Google'));
+    await emit(tester, const AuthFormState(status: AuthFormStatus.loading));
+    await emit(tester, const AuthFormState(status: AuthFormStatus.cancelled));
+
+    expect(find.text("Couldn't sign in. Try again."), findsNothing);
+    expect(find.text('Keep your data'), findsOneWidget);
+  });
+
   testWidgets('an existing account asks before replacing the guest', (
     tester,
   ) async {

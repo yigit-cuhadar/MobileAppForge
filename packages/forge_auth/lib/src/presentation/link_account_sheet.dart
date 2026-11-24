@@ -102,7 +102,9 @@ class _LinkAccountViewState extends State<_LinkAccountView> {
           // Back to idle after loading: the sign-in went through.
           case AuthFormStatus.idle:
             Navigator.pop(context);
-          case AuthFormStatus.loading || AuthFormStatus.resetSent:
+          case AuthFormStatus.loading ||
+              AuthFormStatus.cancelled ||
+              AuthFormStatus.resetSent:
         }
       },
       listenWhen: (previous, state) =>
