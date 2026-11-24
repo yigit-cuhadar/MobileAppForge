@@ -9,6 +9,9 @@ enum AuthFormStatus {
   idle,
   loading,
   failure,
+
+  /// The user closed a provider's sheet: back to the form, nothing to show.
+  cancelled,
   resetSent,
 
   /// The next step discards the guest session; ask the user, then call
@@ -118,10 +121,12 @@ class AuthFormCubit extends Cubit<AuthFormState> {
         failure.code == accountExistsCode) {
       return _askReplaceGuest(onAccountExists);
     }
-    emit(
-      failure == null
-          ? AuthFormState(status: onOk)
-          : AuthFormState(status: AuthFormStatus.failure, failure: failure),
-    );
+    emit(switch (failure) {
+      null => AuthFormState(status: onOk),
+      AuthFailure(code: cancelledCode) => const AuthFormState(
+        status: AuthFormStatus.cancelled,
+      ),
+      _ => AuthFormState(status: AuthFormStatus.failure, failure: failure),
+    });
   }
 }

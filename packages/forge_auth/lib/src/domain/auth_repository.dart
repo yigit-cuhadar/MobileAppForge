@@ -39,6 +39,7 @@ abstract interface class AuthRepository {
   /// For a guest, links the provider unless [replaceGuest] is true. When the
   /// provider account already exists, fails with [accountExistsCode]
   /// and the caller may retry with [replaceGuest] to sign in to it instead.
+  /// Fails with [cancelledCode] when the user closes the provider's sheet.
   Future<Result<AuthUser>> signInWithProvider(
     SocialProvider provider, {
     bool replaceGuest = false,

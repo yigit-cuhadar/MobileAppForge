@@ -3,6 +3,7 @@ import 'package:forge_core/forge_core.dart';
 import 'package:get_it/get_it.dart';
 
 import 'data/firebase_auth_repository.dart';
+import 'data/native_google_sign_in.dart';
 import 'domain/auth_repository.dart';
 import 'domain/auth_usecases.dart';
 import 'presentation/auth_cubit.dart';
@@ -13,6 +14,12 @@ import 'presentation/email_verification_cubit.dart';
 ///
 /// With [guestStart], the app always has a user: a signed-out session becomes
 /// an anonymous guest, which signing up later upgrades in place.
+///
+/// Google signs in natively on Android and iOS. The app gives the iOS OAuth
+/// client as `iosClientId` in its `FirebaseOptions` and that client's
+/// reversed id as a URL scheme in `Info.plist`. On Android its
+/// `google-services.json` must hold the project's web OAuth client, and
+/// Firebase must know the signing key's SHA-1.
 class AuthModule implements FeatureModule {
   const AuthModule({this.guestStart = false});
 
@@ -22,7 +29,12 @@ class AuthModule implements FeatureModule {
   void register(GetIt sl) {
     sl
       ..registerLazySingleton<AuthRepository>(
-        () => FirebaseAuthRepository(FirebaseAuth.instance),
+        () => FirebaseAuthRepository(
+          FirebaseAuth.instance,
+          NativeGoogleSignIn(
+            iosClientId: FirebaseAuth.instance.app.options.iosClientId,
+          ),
+        ),
       )
       ..registerFactory(() => WatchAuthUser(sl()))
       ..registerFactory(() => SignInAnonymously(sl()))

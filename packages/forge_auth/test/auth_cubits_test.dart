@@ -362,6 +362,23 @@ void main() {
     );
 
     blocTest<AuthFormCubit, AuthFormState>(
+      'a closed provider sheet is cancelled, not a failure, and not retried',
+      setUp: () => stubProvider(
+        replaceGuest: false,
+        result: const Err(AuthFailure('x', code: cancelledCode)),
+      ),
+      build: build,
+      act: (cubit) async {
+        await cubit.signInWith(SocialProvider.apple);
+        await cubit.retry();
+      },
+      expect: () => const [
+        AuthFormState(status: AuthFormStatus.loading),
+        AuthFormState(status: AuthFormStatus.cancelled),
+      ],
+    );
+
+    blocTest<AuthFormCubit, AuthFormState>(
       'provider account-exists asks, then retries with replaceGuest',
       setUp: () {
         stubProvider(replaceGuest: false, result: const Err(accountExists));

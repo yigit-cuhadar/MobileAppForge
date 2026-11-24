@@ -233,6 +233,17 @@ void main() {
     verify(() => form.retry()).called(1);
   });
 
+  testWidgets('a closed provider sheet shows nothing', (tester) async {
+    await pump(tester);
+    await tester.tap(find.text('Continue with Google'));
+    await emit(tester, const AuthFormState(status: AuthFormStatus.loading));
+    await emit(tester, const AuthFormState(status: AuthFormStatus.cancelled));
+
+    expect(find.text("Sign-in didn't finish. Try again."), findsNothing);
+    expect(find.text('Retry'), findsNothing);
+    expect(find.text('Continue with Google'), findsOneWidget);
+  });
+
   testWidgets('replacing the guest asks first', (tester) async {
     await pump(
       tester,
