@@ -175,7 +175,9 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
 
 ## Machine limits (M1, 16 GB)
 
-- One simulator at a time; iOS for daily work, Android at feature-group demos.
+- One simulator at a time. Every device check runs on iOS; no test of any
+  kind runs on Android (emulator or device) until an app's Android release
+  is being prepared.
 - No Firebase Emulator. Develop against the app's `-dev` project.
 - Run independent work in parallel: at most three sub-agents at once, each on
   its own branch, and in its own git worktree when two share a repo. Work is
