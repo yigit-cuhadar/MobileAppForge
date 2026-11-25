@@ -6,13 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'data/ad_services_attribution.dart';
 import 'data/fake_purchases_repository.dart';
 import 'data/revenuecat_purchases_repository.dart';
+import 'data/unavailable_purchases_repository.dart';
 import 'domain/purchases_models.dart';
 import 'domain/purchases_repository.dart';
 import 'domain/purchases_usecases.dart';
 import 'presentation/entitlement_cubit.dart';
 import 'presentation/paywall_cubit.dart';
 
-/// Where purchases go: RevenueCat or the in-memory fake.
+/// Where purchases go: RevenueCat, the in-memory fake, or nowhere.
 sealed class PurchasesBackend {
   const PurchasesBackend();
 }
@@ -34,6 +35,13 @@ final class FakeBackend extends PurchasesBackend {
   const FakeBackend(this.plans);
 
   final List<Plan> plans;
+}
+
+/// No store, e.g. a release build without store keys: nobody is entitled,
+/// and the offering, purchases, restores and management fail with
+/// [PurchaseFailureReason.storeUnavailable].
+final class UnavailableBackend extends PurchasesBackend {
+  const UnavailableBackend();
 }
 
 /// Registers purchases for the app's single [entitlementId].
@@ -63,6 +71,10 @@ class PurchasesModule implements FeatureModule {
           ..registerLazySingleton<PurchasesRepository>(
             () => sl<FakePurchasesRepository>(),
           );
+      case UnavailableBackend():
+        sl.registerLazySingleton<PurchasesRepository>(
+          () => const UnavailablePurchasesRepository(),
+        );
     }
     sl
       ..registerFactory(() => ConfigurePurchases(sl()))
