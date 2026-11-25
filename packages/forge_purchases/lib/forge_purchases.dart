@@ -1,9 +1,11 @@
 /// Subscriptions and entitlements: RevenueCat, or an in-memory fake until
-/// store accounts exist.
+/// store accounts exist, or none where a build has no store.
 ///
 /// **Switching.** Only the backend changes; the app's code is the same:
 /// `PurchasesModule(entitlementId: 'premium', backend: FakeBackend([...plans]))`
-/// or `backend: RevenueCatBackend(appleApiKey: ..., googleApiKey: ...)`.
+/// or `backend: RevenueCatBackend(appleApiKey: ..., googleApiKey: ...)`,
+/// or `backend: UnavailableBackend()` (nobody entitled, the paywall's
+/// offering fails with `PurchaseFailureReason.storeUnavailable`).
 /// Plan ids follow RevenueCat (`productId` on the App Store,
 /// `subscriptionId:basePlanId` on Play) and `Entitlement.productId` uses the
 /// same form, so compare them with each other and pick plans by
