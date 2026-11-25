@@ -13,7 +13,7 @@ Talk to the user in their language. Code, comments and commits are English.
 | `workflow/` | One file per phase. Read only the phase you are in. |
 | `packages/` | The shared `forge_*` packages. Every app starts with `forge_core`, `forge_ui`, `forge_firebase` and `forge_auth`. |
 | `template/` | Overlay copied onto `flutter create` by `tools/new_app.sh`. |
-| `tools/` | `new_app.sh`, `firebase_setup.sh`, `secret.sh`, `check.sh`. |
+| `tools/` | `new_app.sh`, `firebase_setup.sh`, `secret.sh`, `check.sh`, `ios_upload.sh`. |
 | `widgetbook/` | Widgetbook of the `forge_ui` components. Each app has its own in `apps/<name>/widgetbook`. |
 | `apps/<name>/SPEC.md` | The app's state. Resume any app from here. |
 
@@ -23,8 +23,11 @@ Talk to the user in their language. Code, comments and commits are English.
 2. **Build** — `workflow/build.md`. Scaffold, then one feature at a time.
 3. **Design** — `workflow/design.md`. After every feature is ticked; a UX pass
    first when flows need rework.
-4. **Release** — not automated yet. Build it with the first app that reaches
-   it (App Store Connect API + Play Developer API), then move it into `tools/`.
+4. **Release** — `tools/ios_upload.sh` archives an iOS build, sends its
+   dSYMs to Crashlytics and uploads it to TestFlight. The rest (store
+   listing, submission, Android) is not automated yet: build it with the
+   first app that reaches it (App Store Connect API + Play Developer API),
+   then move it into `tools/`.
 
 To resume: read `apps/<name>/SPEC.md` down to Feature notes, find the first
 unticked feature or open question, read that phase's workflow file and the
