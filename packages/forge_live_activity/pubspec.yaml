@@ -1,0 +1,25 @@
+name: forge_live_activity
+description: MobileAppForge shared package.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.14.0
+  flutter: ">=3.50.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  forge_core:
+    path: ../forge_core
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: ForgeLiveActivityPlugin
