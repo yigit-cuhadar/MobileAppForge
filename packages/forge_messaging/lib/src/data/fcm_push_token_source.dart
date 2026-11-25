@@ -2,15 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:forge_core/forge_core.dart';
 
-/// This install's FCM registration token, which messages to one device are
-/// sent to.
-abstract interface class PushTokenSource {
-  /// The token; null while the install has none.
-  Future<String?> read();
-
-  /// Fires when FCM issues a new token.
-  Stream<void> changes();
-}
+import '../domain/push_token_source.dart';
 
 /// [PushTokenSource] over [FirebaseMessaging]. FCM auto-init is off until
 /// the first `TopicRepository.follow`, so an install that never allowed

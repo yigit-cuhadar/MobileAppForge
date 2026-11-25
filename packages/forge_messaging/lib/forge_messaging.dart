@@ -25,7 +25,7 @@
 /// the background modes, and an APNs key uploaded to the Firebase project.
 library;
 
-export 'src/data/push_token_source.dart' show PushTokenSource;
+export 'src/domain/push_token_source.dart';
 export 'src/domain/language_topics.dart';
 export 'src/domain/topic_repository.dart';
 export 'src/messaging_module.dart';

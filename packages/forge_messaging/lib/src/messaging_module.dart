@@ -4,8 +4,9 @@ import 'package:forge_notifications/forge_notifications.dart';
 import 'package:get_it/get_it.dart';
 
 import 'data/fcm_topic_repository.dart';
-import 'data/push_token_source.dart';
+import 'data/fcm_push_token_source.dart';
 import 'domain/language_topics.dart';
+import 'domain/push_token_source.dart';
 import 'domain/topic_repository.dart';
 
 /// Registers [TopicRepository] for the app's [topics] and [PushTokenSource].

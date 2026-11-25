@@ -1,7 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forge_messaging/src/data/push_token_source.dart';
+import 'package:forge_messaging/src/data/fcm_push_token_source.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockMessaging extends Mock implements FirebaseMessaging {}
