@@ -13,15 +13,21 @@ final _lightLength = math.sqrt(
 );
 
 /// Projects, culls, depth-sorts and shades [MeshData] on the CPU into
-/// buffers ready for `Canvas.drawVertices`. All buffers are allocated once;
-/// [update] and [shade] allocate nothing.
+/// buffers ready for `Canvas.drawVertices`. All buffers are allocated once,
+/// the posed mesh on the first [pose]; [update] and [shade] allocate nothing.
 ///
-/// The model is centred on its bounds and scaled to a unit bounding sphere.
+/// The model is centred on its bounds (or the given ones) and scaled to a unit bounding sphere.
 /// The camera looks down -z; yaw turns the model around y, then pitch tilts it
 /// around x. The camera stays outside the sphere; zoom scales the projection,
 /// and at zoom 1 the whole sphere fits the shorter side of the view.
+///
+/// A skinned model can be [pose]d; [update], [shade] and [pick] then use the
+/// posed mesh.
 class MeshRenderer {
-  MeshRenderer(this.model)
+  MeshRenderer(MeshData model, {Float64List? bounds})
+    : this._(model, bounds ?? model.bounds);
+
+  MeshRenderer._(this.model, Float64List bounds)
     : screen = Float32List(model.vertexCount * 2),
       colors = Int32List(model.vertexCount),
       partColors = Int32List(model.partNames.length),
@@ -31,10 +37,12 @@ class MeshRenderer {
       _orderTmp = Int32List(model.triangleCount),
       _keys = Uint16List(model.triangleCount),
       _keysTmp = Uint16List(model.triangleCount),
-      _cx = (model.bounds[0] + model.bounds[3]) / 2,
-      _cy = (model.bounds[1] + model.bounds[4]) / 2,
-      _cz = (model.bounds[2] + model.bounds[5]) / 2,
-      _scale = _unitScale(model.bounds);
+      _positions = model.positions,
+      _normals = model.normals,
+      _cx = (bounds[0] + bounds[3]) / 2,
+      _cy = (bounds[1] + bounds[4]) / 2,
+      _cz = (bounds[2] + bounds[5]) / 2,
+      _scale = _unitScale(bounds);
 
   static double _unitScale(Float64List b) {
     final dx = b[3] - b[0], dy = b[4] - b[1], dz = b[5] - b[2];
@@ -65,13 +73,62 @@ class MeshRenderer {
   final Uint16List _keys, _keysTmp;
   final _counts = Int32List(256);
   final double _cx, _cy, _cz, _scale;
+  // The model's rest mesh until the first pose.
+  Float32List _positions, _normals;
+  late final _posedPositions = Float32List(model.positions.length);
+  late final _posedNormals = Float32List(model.normals.length);
 
   // The model-space light direction of the last update.
   double _lmx = 0, _lmy = 0, _lmz = 1;
   double? _lastWidth, _lastHeight, _lastYaw, _lastPitch, _lastZoom;
 
+  /// Blends every vertex of a skinned model by its joints' [matrices]: per
+  /// joint, a 3x4 model-space affine matrix in row-major order. Normals take
+  /// the 3x3 part only and are not renormalised. Does nothing for an
+  /// unskinned model.
+  void pose(Float32List matrices) {
+    final joints = model.joints, weights = model.weights;
+    if (joints == null || weights == null) return;
+    assert(matrices.length >= model.jointCount * 12);
+    final rest = model.positions, restNormals = model.normals;
+    final positions = _posedPositions, normals = _posedNormals;
+    final m = matrices;
+    for (var p = 0, i = 0; p < rest.length; p += 3) {
+      final x = rest[p], y = rest[p + 1], z = rest[p + 2];
+      final nx = restNormals[p], ny = restNormals[p + 1];
+      final nz = restNormals[p + 2];
+      var px = 0.0, py = 0.0, pz = 0.0, qx = 0.0, qy = 0.0, qz = 0.0;
+      for (final end = i + 4; i < end; i++) {
+        final w = weights[i];
+        if (w == 0) continue;
+        final j = joints[i] * 12;
+        final m00 = m[j], m01 = m[j + 1], m02 = m[j + 2];
+        final m10 = m[j + 4], m11 = m[j + 5], m12 = m[j + 6];
+        final m20 = m[j + 8], m21 = m[j + 9], m22 = m[j + 10];
+        px += w * (m00 * x + m01 * y + m02 * z + m[j + 3]);
+        py += w * (m10 * x + m11 * y + m12 * z + m[j + 7]);
+        pz += w * (m20 * x + m21 * y + m22 * z + m[j + 11]);
+        qx += w * (m00 * nx + m01 * ny + m02 * nz);
+        qy += w * (m10 * nx + m11 * ny + m12 * nz);
+        qz += w * (m20 * nx + m21 * ny + m22 * nz);
+      }
+      positions
+        ..[p] = px
+        ..[p + 1] = py
+        ..[p + 2] = pz;
+      normals
+        ..[p] = qx
+        ..[p + 1] = qy
+        ..[p + 2] = qz;
+    }
+    _positions = positions;
+    _normals = normals;
+    _lastWidth = null;
+  }
+
   /// Projects every vertex and rebuilds [drawIndices] for the given view.
-  /// Does nothing when the view is unchanged since the last call.
+  /// Does nothing when the view and the pose are unchanged since the last
+  /// call.
   void update(
     double width,
     double height,
@@ -116,7 +173,7 @@ class MeshRenderer {
     final yt = -(y0 * cx + y1 * cy0 + y2 * cz);
     final z0 = k * r20, z1 = k * r21, z2 = k * r22;
     final zt = distance + z0 * cx + z1 * cy0 + z2 * cz;
-    final positions = model.positions;
+    final positions = _positions;
     final screen = this.screen;
     final depth = _depth;
     final vertexCount = depth.length;
@@ -196,7 +253,7 @@ class MeshRenderer {
   /// Lights every vertex of the last [update] with its part's colour from
   /// [partColors]: ambient plus lambert from a light fixed to the camera.
   void shade() {
-    final normals = model.normals;
+    final normals = _normals;
     final parts = model.vertexParts;
     final colors = this.colors, partColors = this.partColors;
     final lmx = _lmx, lmy = _lmy, lmz = _lmz;

@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_model_viewer/forge_model_viewer.dart';
+import 'package:forge_model_viewer/src/render/model_painter.dart';
 
 import 'glb_builder.dart';
 
@@ -380,6 +381,89 @@ void main() {
       controller = await pumpTurning(tester);
       await second(tester);
       expect(controller.yaw, 0);
+    });
+  });
+
+  group('clip', () {
+    late Model3D skinned;
+    late ModelClip clip;
+
+    setUpAll(() async {
+      skinned = await Model3D.fromGlb(
+        skinnedQuadsGlb(
+          {
+            'left': quad(-1, -0.5, 0, 0.5, 0),
+            'right': quad(0, -0.5, 1, 0.5, 0),
+          },
+          [0, 1],
+        ),
+      );
+      // Over one second the right quad rises by 1 and drops back.
+      clip = ModelClip.parse(
+        clipBytes(
+          jointCount: 2,
+          framesPerSecond: 2,
+          bounds: [-1, -0.5, 0, 1, 1.5, 0],
+          frames: [
+            [...translation(0, 0, 0), ...translation(0, 0, 0)],
+            [...translation(0, 0, 0), ...translation(0, 1, 0)],
+          ],
+        ),
+      );
+    });
+
+    Future<void> pumpPlaying(
+      WidgetTester tester, {
+      bool disableAnimations = false,
+    }) => tester.pumpWidget(
+      inApp(
+        MediaQuery(
+          data: MediaQueryData(disableAnimations: disableAnimations),
+          child: SizedBox(
+            width: 200,
+            height: 200,
+            child: ModelViewer(model: skinned, clip: clip),
+          ),
+        ),
+      ),
+    );
+
+    // Screen y of the right quad's first vertex, as last painted.
+    double rightY(WidgetTester tester) {
+      final paint = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(ModelViewer),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      return (paint.painter! as ModelPainter).renderer.screen[9];
+    }
+
+    Future<void> play(WidgetTester tester, Duration duration) async {
+      const frame = Duration(milliseconds: 1000 ~/ 60);
+      for (var t = Duration.zero; t < duration; t += frame) {
+        await tester.pump(frame);
+      }
+    }
+
+    testWidgets('plays in a loop', (tester) async {
+      await pumpPlaying(tester);
+      final rest = rightY(tester);
+      await play(tester, const Duration(milliseconds: 500));
+      final raised = rightY(tester);
+      expect(raised, lessThan(rest - 20));
+      await play(tester, const Duration(milliseconds: 500));
+      expect(rightY(tester), closeTo(rest, 5));
+      expect(rightY(tester), isNot(raised));
+    });
+
+    testWidgets('holds the first frame when asked for less motion', (
+      tester,
+    ) async {
+      await pumpPlaying(tester, disableAnimations: true);
+      final rest = rightY(tester);
+      await play(tester, const Duration(milliseconds: 500));
+      expect(rightY(tester), rest);
     });
   });
 }

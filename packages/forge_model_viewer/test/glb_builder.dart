@@ -55,6 +55,20 @@ class GlbBuilder {
     return ids;
   }
 
+  /// [componentType]: 5126 (float), 5121 (u8) or 5123 (u16).
+  int addVec4(List<num> values, {int componentType = 5126}) {
+    final TypedData data = switch (componentType) {
+      5126 => Float32List.fromList([for (final v in values) v.toDouble()]),
+      5121 => Uint8List.fromList([for (final v in values) v.toInt()]),
+      _ => Uint16List.fromList([for (final v in values) v.toInt()]),
+    };
+    return _add(data.buffer.asUint8List(), {
+      'componentType': componentType,
+      'type': 'VEC4',
+      'count': values.length ~/ 4,
+    });
+  }
+
   /// [componentType]: 5121 (u8), 5123 (u16) or 5125 (u32).
   int addIndices(List<int> values, {int componentType = 5123}) {
     final TypedData data = switch (componentType) {
@@ -145,6 +159,63 @@ List<double> quad(double x0, double y0, double x1, double y1, double z) => [
 ];
 
 const quadIndices = [0, 1, 2, 0, 2, 3];
+
+/// A model of front-facing quads, one named part each, every vertex of a
+/// quad bound fully to the joint at the same position in [joints].
+Uint8List skinnedQuadsGlb(Map<String, List<double>> parts, List<int> joints) {
+  final builder = GlbBuilder();
+  final meshes = <Map<String, Object?>>[];
+  for (final (i, positions) in parts.values.indexed) {
+    meshes.add({
+      'primitives': [
+        {
+          'attributes': {
+            'POSITION': builder.addVec3(positions),
+            'JOINTS_0': builder.addVec4([
+              for (var v = 0; v < 4; v++) ...[joints[i], 0, 0, 0],
+            ], componentType: 5121),
+            'WEIGHTS_0': builder.addVec4([
+              for (var v = 0; v < 4; v++) ...[1, 0, 0, 0],
+            ]),
+          },
+          'indices': builder.addIndices(quadIndices),
+        },
+      ],
+    });
+  }
+  return builder.build(
+    nodes: [
+      for (final (i, name) in parts.keys.indexed) {'name': name, 'mesh': i},
+    ],
+    meshes: meshes,
+  );
+}
+
+/// The identity as a 3x4 row-major joint matrix moved by ([x], [y], [z]).
+List<double> translation(double x, double y, double z) => [
+  1, 0, 0, x, //
+  0, 1, 0, y,
+  0, 0, 1, z,
+];
+
+/// A clip file; [frames] holds 12 values per joint per frame.
+Uint8List clipBytes({
+  required int jointCount,
+  required double framesPerSecond,
+  required List<double> bounds,
+  required List<List<double>> frames,
+}) {
+  final values = [for (final frame in frames) ...frame];
+  final out = ByteData(40 + values.length * 4)
+    ..setUint32(0, 0x43564D46, Endian.little)
+    ..setUint32(4, jointCount, Endian.little)
+    ..setUint32(8, frames.length, Endian.little)
+    ..setFloat32(12, framesPerSecond, Endian.little);
+  for (final (i, value) in [...bounds, ...values].indexed) {
+    out.setFloat32(16 + i * 4, value, Endian.little);
+  }
+  return out.buffer.asUint8List();
+}
 
 /// A model of front-facing quads, one named part each.
 Uint8List quadsGlb(Map<String, List<double>> parts) {

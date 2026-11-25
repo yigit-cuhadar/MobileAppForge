@@ -11,6 +11,8 @@ const _chunkJson = 0x4E4F534A; // "JSON"
 const _chunkBin = 0x004E4942; // "BIN\0"
 const _modeTriangles = 4;
 const _float = 5126;
+const _unsignedByte = 5121;
+const _unsignedShort = 5123;
 const _indexSizes = {5121: 1, 5123: 2, 5125: 4};
 const _maxStride = 252;
 
@@ -77,6 +79,8 @@ class _Reader {
   final _normals = <Float32List>[];
   final _parts = <int>[];
   final _indices = <Uint32List>[];
+  final _joints = <Uint8List>[];
+  final _weights = <Float32List>[];
   var _vertexCount = 0;
 
   MeshData read() {
@@ -169,6 +173,22 @@ class _Reader {
     if (normals != null && normals.length != positions.length) {
       throw const FormatException('NORMAL and POSITION counts differ');
     }
+    final jointsIndex = attributes['JOINTS_0'];
+    final weightsIndex = attributes['WEIGHTS_0'];
+    if ((jointsIndex == null) != (weightsIndex == null)) {
+      throw const FormatException('JOINTS_0 and WEIGHTS_0 come only together');
+    }
+    if (jointsIndex != null) {
+      final joints = _readJoints(_accessor(_int(jointsIndex)));
+      final weights = _readWeights(_accessor(_int(weightsIndex)));
+      if (joints.length != count * 4 || weights.length != count * 4) {
+        throw const FormatException(
+          'JOINTS_0, WEIGHTS_0 and POSITION counts differ',
+        );
+      }
+      _joints.add(joints);
+      _weights.add(weights);
+    }
     final indices = primitive['indices'] == null
         ? Uint32List.fromList([for (var i = 0; i < count; i++) i])
         : _readIndices(_accessor(_int(primitive['indices'])));
@@ -241,6 +261,72 @@ class _Reader {
       out[i * 3] = view.getFloat32(o, Endian.little);
       out[i * 3 + 1] = view.getFloat32(o + 4, Endian.little);
       out[i * 3 + 2] = view.getFloat32(o + 8, Endian.little);
+    }
+    return out;
+  }
+
+  Uint8List _readJoints(Map<String, Object?> accessor) {
+    final type = accessor['componentType'];
+    if (accessor['type'] != 'VEC4' ||
+        (type != _unsignedByte && type != _unsignedShort)) {
+      throw const FormatException(
+        'JOINTS_0 must be unsigned byte or short VEC4',
+      );
+    }
+    final size = type == _unsignedByte ? 1 : 2;
+    final count = _count(accessor);
+    final (view, stride) = _view(accessor, size * 4, count);
+    final out = Uint8List(count * 4);
+    for (var i = 0; i < count; i++) {
+      final o = i * stride;
+      for (var c = 0; c < 4; c++) {
+        final joint = size == 1
+            ? view.getUint8(o + c)
+            : view.getUint16(o + c * 2, Endian.little);
+        if (joint > 255) {
+          throw FormatException('Joint index $joint is above 255');
+        }
+        out[i * 4 + c] = joint;
+      }
+    }
+    return out;
+  }
+
+  /// Weights rescaled to sum 1 per vertex.
+  Float32List _readWeights(Map<String, Object?> accessor) {
+    final type = accessor['componentType'];
+    final size = switch (type) {
+      _float => 4,
+      _unsignedShort => 2,
+      _unsignedByte => 1,
+      _ => 0,
+    };
+    if (accessor['type'] != 'VEC4' || size == 0) {
+      throw const FormatException(
+        'WEIGHTS_0 must be float, unsigned byte or short VEC4',
+      );
+    }
+    final count = _count(accessor);
+    final (view, stride) = _view(accessor, size * 4, count);
+    final out = Float32List(count * 4);
+    for (var i = 0; i < count; i++) {
+      final o = i * stride;
+      var sum = 0.0;
+      for (var c = 0; c < 4; c++) {
+        final weight = switch (size) {
+          4 => view.getFloat32(o + c * 4, Endian.little),
+          2 => view.getUint16(o + c * 2, Endian.little) / 65535,
+          _ => view.getUint8(o + c) / 255,
+        };
+        out[i * 4 + c] = weight;
+        sum += weight;
+      }
+      if (!(sum > 0 && sum.isFinite)) {
+        throw FormatException('Weights of vertex $i sum to $sum');
+      }
+      for (var c = 0; c < 4; c++) {
+        out[i * 4 + c] /= sum;
+      }
     }
     return out;
   }
@@ -333,6 +419,12 @@ class _Reader {
   }
 
   MeshData _build() {
+    final skinned = _joints.isNotEmpty;
+    if (skinned && _joints.length != _positions.length) {
+      throw const FormatException('Only some primitives are skinned');
+    }
+    final joints = skinned ? Uint8List(_vertexCount * 4) : null;
+    final weights = skinned ? Float32List(_vertexCount * 4) : null;
     final positions = Float32List(_vertexCount * 3);
     final normals = Float32List(_vertexCount * 3);
     final vertexParts = Uint16List(_vertexCount);
@@ -346,6 +438,8 @@ class _Reader {
       final count = _positions[p].length ~/ 3;
       vertexParts.fillRange(vertexOffset, vertexOffset + count, _parts[p]);
       indices.setAll(indexOffset, _indices[p]);
+      joints?.setAll(vertexOffset * 4, _joints[p]);
+      weights?.setAll(vertexOffset * 4, _weights[p]);
       vertexOffset += count;
       indexOffset += _indices[p].length;
     }
@@ -367,6 +461,8 @@ class _Reader {
       vertexParts: vertexParts,
       indices: indices,
       bounds: bounds,
+      joints: joints,
+      weights: weights,
     );
   }
 }

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../clip.dart';
 import '../model.dart';
 import '../render/mesh_renderer.dart';
 import '../render/model_painter.dart';
@@ -32,6 +34,10 @@ import 'viewer_gesture_recognizer.dart';
 /// the viewer's tickers are muted (a covered route, a hidden tab) and when
 /// the platform asks for reduced motion. It moves the [controller]'s yaw, so
 /// it cuts short a running `animateTo`.
+///
+/// With a [clip] the model plays it in a loop, framed by the clip's bounds.
+/// It pauses while the viewer's tickers are muted and holds the first frame
+/// when the platform asks for reduced motion.
 class ModelViewer extends StatefulWidget {
   const ModelViewer({
     super.key,
@@ -50,6 +56,7 @@ class ModelViewer extends StatefulWidget {
     this.onScrubEnd,
     this.interactive = true,
     this.autoTurn = false,
+    this.clip,
     this.semanticLabel,
   });
 
@@ -93,6 +100,9 @@ class ModelViewer extends StatefulWidget {
   final bool interactive;
   final bool autoTurn;
 
+  /// Animates a skinned [model]; must have its [Model3D.jointCount].
+  final ModelClip? clip;
+
   /// Describes the model to screen readers.
   final String? semanticLabel;
 
@@ -101,10 +111,14 @@ class ModelViewer extends StatefulWidget {
 }
 
 class _ModelViewerState extends State<ModelViewer>
-    with SingleTickerProviderStateMixin {
-  late MeshRenderer _renderer = MeshRenderer(meshOf(widget.model));
+    with TickerProviderStateMixin {
+  late MeshRenderer _renderer;
+  late Float32List _pose;
   late final Ticker _turn = createTicker(_onTurn);
+  late final Ticker _play = createTicker(_onPlay);
   Duration _turnedTo = Duration.zero;
+  Duration _playedTo = Duration.zero;
+  final _clipTime = ValueNotifier(Duration.zero);
   int _pointers = 0;
   ModelViewerController? _ownController;
   double _pinchStartZoom = 1;
@@ -117,18 +131,24 @@ class _ModelViewerState extends State<ModelViewer>
   bool get _scrubs => widget.onScrub != null || widget.onScrubEnd != null;
 
   @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _syncTurn();
+    _syncTickers();
   }
 
   @override
   void didUpdateWidget(ModelViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _syncTurn();
-    if (widget.model != oldWidget.model) {
-      _renderer = MeshRenderer(meshOf(widget.model));
+    if (widget.model != oldWidget.model || widget.clip != oldWidget.clip) {
+      _load();
     }
+    _syncTickers();
     if (widget.controller != null && _ownController != null) {
       _ownController!.dispose();
       _ownController = null;
@@ -145,6 +165,8 @@ class _ModelViewerState extends State<ModelViewer>
   @override
   void dispose() {
     _turn.dispose();
+    _play.dispose();
+    _clipTime.dispose();
     _endScrub(widget.onScrubEnd, deferred: true, cancelled: true);
     _ownController?.dispose();
     super.dispose();
@@ -169,19 +191,45 @@ class _ModelViewerState extends State<ModelViewer>
 
   static bool _selectAll(String part) => true;
 
-  void _syncTurn() {
+  void _load() {
+    final clip = widget.clip;
+    assert(
+      clip == null || clip.jointCount == widget.model.jointCount,
+      'The clip moves ${clip.jointCount} joints, '
+      'the model has ${widget.model.jointCount}',
+    );
+    _renderer = MeshRenderer(
+      meshOf(widget.model),
+      bounds: clip == null ? null : boundsOf(clip),
+    );
+    _pose = Float32List((clip?.jointCount ?? 0) * 12);
+    _clipTime.value = Duration.zero;
+  }
+
+  void _syncTickers() {
     // iOS reports Reduce Motion apart from disableAnimations.
-    final turns =
-        widget.autoTurn &&
+    final moves =
         !MediaQuery.disableAnimationsOf(context) &&
         !View.of(context).platformDispatcher.accessibilityFeatures.reduceMotion;
     if (!widget.interactive) _pointers = 0;
-    if (turns == _turn.isActive) return;
-    if (turns) {
-      _turnedTo = Duration.zero;
-      _turn.start();
-    } else {
-      _turn.stop();
+    final turns = widget.autoTurn && moves;
+    if (turns != _turn.isActive) {
+      if (turns) {
+        _turnedTo = Duration.zero;
+        _turn.start();
+      } else {
+        _turn.stop();
+      }
+    }
+    final plays = widget.clip != null && moves;
+    if (plays != _play.isActive) {
+      if (plays) {
+        _playedTo = Duration.zero;
+        _play.start();
+      } else {
+        _play.stop();
+        _clipTime.value = Duration.zero;
+      }
     }
   }
 
@@ -195,6 +243,14 @@ class _ModelViewerState extends State<ModelViewer>
         math.pi *
         step.inMicroseconds /
         ModelViewer.turnPeriod.inMicroseconds;
+  }
+
+  void _onPlay(Duration elapsed) {
+    // A muted ticker keeps counting; resume from where the clip stood.
+    final step = elapsed - _playedTo;
+    _playedTo = elapsed;
+    if (step > const Duration(milliseconds: 100)) return;
+    _clipTime.value += step;
   }
 
   void _onTap(Offset position) {
@@ -263,6 +319,9 @@ class _ModelViewerState extends State<ModelViewer>
           outlinedParts: widget.outlinedParts,
           outlineColor: widget.outlineColor ?? colors.error,
           outlineWidth: widget.outlineWidth,
+          clip: widget.clip,
+          clipTime: _clipTime,
+          pose: _pose,
         ),
       ),
     );

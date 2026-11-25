@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+import '../clip.dart';
 import '../widget/model_viewer_controller.dart';
 import 'mesh_renderer.dart';
 
@@ -18,7 +19,10 @@ class ModelPainter extends CustomPainter {
     required this.outlinedParts,
     required this.outlineColor,
     required this.outlineWidth,
-  }) : super(repaint: controller);
+    required this.clip,
+    required this.clipTime,
+    required this.pose,
+  }) : super(repaint: Listenable.merge([controller, clipTime]));
 
   final MeshRenderer renderer;
   final ModelViewerController controller;
@@ -29,6 +33,11 @@ class ModelPainter extends CustomPainter {
   final Set<String> outlinedParts;
   final Color outlineColor;
   final double outlineWidth;
+  final ModelClip? clip;
+  final ValueListenable<Duration> clipTime;
+
+  /// Holds the clip's joint matrices while painting.
+  final Float32List pose;
 
   final _paint = Paint();
   // Each triangle replaces what is under it, so the mask keeps only what
@@ -38,6 +47,11 @@ class ModelPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
+    final clip = this.clip;
+    if (clip != null) {
+      clip.sample(clipTime.value, pose);
+      renderer.pose(pose);
+    }
     renderer.update(
       size.width,
       size.height,
@@ -108,6 +122,8 @@ class ModelPainter extends CustomPainter {
   bool shouldRepaint(ModelPainter oldDelegate) =>
       oldDelegate.renderer != renderer ||
       oldDelegate.controller != controller ||
+      oldDelegate.clip != clip ||
+      oldDelegate.clipTime != clipTime ||
       oldDelegate.baseColor != baseColor ||
       oldDelegate.highlightedPart != highlightedPart ||
       oldDelegate.highlightColor != highlightColor ||
