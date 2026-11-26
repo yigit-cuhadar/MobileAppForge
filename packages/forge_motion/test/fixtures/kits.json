@@ -249,5 +249,45 @@
     "colour": "plate"
    }
   ]
+ },
+ "anklet": {
+  "status": "approved",
+  "values": {
+   "side": "L",
+   "size": 0.12
+  },
+  "pieces": [
+   {
+    "cyl": [
+     {
+      "foot": "$side",
+      "at": [
+       0,
+       0,
+       0.03
+      ]
+     },
+     [
+      0,
+      0.9,
+      1.2
+     ]
+    ],
+    "r": 0.01,
+    "colour": "steel"
+   },
+   {
+    "ball": {
+     "foot": "$side",
+     "at": [
+      0,
+      -0.1,
+      "$size"
+     ]
+    },
+    "r": "$size",
+    "colour": "pad"
+   }
+  ]
  }
 }

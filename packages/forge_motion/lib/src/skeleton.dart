@@ -20,7 +20,7 @@ const _limbs = [
 // Where each field sits in a pose's values. Angles are in degrees.
 const _pelvisRot = 3;
 const _sideStart = 18;
-const _sideSize = 26;
+const _sideSize = 27;
 const _clavicle = 0;
 const _handPos = 2;
 const _fingers = 5;
@@ -33,6 +33,7 @@ const _pitch = 19;
 const _floor = 20;
 const _knee = 21;
 const _hold = 24;
+const _roll = 26;
 
 /// A pose with both sides spelled out, as numbers that interpolate and a
 /// structure that comes from the earlier key (see `lerp` in pose.py).
@@ -50,14 +51,30 @@ class Pose {
   /// knows its own once solved (`Skeleton.measure`).
   final reach = [double.nan, double.nan];
 
+  /// Per side, where the ankle is once the pose is solved
+  /// (`Skeleton.measure`): where a foot that steps travels from or to.
+  final ankle = [Vector3.zero(), Vector3.zero()];
+
   /// Whether a clip may ease from this pose to [next].
   bool leadsTo(Pose next) {
     for (var s = 0; s < 2; s++) {
-      if (stands[s] != next.stands[s] || hasKnee[s] && !next.hasKnee[s]) {
+      if (hasKnee[s] && !next.hasKnee[s]) return false;
+      // A step travels in the world, so neither end is given in a bone.
+      if (_steps(next, s) && (footRel[s] >= 0 || next.footRel[s] >= 0)) {
         return false;
       }
     }
     return true;
+  }
+
+  /// Whether foot [s] stands in one of the two poses and is lifted, or
+  /// stands somewhere else, in the other.
+  bool _steps(Pose next, int s) {
+    final at = _sideStart + s * _sideSize + _footPos;
+    return stands[s] != next.stands[s] ||
+        stands[s] &&
+            (values[at] != next.values[at] ||
+                values[at + 1] != next.values[at + 1]);
   }
 
   void setLerp(Pose a, Pose b, double t) {
@@ -82,6 +99,14 @@ class Pose {
       reach[s] = stays
           ? double.nan
           : a.reach[s] + (b.reach[s] - a.reach[s]) * t;
+      // A foot that steps travels as a lifted foot from where its ankle was.
+      if (a._steps(b, s)) {
+        final foot = _sideStart + s * _sideSize + _footPos;
+        stands[s] = false;
+        values[foot] = a.ankle[s].x + (b.ankle[s].x - a.ankle[s].x) * t;
+        values[foot + 1] = a.ankle[s].y + (b.ankle[s].y - a.ankle[s].y) * t;
+        values[foot + 2] = a.ankle[s].z + (b.ankle[s].z - a.ankle[s].z) * t;
+      }
     }
   }
 }
@@ -306,6 +331,7 @@ class Skeleton {
       );
       v[o + _yaw] = number(foot['yaw'] ?? 10, 'yaw');
       v[o + _pitch] = number(foot['pitch'] ?? 0, 'pitch');
+      v[o + _roll] = number(foot['roll'] ?? 0, 'roll');
       v[o + _floor] = number(foot['floor'] ?? 0, 'floor');
       out.footRel[s] = rel(foot['rel']);
 
@@ -479,6 +505,8 @@ class Skeleton {
       r[foot].setRotationZ(turn);
       _m.setRotationX(radians(v[o + _pitch]));
       r[foot].multiply(_m);
+      _m.setRotationY(radians(sign * v[o + _roll]));
+      r[foot].multiply(_m);
       if (footRel >= 0) {
         _m.setFrom(r[foot]);
         r[foot]
@@ -548,6 +576,23 @@ class Skeleton {
   void _helper(Solved s, int helper, int above, int below) {
     setHalfway(s.r[helper], s.r[above], s.r[below]);
     s.p[helper].setFrom(s.p[below]);
+  }
+
+  /// Solves [pose] into [s] and notes in the pose what a clip needs between
+  /// keys: each arm's stretch and each ankle.
+  void measure(Pose pose, Solved s) {
+    solve(pose, s);
+    for (var side = 0; side < 2; side++) {
+      pose.reach[side] = s.reach[side];
+      pose.ankle[side].setFrom(s.p[_bones[side].foot]);
+    }
+  }
+
+  /// The point [at] from ankle [side] in the foot's own frame.
+  void footPoint(Solved s, int side, Vector3 at, Vector3 out) {
+    final foot = _bones[side].foot;
+    s.r[foot].transformed(at, out);
+    out.add(s.p[foot]);
   }
 
   /// Where hand [side] holds: the point the pose's hand pos asked for, or
