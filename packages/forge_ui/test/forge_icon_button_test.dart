@@ -233,15 +233,10 @@ void main() {
       expect(find.byType(ForgeIcon), findsNothing);
       expect(
         tester.widget<Text>(find.text('0.5×')).style!.color,
-        on ? p.onAccentSoft : p.ink,
+        on ? p.onAccent : p.ink,
       );
-      expect(circle(tester).color, on ? p.accentSoft : p.surface);
-      expect(
-        circle(tester).border,
-        on
-            ? Border.all(color: p.accent, width: 1.5)
-            : Border.all(color: p.line),
-      );
+      expect(circle(tester).color, on ? p.accent : p.surface);
+      expect(circle(tester).border, on ? null : Border.all(color: p.line));
       expect(
         tester.getSemantics(find.byType(ForgeIconButton)),
         matchesSemantics(

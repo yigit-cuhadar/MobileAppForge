@@ -74,6 +74,7 @@ class ForgePreset {
       onFeaturedAction: Color(0xFF101213),
       success: Color(0xFF3F7D62),
       info: Color(0xFF2F6E73),
+      warning: Color(0xFF8A6418),
       danger: Color(0xFFA6473C),
     ),
     dark: ForgePalette(
@@ -97,6 +98,7 @@ class ForgePreset {
       onFeaturedAction: Color(0xFF101213),
       success: Color(0xFF79B597),
       info: Color(0xFF7FB8BC),
+      warning: Color(0xFFD6B36E),
       danger: Color(0xFFE0907F),
     ),
   );

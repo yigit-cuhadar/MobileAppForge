@@ -77,6 +77,17 @@ Widget plainSectionCard(BuildContext context) => _page(
         title: 'Section title',
         child: Text('One line of content about this section.'),
       ),
+      const SectionCard.plain(
+        title: 'Section title',
+        icon: ForgeIcons.lightbulb,
+        child: Text('One line of content about this section.'),
+      ),
+      const SectionCard.plain(
+        title: 'Section title',
+        icon: ForgeIcons.warning,
+        warning: true,
+        child: Text('One line of caution about this section.'),
+      ),
       SectionCard.plain(
         title: 'Section title',
         actionLabel: context.knobs.string(

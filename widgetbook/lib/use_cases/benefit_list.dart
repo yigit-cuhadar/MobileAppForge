@@ -16,6 +16,23 @@ Widget numberedBenefits(BuildContext context) => _page(
   ]),
 );
 
+@widgetbook.UseCase(name: 'Numbered, danger', type: BenefitList)
+Widget dangerBenefits(BuildContext context) => _page(
+  BenefitList.numbered(
+    const ['[ITEM ONE]', '[ITEM TWO]', '[ITEM THREE]'],
+    danger: true,
+    trailing: {
+      0: ForgeIconButton(
+        icon: ForgeIcons.playArrow,
+        label: 'Play',
+        variant: ForgeIconButtonVariant.ink,
+        fill: ForgeIconButtonFill.sunken,
+        onPressed: () {},
+      ),
+    },
+  ),
+);
+
 @widgetbook.UseCase(name: 'Checked', type: BenefitList)
 Widget checkedBenefits(BuildContext context) => _page(
   const BenefitList.checked([

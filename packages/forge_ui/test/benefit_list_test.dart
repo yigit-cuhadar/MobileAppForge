@@ -24,6 +24,31 @@ void main() {
     expect(find.byType(ForgeIcon), findsNothing);
   });
 
+  testWidgets('danger tints the numbers and a line ends with its trailing', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const BenefitList.numbered(
+        ['One', 'Two'],
+        danger: true,
+        trailing: {1: Text('Watch')},
+      ),
+    );
+
+    final colors = ForgeStyle.of(tester.element(find.byType(BenefitList)))
+        .colors;
+    expect(
+      tester.widget<Text>(find.text('1')).style!.color,
+      Color.lerp(colors.ink, colors.danger, 0.7),
+    );
+    expect(find.text('Watch'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Watch')).dx,
+      greaterThan(tester.getTopRight(find.text('Two')).dx),
+    );
+  });
+
   testWidgets('checked marks each line with a success check', (tester) async {
     await pump(tester, const BenefitList.checked(['One', 'Two']));
 

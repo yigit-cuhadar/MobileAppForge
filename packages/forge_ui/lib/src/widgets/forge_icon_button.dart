@@ -34,8 +34,7 @@ enum ForgeIconButtonFill {
 /// [fill]. [label] names the action for screen readers. Null [onPressed]
 /// fades it to 40%. A [toggled] button switches something: bare, its icon
 /// is an outline in the variant's colour while off and filled accent while
-/// on (a favourite); on a fill, the circle turns accent-soft with an accent
-/// border while on. [ForgeIconButton.text] shows a short text in place of
+/// on (a favourite); on a fill, the circle fills in accent while on. [ForgeIconButton.text] shows a short text in place of
 /// the icon.
 class ForgeIconButton extends StatelessWidget {
   const ForgeIconButton({
@@ -81,7 +80,7 @@ class ForgeIconButton extends StatelessWidget {
     final color = on
         ? bare
               ? colors.accent
-              : colors.onAccentSoft
+              : colors.onAccent
         : switch (variant) {
             ForgeIconButtonVariant.muted => colors.inkMuted,
             ForgeIconButtonVariant.ink => colors.ink,
@@ -109,15 +108,11 @@ class ForgeIconButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: on
-              ? colors.accentSoft
+              ? colors.accent
               : sunken
               ? colors.surfaceSunken
               : colors.surface,
-          border: on
-              ? Border.all(color: colors.accent, width: 1.5)
-              : sunken
-              ? null
-              : Border.all(color: colors.line),
+          border: on || sunken ? null : Border.all(color: colors.line),
         ),
         child: glyph,
       );
