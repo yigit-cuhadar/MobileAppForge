@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -362,5 +364,66 @@ void main() {
     );
     await tester.tap(find.byType(ForgeChip));
     expect(taps, 1);
+  });
+
+  group('a toned chip', () {
+    double contrast(Color a, Color b) {
+      final (x, y) = (a.computeLuminance(), b.computeLuminance());
+      return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
+    }
+
+    for (final (brightness, theme) in [
+      ('light', ForgeTheme.light()),
+      ('dark', ForgeTheme.dark()),
+    ]) {
+      for (final tone in [ForgeChipTone.success, ForgeChipTone.danger]) {
+        testWidgets('$tone in $brightness: a soft tint, filled when selected '
+            'and 4.5:1 text both ways', (tester) async {
+          for (final selected in [false, true]) {
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: theme,
+                home: Scaffold(
+                  body: Center(
+                    child: ForgeChip(
+                      label: 'Item',
+                      tone: tone,
+                      selected: selected,
+                      showCheck: false,
+                      onPressed: () {},
+                    ),
+                  ),
+                ),
+              ),
+            );
+            final p = ForgeStyle.of(tester.element(find.byType(ForgeChip)))
+                .colors;
+            final status = tone == ForgeChipTone.success ? p.success : p.danger;
+            final box =
+                tester
+                        .widget<Container>(
+                          find
+                              .descendant(
+                                of: find.byType(ForgeChip),
+                                matching: find.byType(Container),
+                              )
+                              .first,
+                        )
+                        .decoration!
+                    as BoxDecoration;
+            final ink = tester.widget<Text>(find.text('Item')).style!.color!;
+
+            if (selected) {
+              expect(box.color, status);
+              expect(ink, p.surface);
+            } else {
+              expect(box.color, Color.lerp(p.surface, status, 0.12));
+              expect(box.border!.top.color, isNot(p.lineStrong));
+            }
+            expect(contrast(ink, box.color!), greaterThanOrEqualTo(4.5));
+          }
+        });
+      }
+    }
   });
 }

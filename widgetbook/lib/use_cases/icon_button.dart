@@ -85,3 +85,69 @@ class _ToggledState extends State<_Toggled> {
       ),
   ]);
 }
+
+@widgetbook.UseCase(name: 'Sunken', type: ForgeIconButton)
+Widget sunkenIconButton(BuildContext context) => _row([
+  ForgeIconButton(
+    icon: ForgeIcons.playArrow,
+    label: 'Play',
+    variant: ForgeIconButtonVariant.ink,
+    fill: ForgeIconButtonFill.sunken,
+    onPressed: () {},
+  ),
+  ForgeIconButton(icon: ForgeIcons.moreHoriz, label: 'More', onPressed: () {}),
+]);
+
+@widgetbook.UseCase(name: 'Surface, over a picture', type: ForgeIconButton)
+Widget surfaceIconButtons(BuildContext context) => const _OverPicture();
+
+/// Pause or play, and a speed that switches, in a picture's corner.
+class _OverPicture extends StatefulWidget {
+  const _OverPicture();
+
+  @override
+  State<_OverPicture> createState() => _OverPictureState();
+}
+
+class _OverPictureState extends State<_OverPicture> {
+  var _playing = true;
+  var _slow = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ForgeStyle.of(context);
+    return Center(
+      child: Container(
+        width: 320,
+        height: 200,
+        alignment: Alignment.bottomRight,
+        padding: const EdgeInsets.all(Gap.xs),
+        decoration: BoxDecoration(
+          color: style.colors.surfaceSunken,
+          borderRadius: BorderRadius.circular(style.radii.md),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: Gap.xs,
+          children: [
+            ForgeIconButton(
+              icon: _playing ? ForgeIcons.pause : ForgeIcons.playArrow,
+              label: _playing ? 'Pause' : 'Play',
+              variant: ForgeIconButtonVariant.ink,
+              fill: ForgeIconButtonFill.surface,
+              onPressed: () => setState(() => _playing = !_playing),
+            ),
+            ForgeIconButton.text(
+              '0.5×',
+              label: 'Half speed',
+              variant: ForgeIconButtonVariant.ink,
+              fill: ForgeIconButtonFill.surface,
+              toggled: _slow,
+              onPressed: () => setState(() => _slow = !_slow),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

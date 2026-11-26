@@ -9,12 +9,25 @@ import '../theme/forge_preset.dart';
 import '../theme/forge_style.dart';
 import 'pressable.dart';
 
+/// The status a [ForgeChip] stands for.
+enum ForgeChipTone {
+  /// Surface with a line-strong border; accent-soft while selected.
+  neutral,
+
+  /// A soft success tint; filled success while selected.
+  success,
+
+  /// A soft danger tint; filled danger while selected.
+  danger,
+}
+
 /// An outlined 36px chip: an action, or a filter that is [selected] (with a
 /// check unless [showCheck] is false, or a [count] badge in its place). A
 /// [locked] chip shows a lock before the label and stays tappable:
 /// [onPressed] then opens the paywall. The chip takes taps across a 44px
 /// band; [ForgeChip.series] is the small form for a chart's series. A
-/// chip with [onOptions] opens its item's options.
+/// chip with [onOptions] opens its item's options. A [tone] other than
+/// neutral marks a status, such as right and wrong answers.
 class ForgeChip extends StatelessWidget {
   const ForgeChip({
     super.key,
@@ -27,6 +40,7 @@ class ForgeChip extends StatelessWidget {
     this.leading,
     this.onOptions,
     this.optionsLabel,
+    this.tone = ForgeChipTone.neutral,
   }) : assert(
          (onOptions == null) == (optionsLabel == null),
          'Name the options for screen readers.',
@@ -51,6 +65,7 @@ class ForgeChip extends StatelessWidget {
        optionsLabel = null,
        sample = null,
        removeHint = null,
+       tone = ForgeChipTone.neutral,
        _menu = true,
        _add = false;
 
@@ -66,6 +81,7 @@ class ForgeChip extends StatelessWidget {
       optionsLabel = null,
       sample = null,
       removeHint = null,
+      tone = ForgeChipTone.neutral,
       _menu = false,
       _add = true;
 
@@ -84,6 +100,7 @@ class ForgeChip extends StatelessWidget {
        onOptions = null,
        optionsLabel = null,
        removeHint = null,
+       tone = ForgeChipTone.neutral,
        _menu = false,
        _add = false;
 
@@ -104,6 +121,7 @@ class ForgeChip extends StatelessWidget {
        onOptions = null,
        optionsLabel = null,
        sample = null,
+       tone = ForgeChipTone.neutral,
        _menu = false,
        _add = false;
 
@@ -126,6 +144,7 @@ class ForgeChip extends StatelessWidget {
 
   /// What screen readers call the options ("Item options").
   final String? optionsLabel;
+  final ForgeChipTone tone;
 
   bool get _options => selected && onOptions != null;
   final Widget? sample;
@@ -147,7 +166,7 @@ class ForgeChip extends StatelessWidget {
     if (sample != null) {
       final ink = selected ? p.onAccentSoft : p.inkMuted;
       return _frame(
-        p,
+        _neutralLook(p, ink),
         height: seriesHeight,
         padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
         child: IconTheme.merge(
@@ -173,13 +192,21 @@ class ForgeChip extends StatelessWidget {
         ),
       );
     }
-    final ink = selected
-        ? p.onAccentSoft
-        : _add
-        ? p.inkMuted
-        : p.ink;
+    final look = switch (tone) {
+      ForgeChipTone.neutral => _neutralLook(
+        p,
+        selected
+            ? p.onAccentSoft
+            : _add
+            ? p.inkMuted
+            : p.ink,
+      ),
+      ForgeChipTone.success => _tonedLook(p, p.success),
+      ForgeChipTone.danger => _tonedLook(p, p.danger),
+    };
+    final ink = look.ink;
     return _frame(
-      p,
+      look,
       height: height,
       padding: EdgeInsets.only(
         left: Gap.md,
@@ -241,8 +268,22 @@ class ForgeChip extends StatelessWidget {
     );
   }
 
+  _Look _neutralLook(ForgePalette p, Color ink) => selected
+      ? _Look(p.accentSoft, Border.all(color: p.accent, width: 1.5), ink)
+      : _Look(p.surface, Border.all(color: p.lineStrong), ink);
+
+  // A tint takes the status mixed toward ink as its text, for 4.5:1; the
+  // filled status takes surface (white in light).
+  _Look _tonedLook(ForgePalette p, Color status) => selected
+      ? _Look(status, Border.all(color: status, width: 1.5), p.surface)
+      : _Look(
+          Color.lerp(p.surface, status, 0.12)!,
+          Border.all(color: Color.lerp(p.surface, status, 0.3)!),
+          Color.lerp(p.ink, status, 0.7)!,
+        );
+
   Widget _frame(
-    ForgePalette p, {
+    _Look look, {
     required double height,
     required EdgeInsets padding,
     required Widget child,
@@ -262,17 +303,23 @@ class ForgeChip extends StatelessWidget {
           height: height,
           padding: padding,
           decoration: BoxDecoration(
-            color: selected ? p.accentSoft : p.surface,
+            color: look.fill,
             borderRadius: const BorderRadius.all(
               Radius.circular(ForgeRadii.button),
             ),
-            border: selected
-                ? Border.all(color: p.accent, width: 1.5)
-                : Border.all(color: p.lineStrong),
+            border: look.border,
           ),
           child: child,
         ),
       ),
     );
   }
+}
+
+class _Look {
+  const _Look(this.fill, this.border, this.ink);
+
+  final Color fill;
+  final Border border;
+  final Color ink;
 }
