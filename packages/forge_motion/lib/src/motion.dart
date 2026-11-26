@@ -95,6 +95,11 @@ class Motion {
       times.add(number(key[0], 'key time'));
       keyPoses.add(normalized[name] ??= skeleton.pose(poses(name)));
     }
+    final first = Solved(skeleton.bones.length);
+    for (final pose in normalized.values) {
+      skeleton.solve(pose, first);
+      pose.reach.setAll(0, first.reach);
+    }
     if (times.length < 2) bad('a clip needs two keys');
     for (var k = 1; k < times.length; k++) {
       if (times[k] <= times[k - 1]) bad('key times must rise');
@@ -103,7 +108,6 @@ class Motion {
       }
     }
 
-    final first = Solved(skeleton.bones.length);
     skeleton.solve(keyPoses.first, first);
     final view = numbers(recipe['view'], 2, 'view');
     final motion = Motion._(
@@ -262,6 +266,18 @@ class Motion {
     }
   }
 
+  /// Whether the motion comes to rest at key [k]: the first and the last
+  /// key, a key that holds (the same pose as its neighbour) and one where
+  /// the motion turns back (the same pose before and after). It passes
+  /// through every other key at speed, so a mid pose shapes the path without
+  /// a stop.
+  bool _rests(int k) =>
+      k == 0 ||
+      k == _poses.length - 1 ||
+      identical(_poses[k], _poses[k - 1]) ||
+      identical(_poses[k], _poses[k + 1]) ||
+      identical(_poses[k - 1], _poses[k + 1]);
+
   void _solve(Duration time) {
     final micros = time.inMicroseconds % _durationMicros;
     if (micros == _solvedAt) return;
@@ -270,8 +286,23 @@ class Motion {
     while (k < _times.length - 2 && seconds > _times[k + 1]) {
       k++;
     }
-    final t = (seconds - _times[k]) / (_times[k + 1] - _times[k]);
-    _pose.setLerp(_poses[k], _poses[k + 1], ease(t));
+    var from = k, to = k + 1;
+    while (!_rests(from)) {
+      from--;
+    }
+    while (!_rests(to)) {
+      to++;
+    }
+    final span = _times[to] - _times[from];
+    final eased =
+        _times[from] +
+        span * ease(((seconds - _times[from]) / span).clamp(0.0, 1.0));
+    k = from;
+    while (k < to - 1 && eased > _times[k + 1]) {
+      k++;
+    }
+    final t = (eased - _times[k]) / (_times[k + 1] - _times[k]);
+    _pose.setLerp(_poses[k], _poses[k + 1], t);
     _skeleton.solve(_pose, _now);
     _solvedAt = micros;
   }
