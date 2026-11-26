@@ -167,6 +167,14 @@ _Point _point(Object? json, _Placing placing) {
   }
   final spec = object(json, 'point');
   if (spec.containsKey('grips')) return _Grips(vec3(spec['grips'], 'grips'));
+  if (spec.containsKey('hand')) {
+    final side = switch (text(spec['hand'], 'hand')) {
+      'L' => 0,
+      'R' => 1,
+      final other => bad('unknown hand $other'),
+    };
+    return _Hand(side, vec3(spec['at'], 'at'));
+  }
   if (spec.containsKey('between')) {
     final ends = array(spec['between'], 'between');
     if (ends.length != 2) bad('between needs two points');
@@ -233,6 +241,18 @@ class _Grips extends _Point {
       ..addScaled(_forward, _grips.y)
       ..addScaled(_up, _grips.z);
   }
+}
+
+/// From where one hand holds: along the fingers, out of the palm, across it.
+class _Hand extends _Point {
+  _Hand(this._side, this._at);
+
+  final int _side;
+  final Vector3 _at;
+
+  @override
+  void eval(Gear gear, Solved solved, Vector3 out) =>
+      gear.skeleton.grip(solved, _side, out, from: _at);
 }
 
 class _Between extends _Point {
