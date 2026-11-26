@@ -45,6 +45,11 @@ class Pose {
   final stands = [false, false];
   final hasKnee = [false, false];
 
+  /// Per side, how far the arm is stretched from the shoulder to the hand's
+  /// target, in metres; NaN leaves the hand where the pose puts it. A key
+  /// knows its own once solved (`Skeleton.measure`).
+  final reach = [double.nan, double.nan];
+
   /// Whether a clip may ease from this pose to [next].
   bool leadsTo(Pose next) {
     for (var s = 0; s < 2; s++) {
@@ -64,6 +69,19 @@ class Pose {
     }
     for (var i = 0; i < values.length; i++) {
       values[i] = a.values[i] + (b.values[i] - a.values[i]) * t;
+    }
+    // A hand that stays where it is (on the floor, on a fixed bar) keeps its
+    // place; one that moves keeps the arm's stretch between the keys, so a
+    // straight arm swings as a straight arm instead of along a chord.
+    for (var s = 0; s < 2; s++) {
+      final at = _sideStart + s * _sideSize + _handPos;
+      final stays =
+          a.values[at] == b.values[at] &&
+          a.values[at + 1] == b.values[at + 1] &&
+          a.values[at + 2] == b.values[at + 2];
+      reach[s] = stays
+          ? double.nan
+          : a.reach[s] + (b.reach[s] - a.reach[s]) * t;
     }
   }
 }
@@ -120,6 +138,9 @@ class Solved {
 
   /// Per side, the grip point from the wrist in the hand's own frame.
   final hold = [Vector3.zero(), Vector3.zero()];
+
+  /// Per side, how far the hand's target is from the shoulder.
+  final reach = [0.0, 0.0];
 }
 
 /// The rig's joints and the solver of pose.py. Axes: z up, the body faces -y,
@@ -397,6 +418,14 @@ class Skeleton {
       _d.setFrom(s.hold[side]);
       _hand.transform(_d);
       _target.sub(_d);
+      if (!pose.reach[side].isNaN) {
+        _target
+          ..sub(_root)
+          ..normalize()
+          ..scale(pose.reach[side])
+          ..add(_root);
+      }
+      s.reach[side] = _target.distanceTo(_root);
       solveLimb(
         _root,
         _target,
