@@ -521,10 +521,13 @@ class Skeleton {
     s.p[helper].setFrom(s.p[below]);
   }
 
-  /// Where hand [side] holds: the point the pose's hand pos asked for.
-  void grip(Solved s, int side, Vector3 out) {
+  /// Where hand [side] holds: the point the pose's hand pos asked for, or
+  /// the point [from] it in the hand's own frame.
+  void grip(Solved s, int side, Vector3 out, {Vector3? from}) {
     final hand = _bones[side].hand;
-    _rest[side].hand.transformed(s.hold[side], out);
+    _d.setFrom(s.hold[side]);
+    if (from != null) _d.add(from);
+    _rest[side].hand.transformed(_d, out);
     s.r[hand].transform(out);
     out.add(s.p[hand]);
   }

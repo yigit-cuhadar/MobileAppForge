@@ -196,5 +196,58 @@
     ]
    }
   ]
+ },
+ "weight": {
+  "status": "approved",
+  "values": {
+   "side": "L",
+   "head": 0.05
+  },
+  "pieces": [
+   {
+    "cyl": [
+     {
+      "hand": "$side",
+      "at": [
+       0,
+       0,
+       -0.07
+      ]
+     },
+     {
+      "hand": "$side",
+      "at": [
+       0,
+       0,
+       0.07
+      ]
+     }
+    ],
+    "r": 0.014,
+    "colour": "steel"
+   },
+   {
+    "cyl": [
+     {
+      "hand": "$side",
+      "at": [
+       0,
+       0,
+       0.07
+      ]
+     },
+     {
+      "hand": "$side",
+      "at": [
+       0.01,
+       0.02,
+       0.13
+      ]
+     }
+    ],
+    "r": "$head",
+    "colour": "plate"
+   }
+  ]
  }
 }
