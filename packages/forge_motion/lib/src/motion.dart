@@ -97,14 +97,13 @@ class Motion {
     }
     final first = Solved(skeleton.bones.length);
     for (final pose in normalized.values) {
-      skeleton.solve(pose, first);
-      pose.reach.setAll(0, first.reach);
+      skeleton.measure(pose, first);
     }
     if (times.length < 2) bad('a clip needs two keys');
     for (var k = 1; k < times.length; k++) {
       if (times[k] <= times[k - 1]) bad('key times must rise');
       if (!keyPoses[k - 1].leadsTo(keyPoses[k])) {
-        bad('key $k changes how a foot stands or drops a knee');
+        bad('key $k steps a foot given in a bone or drops a knee');
       }
     }
 
@@ -175,7 +174,7 @@ class Motion {
       piece.place(_gear, linear, offset);
       if (!colours.contains(piece.colour)) colours.add(piece.colour);
       mesh.addPiece(
-        cylinder: piece.cylinder,
+        shape: piece.shape,
         linear: linear,
         offset: offset,
         part: colours.indexOf(piece.colour),

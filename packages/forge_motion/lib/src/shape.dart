@@ -6,6 +6,8 @@ import 'package:vector_math/vector_math_64.dart';
 /// depth, so faces are cut this fine.
 const cell = 0.09;
 
+enum PieceShape { box, cylinder, ball }
+
 /// Collects the gear mesh in file space (y up, facing +z, the file's unit).
 class MeshBuilder {
   MeshBuilder(this.metres);
@@ -19,10 +21,10 @@ class MeshBuilder {
 
   int get vertexCount => parts.length;
 
-  /// A unit cube or unit cylinder placed by [linear] and [offset] (rig space,
+  /// A unit cube, unit cylinder or unit ball placed by [linear] and [offset] (rig space,
   /// metres), as export.py's `shape` cuts it.
   void addPiece({
-    required bool cylinder,
+    required PieceShape shape,
     required Matrix3 linear,
     required Vector3 offset,
     required int part,
@@ -48,7 +50,22 @@ class MeshBuilder {
       joints.add(joint);
     }
 
-    if (!cylinder) {
+    if (shape == PieceShape.ball) {
+      const around = 24, rings = 12;
+      final start = vertexCount;
+      for (var j = 0; j <= rings; j++) {
+        for (var i = 0; i <= around; i++) {
+          final turn = i * 2 * math.pi / around, tilt = j * math.pi / rings;
+          final x = math.sin(tilt) * math.cos(turn);
+          final y = math.sin(tilt) * math.sin(turn);
+          final z = -math.cos(tilt);
+          vertex(x, y, z, x, y, z);
+        }
+      }
+      _quads(start, around, rings);
+      return;
+    }
+    if (shape == PieceShape.box) {
       for (var axis = 0; axis < 3; axis++) {
         for (final sign in const [-1, 1]) {
           final (a, b) = sign > 0

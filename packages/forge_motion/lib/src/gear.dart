@@ -1,6 +1,7 @@
 import 'package:vector_math/vector_math_64.dart';
 
 import 'json.dart';
+import 'shape.dart';
 import 'skeleton.dart';
 
 const _placing = {'kit', 'at', 'turn'};
@@ -51,14 +52,18 @@ class Gear {
   final pieces = <Piece>[];
 }
 
-/// One piece: a unit cube, or a unit cylinder (radius 1, height 1 along z),
-/// placed by a linear part and an offset in metres.
+/// One piece: a unit cube, a unit cylinder (radius 1, height 1 along z) or a
+/// unit ball (radius 1), placed by a linear part and an offset in metres.
 sealed class Piece {
   Piece(this.colour);
 
   final String colour;
 
-  bool get cylinder => this is _Cylinder;
+  PieceShape get shape => switch (this) {
+    _Cylinder() => PieceShape.cylinder,
+    _Ball() => PieceShape.ball,
+    _Box() => PieceShape.box,
+  };
 
   void place(Gear gear, Matrix3 linear, Vector3 offset);
 }
@@ -93,6 +98,19 @@ class _Cylinder extends Piece {
     _side.scale(_r);
     _up.scale(_r);
     linear.setColumns(_side, _up, _pb);
+  }
+}
+
+class _Ball extends Piece {
+  _Ball(super.colour, this._at, this._r);
+
+  final _Point _at;
+  final double _r;
+
+  @override
+  void place(Gear gear, Matrix3 linear, Vector3 offset) {
+    _at.eval(gear, gear.now, offset);
+    linear.setValues(_r, 0, 0, 0, _r, 0, 0, 0, _r);
   }
 }
 
@@ -150,6 +168,9 @@ Piece _piece(Map<String, Object?> json, _Placing placing) {
       number(json['r'], 'r'),
     );
   }
+  if (json.containsKey('ball')) {
+    return _Ball(colour, _point(json['ball'], placing), number(json['r'], 'r'));
+  }
   final size = vec3(json['size'], 'size');
   return _Box(
     colour,
@@ -174,6 +195,14 @@ _Point _point(Object? json, _Placing placing) {
       final other => bad('unknown hand $other'),
     };
     return _Hand(side, vec3(spec['at'], 'at'));
+  }
+  if (spec.containsKey('foot')) {
+    final side = switch (text(spec['foot'], 'foot')) {
+      'L' => 0,
+      'R' => 1,
+      final other => bad('unknown foot $other'),
+    };
+    return _Foot(side, vec3(spec['at'], 'at'));
   }
   if (spec.containsKey('between')) {
     final ends = array(spec['between'], 'between');
@@ -253,6 +282,18 @@ class _Hand extends _Point {
   @override
   void eval(Gear gear, Solved solved, Vector3 out) =>
       gear.skeleton.grip(solved, _side, out, from: _at);
+}
+
+/// From one ankle, in the foot's own frame.
+class _Foot extends _Point {
+  _Foot(this._side, this._at);
+
+  final int _side;
+  final Vector3 _at;
+
+  @override
+  void eval(Gear gear, Solved solved, Vector3 out) =>
+      gear.skeleton.footPoint(solved, _side, _at, out);
 }
 
 class _Between extends _Point {

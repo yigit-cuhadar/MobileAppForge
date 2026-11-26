@@ -111,7 +111,9 @@ class _Piece {
     expect(vertices, isNotEmpty);
     final cylinder = golden['shape'] == 'cyl';
     for (final u in unit) {
-      final onSurface = cylinder
+      final onSurface = golden['shape'] == 'ball'
+          ? (u.length - 1).abs() < 1e-3
+          : cylinder
           ? (u.x * u.x + u.y * u.y - 1).abs() < 1e-3 &&
                     u.z.abs() <= 0.5 + 1e-3 ||
                 (u.z.abs() - 0.5).abs() < 1e-3 &&
