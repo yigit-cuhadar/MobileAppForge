@@ -233,3 +233,39 @@ Widget add(BuildContext context) => Center(
     ],
   ),
 );
+
+@widgetbook.UseCase(name: 'Tones', type: ForgeChip)
+Widget tones(BuildContext context) => const _Tones();
+
+/// A right answer and two wrong ones; one is picked at a time.
+class _Tones extends StatefulWidget {
+  const _Tones();
+
+  @override
+  State<_Tones> createState() => _TonesState();
+}
+
+class _TonesState extends State<_Tones> {
+  var _picked = 1;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Wrap(
+      spacing: Gap.sm,
+      children: [
+        for (final (i, (label, tone)) in const [
+          ('Right', ForgeChipTone.success),
+          ('Wrong 1', ForgeChipTone.danger),
+          ('Wrong 2', ForgeChipTone.danger),
+        ].indexed)
+          ForgeChip(
+            label: label,
+            tone: tone,
+            selected: _picked == i,
+            showCheck: false,
+            onPressed: () => setState(() => _picked = i),
+          ),
+      ],
+    ),
+  );
+}

@@ -138,4 +138,143 @@ void main() {
     expect(taps, 2);
     semantics.dispose();
   });
+
+  BoxDecoration circle(WidgetTester tester) =>
+      tester
+              .widget<Container>(
+                find.descendant(
+                  of: find.byType(ForgeIconButton),
+                  matching: find.byType(Container),
+                ),
+              )
+              .decoration!
+          as BoxDecoration;
+
+  testWidgets('a sunken fill is a 36px surface-sunken circle on a 44px '
+      'target', (tester) async {
+    var taps = 0;
+    await pump(
+      tester,
+      ForgeIconButton(
+        icon: ForgeIcons.playArrow,
+        label: 'Play',
+        variant: ForgeIconButtonVariant.ink,
+        fill: ForgeIconButtonFill.sunken,
+        onPressed: () => taps++,
+      ),
+    );
+    final p = colors(tester);
+
+    expect(tester.getSize(find.byType(ForgeIconButton)), const Size(44, 44));
+    expect(
+      tester.getSize(
+        find.descendant(
+          of: find.byType(ForgeIconButton),
+          matching: find.byType(Container),
+        ),
+      ),
+      const Size.square(36),
+    );
+    expect(circle(tester).color, p.surfaceSunken);
+    expect(circle(tester).border, isNull);
+    expect(icon(tester).color, p.ink);
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(ForgeIconButton)) + const Offset(2, 2),
+    );
+    expect(taps, 1);
+  });
+
+  testWidgets('a surface fill is a 40px surface circle with a line border', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      ForgeIconButton(
+        icon: ForgeIcons.pause,
+        label: 'Pause',
+        variant: ForgeIconButtonVariant.ink,
+        fill: ForgeIconButtonFill.surface,
+        onPressed: () {},
+      ),
+    );
+    final p = colors(tester);
+
+    expect(
+      tester.getSize(
+        find.descendant(
+          of: find.byType(ForgeIconButton),
+          matching: find.byType(Container),
+        ),
+      ),
+      const Size.square(40),
+    );
+    expect(circle(tester).color, p.surface);
+    expect(circle(tester).border, Border.all(color: p.line));
+  });
+
+  testWidgets('the text form shows its text and toggles to accent-soft', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    for (final on in [false, true]) {
+      await pump(
+        tester,
+        ForgeIconButton.text(
+          '0.5×',
+          label: 'Half speed',
+          variant: ForgeIconButtonVariant.ink,
+          fill: ForgeIconButtonFill.surface,
+          toggled: on,
+          onPressed: () {},
+        ),
+      );
+      final p = colors(tester);
+
+      expect(find.byType(ForgeIcon), findsNothing);
+      expect(
+        tester.widget<Text>(find.text('0.5×')).style!.color,
+        on ? p.onAccentSoft : p.ink,
+      );
+      expect(circle(tester).color, on ? p.accentSoft : p.surface);
+      expect(
+        circle(tester).border,
+        on
+            ? Border.all(color: p.accent, width: 1.5)
+            : Border.all(color: p.line),
+      );
+      expect(
+        tester.getSemantics(find.byType(ForgeIconButton)),
+        matchesSemantics(
+          label: 'Half speed',
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+          hasToggledState: true,
+          isToggled: on,
+        ),
+      );
+    }
+    semantics.dispose();
+  });
+
+  testWidgets('the text stays inside its circle at large text', (tester) async {
+    await pump(
+      tester,
+      ForgeIconButton.text(
+        '0.5×',
+        label: 'Half speed',
+        fill: ForgeIconButtonFill.surface,
+        onPressed: () {},
+      ),
+      scale: 3,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byType(ForgeIconButton)), const Size(44, 44));
+    expect(
+      tester.getRect(find.text('0.5×')).width,
+      lessThanOrEqualTo(ForgeIconButton.surfaceSize),
+    );
+  });
 }

@@ -144,6 +144,7 @@ abstract final class ForgeIcons {
   static const openInNew = ForgeIconData(
     '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   );
+  static const pause = ForgeIconData('<path d="M9 6v12M15 6v12"/>');
   static const person = ForgeIconData(
     '<circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.4-3.6 4.2-5.5 7.5-5.5s6.1 1.9 7.5 5.5"/>',
   );

@@ -55,6 +55,7 @@ const _all = [
   ForgeIcons.notifications,
   ForgeIcons.notificationsOff,
   ForgeIcons.openInNew,
+  ForgeIcons.pause,
   ForgeIcons.person,
   ForgeIcons.photoCamera,
   ForgeIcons.playArrow,
