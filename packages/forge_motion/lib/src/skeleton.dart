@@ -6,7 +6,7 @@ import 'json.dart';
 import 'math.dart';
 
 /// How far the grip point sits from the wrist: along the fingers, into the palm.
-const _grip = (0.10, 0.028);
+const _grip = (0.064, 0.024);
 const _sides = ['L', 'R'];
 const _signs = [1.0, -1.0];
 const _trunk = ['pelvis', 'lumbar', 'chest', 'neck', 'head'];
