@@ -60,6 +60,7 @@ class ModelViewer extends StatefulWidget {
     this.autoTurn = false,
     this.motion,
     this.playing = true,
+    this.groundParts = const {},
     this.markerColor,
     this.markerRadius = 14,
     this.semanticLabel,
@@ -109,6 +110,10 @@ class ModelViewer extends StatefulWidget {
   final ModelMotion? motion;
 
   final bool playing;
+
+  /// Parts lying flat on the ground, such as a floor and a shadow on it:
+  /// drawn under everything else in the model's order, and unlit.
+  final Set<String> groundParts;
 
   /// Defaults to the theme's error colour.
   final Color? markerColor;
@@ -344,6 +349,7 @@ class _ModelViewerState extends State<ModelViewer>
           highlightedPart: widget.highlightedPart,
           highlightColor: widget.highlightColor ?? colors.primary,
           outlinedParts: widget.outlinedParts,
+          groundParts: widget.groundParts,
           outlineColor: widget.outlineColor ?? colors.error,
           outlineWidth: widget.outlineWidth,
           markers: _markers,

@@ -16,6 +16,7 @@ class ModelPainter extends CustomPainter {
     required this.highlightedPart,
     required this.highlightColor,
     required this.outlinedParts,
+    required this.groundParts,
     required this.outlineColor,
     required this.outlineWidth,
     required this.markers,
@@ -32,6 +33,7 @@ class ModelPainter extends CustomPainter {
   final String? highlightedPart;
   final Color highlightColor;
   final Set<String> outlinedParts;
+  final Set<String> groundParts;
   final Color outlineColor;
   final double outlineWidth;
 
@@ -59,6 +61,10 @@ class ModelPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
+    final names = renderer.model.partNames;
+    for (var i = 0; i < names.length; i++) {
+      renderer.groundParts[i] = groundParts.contains(names[i]) ? 1 : 0;
+    }
     renderer.update(
       size.width,
       size.height,
@@ -67,7 +73,6 @@ class ModelPainter extends CustomPainter {
       controller.zoom,
     );
     if (renderer.drawIndexCount > 0) {
-      final names = renderer.model.partNames;
       final argb = renderer.partColors;
       for (var i = 0; i < names.length; i++) {
         final name = names[i];
@@ -149,5 +154,6 @@ class ModelPainter extends CustomPainter {
       oldDelegate.outlineColor != outlineColor ||
       oldDelegate.outlineWidth != outlineWidth ||
       !mapEquals(oldDelegate.partColors, partColors) ||
-      !setEquals(oldDelegate.outlinedParts, outlinedParts);
+      !setEquals(oldDelegate.outlinedParts, outlinedParts) ||
+      !setEquals(oldDelegate.groundParts, groundParts);
 }

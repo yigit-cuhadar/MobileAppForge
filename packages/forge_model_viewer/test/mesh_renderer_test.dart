@@ -121,6 +121,20 @@ void main() {
       expect(parts, [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]);
     });
 
+    test('draws a ground part first and unlit, however near it is', () {
+      final renderer = MeshRenderer(layered)
+        ..groundParts[0] = 1
+        ..partColors[0] = 0xFF804020
+        ..partColors[1] = 0xFF804020
+        ..update(size, size, 0, 0, 1)
+        ..shade();
+      final first = renderer.drawIndices[0], last = renderer.drawIndices[11];
+      expect(layered.vertexParts[first], 0);
+      expect(layered.vertexParts[last], 1);
+      expect(renderer.colors[first], 0xFF804020.toSigned(32));
+      expect(renderer.colors[last], isNot(0xFF804020.toSigned(32)));
+    });
+
     test('follows the view when the far side turns to the camera', () {
       final model = parseGlb(
         quadsGlb({

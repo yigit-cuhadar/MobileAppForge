@@ -32,6 +32,7 @@ class MeshRenderer {
     : screen = Float32List(model.vertexCount * 2),
       colors = Int32List(model.vertexCount),
       partColors = Int32List(model.partNames.length),
+      groundParts = Uint8List(model.partNames.length),
       drawIndices = Uint16List(model.indices.length),
       _depth = Float32List(model.vertexCount),
       _order = Int32List(model.triangleCount),
@@ -64,6 +65,11 @@ class MeshRenderer {
 
   /// ARGB per part; the caller fills it before [shade] (opaque) or [fill].
   final Int32List partColors;
+
+  /// Non-zero per part that lies on the ground: its triangles are drawn
+  /// under every other part's, in the model's order, and [shade] leaves
+  /// them unlit. The caller fills it before [update].
+  final Uint8List groundParts;
 
   /// Visible triangles, back to front; the first [drawIndexCount] are valid.
   final Uint16List drawIndices;
@@ -199,6 +205,7 @@ class MeshRenderer {
     final indices = model.indices;
     final indexCount = indices.length;
     final order = _order, keys = _keys;
+    final parts = model.vertexParts, ground = groundParts;
     final nearest = distance - 1;
     var visible = 0;
     for (var t = 0, i = 0; i < indexCount; t++, i += 3) {
@@ -212,7 +219,11 @@ class MeshRenderer {
       if (area >= 0) continue;
       final q = ((da + db + dc) / 3 - nearest) * 32767.5;
       order[visible] = t;
-      keys[visible] = q <= 0 ? 65535 : (q >= 65535 ? 0 : 65535 - q.toInt());
+      keys[visible] = ground[parts[a]] != 0
+          ? 0
+          : q <= 0
+          ? 65535
+          : (q >= 65534 ? 1 : 65535 - q.toInt());
       visible++;
     }
     _radixSort(visible);
@@ -280,13 +291,19 @@ class MeshRenderer {
     final normals = _normals;
     final parts = model.vertexParts;
     final colors = this.colors, partColors = this.partColors;
+    final ground = groundParts;
     final lmx = _lmx, lmy = _lmy, lmz = _lmz;
     final vertexCount = colors.length;
     for (var v = 0, p = 0; v < vertexCount; v++, p += 3) {
       final lambert =
           normals[p] * lmx + normals[p + 1] * lmy + normals[p + 2] * lmz;
-      final light = lambert > 0 ? _ambient + _diffuse * lambert : _ambient;
-      final argb = partColors[parts[v]];
+      final part = parts[v];
+      final light = ground[part] != 0
+          ? 1.0
+          : lambert > 0
+          ? _ambient + _diffuse * lambert
+          : _ambient;
+      final argb = partColors[part];
       final r = (((argb >> 16) & 0xFF) * light).toInt();
       final g = (((argb >> 8) & 0xFF) * light).toInt();
       final b = ((argb & 0xFF) * light).toInt();
