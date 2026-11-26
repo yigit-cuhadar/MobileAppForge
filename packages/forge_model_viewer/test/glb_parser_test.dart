@@ -295,6 +295,183 @@ void main() {
       expect(meshOf(model).triangleCount, 8000);
     });
 
+    group('skin', () {
+      const triangle = <double>[0, 0, 0, 1, 0, 0, 0, 1, 0];
+
+      Map<String, Object?> skinned(
+        GlbBuilder b, {
+        List<num>? joints,
+        int jointType = 5121,
+        List<num>? weights,
+        int weightType = 5126,
+      }) => {
+        'attributes': {
+          'POSITION': b.addVec3(triangle),
+          'JOINTS_0': ?(joints == null
+              ? null
+              : b.addVec4(joints, componentType: jointType)),
+          'WEIGHTS_0': ?(weights == null
+              ? null
+              : b.addVec4(weights, componentType: weightType)),
+        },
+      };
+
+      test('reads joints and float weights, rescaled to sum 1', () {
+        final model = parseGlb(
+          _singlePrimitive(
+            (b) => skinned(
+              b,
+              joints: [0, 1, 0, 0, 2, 5, 0, 0, 1, 3, 0, 0],
+              weights: [1, 1, 0, 0, 2, 0, 0, 0, 0.25, 0.75, 0, 0],
+            ),
+          ),
+        );
+        expect(model.joints, [0, 1, 0, 0, 2, 5, 0, 0, 1, 3, 0, 0]);
+        expect(
+          model.weights,
+          _closeList([0.5, 0.5, 0, 0, 1, 0, 0, 0, 0.25, 0.75, 0, 0]),
+        );
+        // Joint 5 has no weight.
+        expect(model.jointCount, 4);
+      });
+
+      test('reads short joints and normalised integer weights', () {
+        for (final (type, one) in [(5121, 255), (5123, 65535)]) {
+          final model = parseGlb(
+            _singlePrimitive(
+              (b) => skinned(
+                b,
+                joints: [7, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                jointType: 5123,
+                weights: [one, 0, 0, 0, one, one, 0, 0, one ~/ 2, 0, 0, 0],
+                weightType: type,
+              ),
+            ),
+          );
+          expect(model.joints, [7, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+          expect(
+            model.weights,
+            _closeList([1, 0, 0, 0, 0.5, 0.5, 0, 0, 1, 0, 0, 0]),
+          );
+          expect(model.jointCount, 8);
+        }
+      });
+
+      test('leaves an unskinned model without joints', () {
+        final model = parseGlb(_twoPartGlb());
+        expect(model.joints, isNull);
+        expect(model.weights, isNull);
+        expect(model.jointCount, 0);
+      });
+
+      group('rejects', () {
+        Matcher fails(String message) => throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains(message),
+          ),
+        );
+        const joints = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        const weights = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+
+        test('a model skinned in some primitives only', () {
+          final b = GlbBuilder();
+          final primitives = [
+            skinned(b, joints: joints, weights: weights),
+            skinned(b),
+          ];
+          expect(
+            () => parseGlb(
+              b.build(
+                nodes: [
+                  {'mesh': 0},
+                ],
+                meshes: [
+                  {'primitives': primitives},
+                ],
+              ),
+            ),
+            fails('Only some primitives'),
+          );
+        });
+
+        test('joints without weights and weights without joints', () {
+          expect(
+            () => parseGlb(_singlePrimitive((b) => skinned(b, joints: joints))),
+            fails('only together'),
+          );
+          expect(
+            () =>
+                parseGlb(_singlePrimitive((b) => skinned(b, weights: weights))),
+            fails('only together'),
+          );
+        });
+
+        test('counts that differ from POSITION', () {
+          expect(
+            () => parseGlb(
+              _singlePrimitive(
+                (b) => skinned(
+                  b,
+                  joints: joints.sublist(4),
+                  weights: weights.sublist(4),
+                ),
+              ),
+            ),
+            fails('counts differ'),
+          );
+        });
+
+        test('joint indices above 255', () {
+          expect(
+            () => parseGlb(
+              _singlePrimitive(
+                (b) => skinned(
+                  b,
+                  joints: [256, ...joints.skip(1)],
+                  jointType: 5123,
+                  weights: weights,
+                ),
+              ),
+            ),
+            fails('above 255'),
+          );
+        });
+
+        test('weights summing to 0', () {
+          expect(
+            () => parseGlb(
+              _singlePrimitive(
+                (b) => skinned(
+                  b,
+                  joints: joints,
+                  weights: [...weights.take(8), 0, 0, 0, 0],
+                ),
+              ),
+            ),
+            fails('sum to 0'),
+          );
+        });
+
+        test('float joints', () {
+          expect(
+            () => parseGlb(
+              _singlePrimitive(
+                (b) => skinned(
+                  b,
+                  joints: joints,
+                  jointType: 5126,
+                  weights: weights,
+                ),
+              ),
+            ),
+            fails('JOINTS_0 must be'),
+          );
+        });
+      });
+    });
+
     group('rejects', () {
       Matcher fails(String message) => throwsA(
         isA<FormatException>().having(

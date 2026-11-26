@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forge_model_viewer/forge_model_viewer.dart';
@@ -9,6 +10,12 @@ import 'package:forge_model_viewer/src/render/mesh_renderer.dart';
 import 'glb_builder.dart';
 
 bool _all(String part) => true;
+
+Matcher _closeTo(List<double> expected) => pairwiseCompare<double, double>(
+  expected,
+  (a, b) => (a - b).abs() < 1e-3,
+  'close to',
+);
 
 /// A 2 x 2 x 2 cube: one +z face reused by six rotated nodes.
 MeshData _cube() {
@@ -114,6 +121,20 @@ void main() {
       expect(parts, [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]);
     });
 
+    test('draws a ground part first and unlit, however near it is', () {
+      final renderer = MeshRenderer(layered)
+        ..groundParts[0] = 1
+        ..partColors[0] = 0xFF804020
+        ..partColors[1] = 0xFF804020
+        ..update(size, size, 0, 0, 1)
+        ..shade();
+      final first = renderer.drawIndices[0], last = renderer.drawIndices[11];
+      expect(layered.vertexParts[first], 0);
+      expect(layered.vertexParts[last], 1);
+      expect(renderer.colors[first], 0xFF804020.toSigned(32));
+      expect(renderer.colors[last], isNot(0xFF804020.toSigned(32)));
+    });
+
     test('follows the view when the far side turns to the camera', () {
       final model = parseGlb(
         quadsGlb({
@@ -150,6 +171,103 @@ void main() {
     test('a miss returns null', () {
       expect(renderer.pick(2, 2, _all), isNull);
     });
+  });
+
+  group('pose', () {
+    // Left quad on joint 0, right quad on joint 1, framed with room above.
+    final skinned = parseGlb(
+      skinnedQuadsGlb(
+        {'left': quad(-1, -0.5, 0, 0.5, 0), 'right': quad(0, -0.5, 1, 0.5, 0)},
+        [0, 1],
+      ),
+    );
+    final bounds = Float64List.fromList([-1, -0.5, 0, 1, 1.5, 0]);
+    final rightUp = Float32List.fromList([
+      ...translation(0, 0, 0),
+      ...translation(0, 1, 0),
+    ]);
+
+    test('moves only the vertices of the posed joint', () {
+      final renderer = MeshRenderer(skinned, bounds: bounds)
+        ..update(size, size, 0, 0, 1);
+      final rest = Float32List.fromList(renderer.screen);
+      renderer
+        ..pose(rightUp)
+        ..update(size, size, 0, 0, 1);
+      final s = renderer.screen;
+      expect(s.sublist(0, 8), _closeTo(rest.sublist(0, 8)));
+      for (var v = 4; v < 8; v++) {
+        expect(s[v * 2], closeTo(rest[v * 2], 1e-3));
+        expect(s[v * 2 + 1], lessThan(rest[v * 2 + 1] - 10));
+      }
+    });
+
+    test('picking follows the posed mesh', () {
+      final renderer = MeshRenderer(skinned, bounds: bounds)
+        ..pose(rightUp)
+        ..update(size, size, 0, 0, 1);
+      final s = renderer.screen;
+      // The centre of the raised right quad, above where it rests.
+      final x = (s[8] + s[12]) / 2, y = (s[9] + s[13]) / 2;
+      expect(renderer.pick(x, y, _all), 'right');
+      final rest = MeshRenderer(skinned, bounds: bounds)
+        ..update(size, size, 0, 0, 1);
+      expect(rest.pick(x, y, _all), isNull);
+    });
+
+    test('an unposed or identity-posed model draws as if unskinned', () {
+      final plain = MeshRenderer(
+        parseGlb(
+          quadsGlb({
+            'left': quad(-1, -0.5, 0, 0.5, 0),
+            'right': quad(0, -0.5, 1, 0.5, 0),
+          }),
+        ),
+      )..update(size, size, 0.3, 0.2, 1);
+      final unposed = MeshRenderer(skinned)..update(size, size, 0.3, 0.2, 1);
+      expect(unposed.screen, plain.screen);
+      expect(unposed.drawIndices, plain.drawIndices);
+      unposed
+        ..pose(
+          Float32List.fromList([
+            ...translation(0, 0, 0),
+            ...translation(0, 0, 0),
+          ]),
+        )
+        ..update(size, size, 0.3, 0.2, 1);
+      expect(unposed.screen, _closeTo(plain.screen));
+    });
+
+    test('ignores a pose on an unskinned model', () {
+      final renderer = MeshRenderer(layered)..update(size, size, 0, 0, 1);
+      final rest = Float32List.fromList(renderer.screen);
+      renderer
+        ..pose(rightUp)
+        ..update(size, size, 0, 0, 1);
+      expect(renderer.screen, rest);
+    });
+  });
+
+  test('projects a point where it projects the vertex there', () {
+    final renderer = MeshRenderer(layered)..update(320, 180, 0.7, -0.4, 1.6);
+    final out = Float32List(4);
+    renderer.project(Float32List.sublistView(layered.positions, 3, 9), out);
+    expect(out, _closeTo(renderer.screen.sublist(2, 6)));
+  });
+
+  test('given bounds frame the view', () {
+    final model = parseGlb(quadsGlb({'q': quad(-1, -1, 1, 1, 0)}));
+    final own = MeshRenderer(model)..update(size, size, 0, 0, 1);
+    final wider = MeshRenderer(
+      model,
+      bounds: Float64List.fromList([-1, -1, 0, 3, 1, 0]),
+    )..update(size, size, 0, 0, 1);
+    // Centred on x 1, where the quad's right edge is, and scaled down.
+    expect(wider.screen[2], closeTo(center, 1e-3));
+    expect(
+      wider.screen[2] - wider.screen[0],
+      lessThan(own.screen[2] - own.screen[0]),
+    );
   });
 
   test('shade lights a camera-facing part in its colour', () {
