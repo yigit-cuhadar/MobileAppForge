@@ -5,7 +5,8 @@ import 'package:vector_math/vector_math_64.dart';
 import 'json.dart';
 import 'math.dart';
 
-/// How far the grip point sits from the wrist: along the fingers, into the palm.
+/// How far the grip point sits from the wrist: along the fingers, into the
+/// palm. A hand's `hold` replaces it (a bar resting on the fingers).
 const _grip = (0.064, 0.036);
 const _sides = ['L', 'R'];
 const _signs = [1.0, -1.0];
@@ -19,7 +20,7 @@ const _limbs = [
 // Where each field sits in a pose's values. Angles are in degrees.
 const _pelvisRot = 3;
 const _sideStart = 18;
-const _sideSize = 24;
+const _sideSize = 26;
 const _clavicle = 0;
 const _handPos = 2;
 const _fingers = 5;
@@ -31,6 +32,7 @@ const _yaw = 18;
 const _pitch = 19;
 const _floor = 20;
 const _knee = 21;
+const _hold = 24;
 
 /// A pose with both sides spelled out, as numbers that interpolate and a
 /// structure that comes from the earlier key (see `lerp` in pose.py).
@@ -97,15 +99,14 @@ class _Rest {
     required this.shin,
     required this.arm,
     required this.leg,
-    required this.grip,
     required this.ball,
   });
 
   final Matrix3 upperArm, forearm, hand, thigh, shin;
   final (double, double) arm, leg;
 
-  /// The grip point from the wrist, and the ball of the foot from the ankle.
-  final Vector3 grip, ball;
+  /// The ball of the foot from the ankle.
+  final Vector3 ball;
 }
 
 /// World rotation and position of every bone.
@@ -116,6 +117,9 @@ class Solved {
 
   final List<Matrix3> r;
   final List<Vector3> p;
+
+  /// Per side, the grip point from the wrist in the hand's own frame.
+  final hold = [Vector3.zero(), Vector3.zero()];
 }
 
 /// The rig's joints and the solver of pose.py. Axes: z up, the body faces -y,
@@ -199,7 +203,6 @@ class Skeleton {
       shin: frame(ankle - knee, legNormal),
       arm: ((elbow - shoulder).length, (wrist - elbow).length),
       leg: ((knee - hip).length, (ankle - knee).length),
-      grip: hand.transformed(Vector3(_grip.$1, _grip.$2, 0)),
       ball: tails[b.foot] - ankle,
     );
   }
@@ -258,6 +261,9 @@ class Skeleton {
         put(o + at, numbers(hand[key], 3, 'hand $key'), mirror: mirrorHand);
       }
       v[o + _curl] = number(hand['curl'] ?? 0, 'curl');
+      final hold = numbers(hand['hold'] ?? [_grip.$1, _grip.$2], 2, 'hold');
+      v[o + _hold] = hold[0];
+      v[o + _hold + 1] = hold[1];
       out.handRel[s] = rel(hand['rel']);
 
       final (elbow, mirrorElbow) = field('elbow');
@@ -387,7 +393,8 @@ class Skeleton {
       _pole.setValues(v[o + _elbow], v[o + _elbow + 1], v[o + _elbow + 2]);
       if (handRel >= 0) r[handRel].transform(_pole);
       _world(s, pose, o + _handPos, handRel, _target, position: true);
-      _d.setValues(_grip.$1, _grip.$2, 0);
+      s.hold[side].setValues(v[o + _hold], v[o + _hold + 1], 0);
+      _d.setFrom(s.hold[side]);
       _hand.transform(_d);
       _target.sub(_d);
       solveLimb(
@@ -517,7 +524,8 @@ class Skeleton {
   /// Where hand [side] holds: the point the pose's hand pos asked for.
   void grip(Solved s, int side, Vector3 out) {
     final hand = _bones[side].hand;
-    s.r[hand].transformed(_rest[side].grip, out);
+    _rest[side].hand.transformed(s.hold[side], out);
+    s.r[hand].transform(out);
     out.add(s.p[hand]);
   }
 }
