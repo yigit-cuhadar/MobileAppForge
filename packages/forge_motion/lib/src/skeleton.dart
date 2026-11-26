@@ -6,7 +6,7 @@ import 'json.dart';
 import 'math.dart';
 
 /// How far the grip point sits from the wrist: along the fingers, into the palm.
-const _grip = (0.064, 0.024);
+const _grip = (0.064, 0.036);
 const _sides = ['L', 'R'];
 const _signs = [1.0, -1.0];
 const _trunk = ['pelvis', 'lumbar', 'chest', 'neck', 'head'];
@@ -432,7 +432,7 @@ class Skeleton {
         ..scale(0.5);
       p[hand].setFrom(_end);
       // The thumb closes round the fingers' direction, toward the palm.
-      setRotationAxis(r[thumb], _fingerDir, sign * curl * 0.8);
+      setRotationAxis(r[thumb], _fingerDir, sign * curl * 1.2);
       r[thumb].multiply(r[hand]);
       _place(s, fingers, hand);
       _place(s, fingertips, fingers);
