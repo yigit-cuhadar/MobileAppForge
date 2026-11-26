@@ -234,6 +234,13 @@ void main() {
     });
   });
 
+  test('projects a point where it projects the vertex there', () {
+    final renderer = MeshRenderer(layered)..update(320, 180, 0.7, -0.4, 1.6);
+    final out = Float32List(4);
+    renderer.project(Float32List.sublistView(layered.positions, 3, 9), out);
+    expect(out, _closeTo(renderer.screen.sublist(2, 6)));
+  });
+
   test('given bounds frame the view', () {
     final model = parseGlb(quadsGlb({'q': quad(-1, -1, 1, 1, 0)}));
     final own = MeshRenderer(model)..update(size, size, 0, 0, 1);

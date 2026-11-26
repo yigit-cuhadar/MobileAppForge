@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
@@ -422,7 +423,7 @@ void main() {
           child: SizedBox(
             width: 200,
             height: 200,
-            child: ModelViewer(model: skinned, clip: clip),
+            child: ModelViewer(model: skinned, motion: clip),
           ),
         ),
       ),
@@ -466,4 +467,209 @@ void main() {
       expect(rightY(tester), rest);
     });
   });
+
+  group('motion', () {
+    late Model3D skinned;
+    final error = ThemeData().colorScheme.error;
+    const frame = Duration(milliseconds: 1000 ~/ 60);
+
+    setUpAll(() async {
+      skinned = await Model3D.fromGlb(
+        skinnedQuadsGlb(
+          {
+            'left': quad(-1, -0.5, 0, 0.5, 0),
+            'right': quad(0, -0.5, 1, 0.5, 0),
+          },
+          [0, 1],
+        ),
+      );
+    });
+
+    Future<void> pumpMotion(
+      WidgetTester tester,
+      ModelMotion motion, {
+      bool playing = true,
+      bool disableAnimations = false,
+      ModelViewerController? controller,
+    }) => tester.pumpWidget(
+      inApp(
+        MediaQuery(
+          data: MediaQueryData(disableAnimations: disableAnimations),
+          child: SizedBox(
+            width: 200,
+            height: 200,
+            child: ModelViewer(
+              model: skinned,
+              motion: motion,
+              playing: playing,
+              controller: controller,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Finder painted() => find.descendant(
+      of: find.byType(ModelViewer),
+      matching: find.byType(CustomPaint),
+    );
+
+    // Screen x, y of the right quad's first vertex, as last painted.
+    Offset rightCorner(WidgetTester tester) {
+      final screen =
+          (tester.widget<CustomPaint>(painted()).painter! as ModelPainter)
+              .renderer
+              .screen;
+      return Offset(screen[8], screen[9]);
+    }
+
+    // The circles drawn in one paint of the viewer.
+    List<(Offset, double, Paint)> circles() {
+      final drawn = <(Offset, double, Paint)>[];
+      expect(
+        painted(),
+        paints..everything((method, arguments) {
+          if (method == #drawCircle) {
+            drawn.add((
+              arguments[0] as Offset,
+              arguments[1] as double,
+              arguments[2] as Paint,
+            ));
+          }
+          return true;
+        }),
+      );
+      return drawn;
+    }
+
+    Future<void> play(WidgetTester tester, Duration duration) async {
+      for (var t = Duration.zero; t < duration; t += frame) {
+        await tester.pump(frame);
+      }
+    }
+
+    testWidgets('repaints as it plays', (tester) async {
+      final motion = _Lift();
+      await pumpMotion(tester, motion);
+      final rest = rightCorner(tester);
+      await play(tester, const Duration(milliseconds: 250));
+      expect(rightCorner(tester).dy, lessThan(rest.dy - 20));
+      expect(rightCorner(tester).dx, closeTo(rest.dx, 1e-3));
+    });
+
+    testWidgets('holds the first frame when asked for less motion', (
+      tester,
+    ) async {
+      final motion = _Lift();
+      await pumpMotion(tester, motion, disableAnimations: true);
+      final rest = rightCorner(tester);
+      await play(tester, const Duration(milliseconds: 250));
+      expect(rightCorner(tester), rest);
+      expect(motion.samples, 1);
+    });
+
+    testWidgets('holds its frame while not playing, then goes on', (
+      tester,
+    ) async {
+      final motion = _Lift();
+      final controller = ModelViewerController();
+      addTearDown(controller.dispose);
+      await pumpMotion(tester, motion, controller: controller);
+      final rest = rightCorner(tester);
+      await play(tester, const Duration(milliseconds: 250));
+      final held = rightCorner(tester);
+
+      await pumpMotion(tester, motion, playing: false, controller: controller);
+      final samples = motion.samples;
+      await play(tester, const Duration(milliseconds: 500));
+      expect(rightCorner(tester), held);
+      // Turning the camera repaints without skinning again.
+      controller.pitch = 0.5;
+      await tester.pump();
+      expect(rightCorner(tester), isNot(held));
+      controller.pitch = 0;
+      await tester.pump();
+      expect(motion.samples, samples);
+
+      await pumpMotion(tester, motion, controller: controller);
+      await play(tester, frame * 2);
+      expect(rightCorner(tester).dy, closeTo(held.dy, 5));
+      expect(rightCorner(tester).dy, lessThan(rest.dy - 20));
+      await play(tester, const Duration(milliseconds: 150));
+      expect(rightCorner(tester).dy, lessThan(held.dy - 5));
+    });
+
+    testWidgets('rings its markers where they are on the model', (
+      tester,
+    ) async {
+      await pumpMotion(tester, _Lift(markerCount: 2));
+      for (final _ in [0, 1]) {
+        final corner = rightCorner(tester);
+        final drawn = circles();
+        expect(drawn, hasLength(2));
+        for (final (centre, radius, paint) in drawn) {
+          expect(centre.dx, closeTo(corner.dx, 1e-3));
+          expect(centre.dy, closeTo(corner.dy, 1e-3));
+          expect(radius, 14);
+          expect(paint.style, PaintingStyle.stroke);
+          expect(paint.strokeWidth, 2);
+          expect(paint.color.toARGB32(), error.toARGB32());
+        }
+        await play(tester, const Duration(milliseconds: 250));
+      }
+    });
+
+    testWidgets('rings markers on the held first frame', (tester) async {
+      await pumpMotion(tester, _Lift(), disableAnimations: true);
+      final corner = rightCorner(tester);
+      await play(tester, const Duration(milliseconds: 250));
+      final (centre, _, _) = circles().single;
+      expect(centre.dx, closeTo(corner.dx, 1e-3));
+      expect(centre.dy, closeTo(corner.dy, 1e-3));
+    });
+
+    testWidgets('draws no circle without markers', (tester) async {
+      await pumpMotion(tester, _Lift(markerCount: 0));
+      await play(tester, const Duration(milliseconds: 100));
+      expect(circles(), isEmpty);
+    });
+  });
+}
+
+/// Over one second the right quad rises by 1 and drops back; every marker
+/// sits on its first vertex.
+class _Lift implements ModelMotion {
+  _Lift({this.markerCount = 1});
+
+  @override
+  final int markerCount;
+
+  int samples = 0;
+
+  @override
+  int get jointCount => 2;
+
+  @override
+  Duration get duration => const Duration(seconds: 1);
+
+  @override
+  final bounds = Float64List.fromList([-1, -0.5, 0, 1, 1.5, 0]);
+
+  double _lift(Duration time) {
+    final t = time.inMicroseconds % 1000000 / 1000000;
+    return t < 0.5 ? 2 * t : 2 - 2 * t;
+  }
+
+  @override
+  void sample(Duration time, Float32List out) {
+    samples++;
+    out.setAll(0, [...translation(0, 0, 0), ...translation(0, _lift(time), 0)]);
+  }
+
+  @override
+  void sampleMarkers(Duration time, Float32List out) {
+    for (var i = 0; i < markerCount; i++) {
+      out.setAll(i * 3, [0, -0.5 + _lift(time), 0]);
+    }
+  }
 }

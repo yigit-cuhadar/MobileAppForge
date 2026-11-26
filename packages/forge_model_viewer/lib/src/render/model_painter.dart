@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-import '../clip.dart';
 import '../widget/model_viewer_controller.dart';
 import 'mesh_renderer.dart';
 
@@ -19,10 +18,12 @@ class ModelPainter extends CustomPainter {
     required this.outlinedParts,
     required this.outlineColor,
     required this.outlineWidth,
-    required this.clip,
-    required this.clipTime,
-    required this.pose,
-  }) : super(repaint: Listenable.merge([controller, clipTime]));
+    required this.markers,
+    required this.markerPoints,
+    required this.markerColor,
+    required this.markerRadius,
+    required this.motionTime,
+  }) : super(repaint: Listenable.merge([controller, motionTime]));
 
   final MeshRenderer renderer;
   final ModelViewerController controller;
@@ -33,13 +34,24 @@ class ModelPainter extends CustomPainter {
   final Set<String> outlinedParts;
   final Color outlineColor;
   final double outlineWidth;
-  final ModelClip? clip;
-  final ValueListenable<Duration> clipTime;
 
-  /// Holds the clip's joint matrices while painting.
-  final Float32List pose;
+  /// Model-space x, y, z per marker, as sampled at [motionTime].
+  final Float32List markers;
+
+  /// Holds the markers' screen x, y while painting.
+  final Float32List markerPoints;
+
+  final Color markerColor;
+  final double markerRadius;
+
+  /// Notifies once the motion is sampled at a new time.
+  final Listenable motionTime;
 
   final _paint = Paint();
+  late final _markerPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2
+    ..color = markerColor;
   // Each triangle replaces what is under it, so the mask keeps only what
   // stays visible of the outlined parts.
   final _maskPaint = Paint()..blendMode = BlendMode.src;
@@ -47,11 +59,6 @@ class ModelPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final clip = this.clip;
-    if (clip != null) {
-      clip.sample(clipTime.value, pose);
-      renderer.pose(pose);
-    }
     renderer.update(
       size.width,
       size.height,
@@ -59,19 +66,29 @@ class ModelPainter extends CustomPainter {
       controller.pitch,
       controller.zoom,
     );
-    if (renderer.drawIndexCount == 0) return;
-    final names = renderer.model.partNames;
-    final argb = renderer.partColors;
-    for (var i = 0; i < names.length; i++) {
-      final name = names[i];
-      final color = name == highlightedPart
-          ? highlightColor
-          : partColors[name] ?? baseColor;
-      argb[i] = color.toARGB32();
+    if (renderer.drawIndexCount > 0) {
+      final names = renderer.model.partNames;
+      final argb = renderer.partColors;
+      for (var i = 0; i < names.length; i++) {
+        final name = names[i];
+        final color = name == highlightedPart
+            ? highlightColor
+            : partColors[name] ?? baseColor;
+        argb[i] = color.toARGB32();
+      }
+      renderer.shade();
+      _draw(canvas, _paint);
+      if (outlinedParts.isNotEmpty) _outline(canvas, Offset.zero & size);
     }
-    renderer.shade();
-    _draw(canvas, _paint);
-    if (outlinedParts.isNotEmpty) _outline(canvas, Offset.zero & size);
+    final points = markerPoints;
+    renderer.project(markers, points);
+    for (var i = 0; i < points.length; i += 2) {
+      canvas.drawCircle(
+        Offset(points[i], points[i + 1]),
+        markerRadius,
+        _markerPaint,
+      );
+    }
   }
 
   void _draw(Canvas canvas, Paint paint) {
@@ -122,8 +139,10 @@ class ModelPainter extends CustomPainter {
   bool shouldRepaint(ModelPainter oldDelegate) =>
       oldDelegate.renderer != renderer ||
       oldDelegate.controller != controller ||
-      oldDelegate.clip != clip ||
-      oldDelegate.clipTime != clipTime ||
+      oldDelegate.markers != markers ||
+      oldDelegate.motionTime != motionTime ||
+      oldDelegate.markerColor != markerColor ||
+      oldDelegate.markerRadius != markerRadius ||
       oldDelegate.baseColor != baseColor ||
       oldDelegate.highlightedPart != highlightedPart ||
       oldDelegate.highlightColor != highlightColor ||

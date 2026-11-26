@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'gltf/glb_parser.dart';
 
 /// A 3D model made of named parts, ready to be shown by `ModelViewer`. A
-/// skinned model can be posed by a `ModelClip`.
+/// skinned model can be posed by a `ModelMotion`.
 class Model3D {
   Model3D._(this._mesh);
 
@@ -18,6 +18,95 @@ class Model3D {
       return Model3D._(parseGlb(bytes));
     }
     return Model3D._(await Isolate.run(() => parseGlb(bytes)));
+  }
+
+  /// A model from raw geometry in model space: x, y, z [positions] and unit
+  /// [normals] per vertex, an index into [partNames] per vertex in
+  /// [vertexParts], and three vertex [indices] per triangle, counter-clockwise
+  /// when front-facing. A skinned mesh binds each vertex fully to one of
+  /// [joints]. The model keeps the lists.
+  ///
+  /// Throws an [ArgumentError] when the lengths disagree, an index is out of
+  /// range, a part name repeats, or the mesh has no triangles or more than
+  /// 65,536 vertices.
+  static Model3D fromMesh({
+    required List<String> partNames,
+    required Float32List positions,
+    required Float32List normals,
+    required Uint16List vertexParts,
+    required Uint16List indices,
+    Uint8List? joints,
+  }) {
+    final vertexCount = vertexParts.length;
+    if (vertexCount > maxVertices) {
+      throw ArgumentError.value(
+        vertexCount,
+        'vertexParts',
+        'more than $maxVertices vertices',
+      );
+    }
+    if (partNames.toSet().length != partNames.length) {
+      throw ArgumentError.value(partNames, 'partNames', 'repeats a name');
+    }
+    _checkLength(positions, vertexCount * 3, 'positions');
+    _checkLength(normals, vertexCount * 3, 'normals');
+    if (joints != null) _checkLength(joints, vertexCount, 'joints');
+    if (indices.isEmpty || indices.length % 3 != 0) {
+      throw ArgumentError.value(
+        indices.length,
+        'indices',
+        'is not a positive multiple of 3',
+      );
+    }
+    _checkBelow(vertexParts, partNames.length, 'vertexParts');
+    _checkBelow(indices, vertexCount, 'indices');
+    final bounds = Float64List.fromList([
+      ...List.filled(3, double.infinity),
+      ...List.filled(3, double.negativeInfinity),
+    ]);
+    for (var i = 0; i < positions.length; i += 3) {
+      for (var axis = 0; axis < 3; axis++) {
+        final value = positions[i + axis];
+        if (value < bounds[axis]) bounds[axis] = value;
+        if (value > bounds[axis + 3]) bounds[axis + 3] = value;
+      }
+    }
+    Uint8List? skinJoints;
+    Float32List? weights;
+    if (joints != null) {
+      skinJoints = Uint8List(vertexCount * 4);
+      weights = Float32List(vertexCount * 4);
+      for (var v = 0; v < vertexCount; v++) {
+        skinJoints[v * 4] = joints[v];
+        weights[v * 4] = 1;
+      }
+    }
+    return Model3D._(
+      MeshData(
+        partNames: List.unmodifiable(partNames),
+        positions: positions,
+        normals: normals,
+        vertexParts: vertexParts,
+        indices: indices,
+        bounds: bounds,
+        joints: skinJoints,
+        weights: weights,
+      ),
+    );
+  }
+
+  static void _checkLength(List<num> list, int length, String name) {
+    if (list.length != length) {
+      throw ArgumentError.value(list.length, name, 'length is not $length');
+    }
+  }
+
+  static void _checkBelow(List<int> list, int end, String name) {
+    for (final value in list) {
+      if (value >= end) {
+        throw ArgumentError.value(value, name, 'is not below $end');
+      }
+    }
   }
 
   /// One model holding all of [models]; parts with the same name become one
@@ -102,7 +191,7 @@ class Model3D {
   /// form one part.
   List<String> get partNames => _mesh.partNames;
 
-  /// How many joint matrices a `ModelClip` must supply; 0 when the model is
+  /// How many joint matrices a `ModelMotion` must supply; 0 when the model is
   /// not skinned.
   int get jointCount => _mesh.jointCount;
 }

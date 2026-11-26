@@ -30,7 +30,7 @@ void main() {
   test('reads the header', () {
     expect(clip.jointCount, 2);
     expect(clip.duration, const Duration(seconds: 1));
-    expect(boundsOf(clip), [-1, -2, -3, 1, 2, 3]);
+    expect(clip.bounds, [-1, -2, -3, 1, 2, 3]);
   });
 
   test('samples a frame', () {

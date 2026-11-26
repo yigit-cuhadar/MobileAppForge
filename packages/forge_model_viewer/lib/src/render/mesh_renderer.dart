@@ -16,7 +16,8 @@ final _lightLength = math.sqrt(
 /// buffers ready for `Canvas.drawVertices`. All buffers are allocated once,
 /// the posed mesh on the first [pose]; [update] and [shade] allocate nothing.
 ///
-/// The model is centred on its bounds (or the given ones) and scaled to a unit bounding sphere.
+/// The model is centred on its bounds (or the given ones) and scaled to a
+/// unit bounding sphere.
 /// The camera looks down -z; yaw turns the model around y, then pitch tilts it
 /// around x. The camera stays outside the sphere; zoom scales the projection,
 /// and at zoom 1 the whole sphere fits the shorter side of the view.
@@ -80,6 +81,12 @@ class MeshRenderer {
 
   // The model-space light direction of the last update.
   double _lmx = 0, _lmy = 0, _lmz = 1;
+  // The model-space to screen map of the last update: view x, y and depth as
+  // affine maps of model x, y, z, then the perspective divide.
+  double _x0 = 0, _x2 = 0, _xt = 0;
+  double _y0 = 0, _y1 = 0, _y2 = 0, _yt = 0;
+  double _z0 = 0, _z1 = 0, _z2 = 0, _zt = 0;
+  double _focal = 0, _halfW = 0, _halfH = 0;
   double? _lastWidth, _lastHeight, _lastYaw, _lastPitch, _lastZoom;
 
   /// Blends every vertex of a skinned model by its joints' [matrices]: per
@@ -163,16 +170,17 @@ class MeshRenderer {
     _lmz = r02 * lx + r12 * ly + r22 * lz;
 
     final distance = _distance;
-    final focal =
+    final focal = _focal =
         zoom * math.min(width, height) / 2 / math.tan(_fieldOfView / 2);
-    final halfW = width / 2, halfH = height / 2;
+    final halfW = _halfW = width / 2, halfH = _halfH = height / 2;
     // Centring, scaling and rotation folded into one affine map per axis.
     final k = _scale, cx = _cx, cy0 = _cy, cz = _cz;
-    final x0 = k * r00, x2 = k * r02, xt = -(x0 * cx + x2 * cz);
-    final y0 = k * r10, y1 = k * r11, y2 = k * r12;
-    final yt = -(y0 * cx + y1 * cy0 + y2 * cz);
-    final z0 = k * r20, z1 = k * r21, z2 = k * r22;
-    final zt = distance + z0 * cx + z1 * cy0 + z2 * cz;
+    final x0 = _x0 = k * r00, x2 = _x2 = k * r02;
+    final xt = _xt = -(x0 * cx + x2 * cz);
+    final y0 = _y0 = k * r10, y1 = _y1 = k * r11, y2 = _y2 = k * r12;
+    final yt = _yt = -(y0 * cx + y1 * cy0 + y2 * cz);
+    final z0 = _z0 = k * r20, z1 = _z1 = k * r21, z2 = _z2 = k * r22;
+    final zt = _zt = distance + z0 * cx + z1 * cy0 + z2 * cz;
     final positions = _positions;
     final screen = this.screen;
     final depth = _depth;
@@ -217,6 +225,22 @@ class MeshRenderer {
       out[o + 2] = indices[i + 2];
     }
     drawIndexCount = visible * 3;
+  }
+
+  /// Writes screen x, y into [out] for every model-space x, y, z in [points],
+  /// as seen in the last [update].
+  void project(Float32List points, Float32List out) {
+    assert(out.length * 3 >= points.length * 2);
+    final x0 = _x0, x2 = _x2, xt = _xt;
+    final y0 = _y0, y1 = _y1, y2 = _y2, yt = _yt;
+    final z0 = _z0, z1 = _z1, z2 = _z2, zt = _zt;
+    final focal = _focal, halfW = _halfW, halfH = _halfH;
+    for (var p = 0, o = 0; p < points.length; p += 3, o += 2) {
+      final px = points[p], py = points[p + 1], pz = points[p + 2];
+      final f = focal / (zt - z0 * px - z1 * py - z2 * pz);
+      out[o] = halfW + (x0 * px + x2 * pz + xt) * f;
+      out[o + 1] = halfH - (y0 * px + y1 * py + y2 * pz + yt) * f;
+    }
   }
 
   // Stable two-pass LSD radix sort of _order by the 16-bit _keys.

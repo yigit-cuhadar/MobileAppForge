@@ -1,16 +1,18 @@
 import 'dart:typed_data';
 
+import 'motion.dart';
+
 const _magic = 0x43564D46; // "FMVC"
 const _headerLength = 40;
 
-/// A looping animation of a skinned `Model3D`: per frame, one affine matrix
-/// per joint in model space.
-class ModelClip {
+/// A looping animation of a skinned `Model3D` baked into frames. It marks
+/// no points.
+class ModelClip implements ModelMotion {
   ModelClip._(
     this.jointCount,
     this._frameCount,
     this.duration,
-    this._bounds,
+    this.bounds,
     this._frames,
   );
 
@@ -62,18 +64,23 @@ class ModelClip {
     );
   }
 
+  @override
   final int jointCount;
   final int _frameCount;
 
-  /// One loop.
+  @override
   final Duration duration;
 
-  final Float64List _bounds;
+  @override
+  final Float64List bounds;
+
   final Float32List _frames;
 
-  /// Writes the `jointCount * 12` matrix values at [time] into [out],
-  /// blending the neighbouring frames. The clip loops: the last frame blends
-  /// into the first.
+  @override
+  int get markerCount => 0;
+
+  /// Blends the neighbouring frames; the last frame blends into the first.
+  @override
   void sample(Duration time, Float32List out) {
     final length = jointCount * 12;
     assert(out.length >= length);
@@ -89,7 +96,7 @@ class ModelClip {
       out[i] = from + (frames[b + i] - from) * t;
     }
   }
-}
 
-/// minX, minY, minZ, maxX, maxY, maxZ of everything [clip] moves.
-Float64List boundsOf(ModelClip clip) => clip._bounds;
+  @override
+  void sampleMarkers(Duration time, Float32List out) {}
+}

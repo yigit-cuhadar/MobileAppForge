@@ -5,8 +5,8 @@ import 'dart:typed_data';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../clip.dart';
 import '../model.dart';
+import '../motion.dart';
 import '../render/mesh_renderer.dart';
 import '../render/model_painter.dart';
 import 'model_viewer_controller.dart';
@@ -35,8 +35,10 @@ import 'viewer_gesture_recognizer.dart';
 /// the platform asks for reduced motion. It moves the [controller]'s yaw, so
 /// it cuts short a running `animateTo`.
 ///
-/// With a [clip] the model plays it in a loop, framed by the clip's bounds.
-/// It pauses while the viewer's tickers are muted and holds the first frame
+/// With a [motion] the model plays it in a loop, framed by the motion's
+/// bounds, and rings each of its markers with a [markerColor] circle of
+/// [markerRadius] over the model. It holds the current frame while not
+/// [playing] or while the viewer's tickers are muted, and the first frame
 /// when the platform asks for reduced motion.
 class ModelViewer extends StatefulWidget {
   const ModelViewer({
@@ -56,7 +58,10 @@ class ModelViewer extends StatefulWidget {
     this.onScrubEnd,
     this.interactive = true,
     this.autoTurn = false,
-    this.clip,
+    this.motion,
+    this.playing = true,
+    this.markerColor,
+    this.markerRadius = 14,
     this.semanticLabel,
   });
 
@@ -101,7 +106,15 @@ class ModelViewer extends StatefulWidget {
   final bool autoTurn;
 
   /// Animates a skinned [model]; must have its [Model3D.jointCount].
-  final ModelClip? clip;
+  final ModelMotion? motion;
+
+  final bool playing;
+
+  /// Defaults to the theme's error colour.
+  final Color? markerColor;
+
+  /// In logical pixels.
+  final double markerRadius;
 
   /// Describes the model to screen readers.
   final String? semanticLabel;
@@ -113,12 +126,12 @@ class ModelViewer extends StatefulWidget {
 class _ModelViewerState extends State<ModelViewer>
     with TickerProviderStateMixin {
   late MeshRenderer _renderer;
-  late Float32List _pose;
+  late Float32List _pose, _markers, _markerPoints;
   late final Ticker _turn = createTicker(_onTurn);
   late final Ticker _play = createTicker(_onPlay);
   Duration _turnedTo = Duration.zero;
   Duration _playedTo = Duration.zero;
-  final _clipTime = ValueNotifier(Duration.zero);
+  final _motionTime = ValueNotifier(Duration.zero);
   int _pointers = 0;
   ModelViewerController? _ownController;
   double _pinchStartZoom = 1;
@@ -145,7 +158,7 @@ class _ModelViewerState extends State<ModelViewer>
   @override
   void didUpdateWidget(ModelViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.model != oldWidget.model || widget.clip != oldWidget.clip) {
+    if (widget.model != oldWidget.model || widget.motion != oldWidget.motion) {
       _load();
     }
     _syncTickers();
@@ -166,7 +179,7 @@ class _ModelViewerState extends State<ModelViewer>
   void dispose() {
     _turn.dispose();
     _play.dispose();
-    _clipTime.dispose();
+    _motionTime.dispose();
     _endScrub(widget.onScrubEnd, deferred: true, cancelled: true);
     _ownController?.dispose();
     super.dispose();
@@ -192,18 +205,30 @@ class _ModelViewerState extends State<ModelViewer>
   static bool _selectAll(String part) => true;
 
   void _load() {
-    final clip = widget.clip;
+    final motion = widget.motion;
     assert(
-      clip == null || clip.jointCount == widget.model.jointCount,
-      'The clip moves ${clip.jointCount} joints, '
+      motion == null || motion.jointCount == widget.model.jointCount,
+      'The motion moves ${motion.jointCount} joints, '
       'the model has ${widget.model.jointCount}',
     );
-    _renderer = MeshRenderer(
-      meshOf(widget.model),
-      bounds: clip == null ? null : boundsOf(clip),
-    );
-    _pose = Float32List((clip?.jointCount ?? 0) * 12);
-    _clipTime.value = Duration.zero;
+    _renderer = MeshRenderer(meshOf(widget.model), bounds: motion?.bounds);
+    _pose = Float32List((motion?.jointCount ?? 0) * 12);
+    final markerCount = motion?.markerCount ?? 0;
+    _markers = Float32List(markerCount * 3);
+    _markerPoints = Float32List(markerCount * 2);
+    _sample(Duration.zero);
+  }
+
+  /// Poses the model and places the markers at [time]. Skinning happens only
+  /// here, so a held motion is not skinned again while the camera moves.
+  void _sample(Duration time) {
+    final motion = widget.motion;
+    if (motion != null) {
+      motion.sample(time, _pose);
+      _renderer.pose(_pose);
+      motion.sampleMarkers(time, _markers);
+    }
+    _motionTime.value = time;
   }
 
   void _syncTickers() {
@@ -221,16 +246,16 @@ class _ModelViewerState extends State<ModelViewer>
         _turn.stop();
       }
     }
-    final plays = widget.clip != null && moves;
+    final plays = widget.motion != null && widget.playing && moves;
     if (plays != _play.isActive) {
       if (plays) {
         _playedTo = Duration.zero;
         _play.start();
       } else {
         _play.stop();
-        _clipTime.value = Duration.zero;
       }
     }
+    if (!moves && _motionTime.value != Duration.zero) _sample(Duration.zero);
   }
 
   void _onTurn(Duration elapsed) {
@@ -246,11 +271,13 @@ class _ModelViewerState extends State<ModelViewer>
   }
 
   void _onPlay(Duration elapsed) {
-    // A muted ticker keeps counting; resume from where the clip stood.
+    // A muted ticker keeps counting; resume from where the motion stood.
     final step = elapsed - _playedTo;
     _playedTo = elapsed;
-    if (step > const Duration(milliseconds: 100)) return;
-    _clipTime.value += step;
+    if (step == Duration.zero || step > const Duration(milliseconds: 100)) {
+      return;
+    }
+    _sample(_motionTime.value + step);
   }
 
   void _onTap(Offset position) {
@@ -319,9 +346,11 @@ class _ModelViewerState extends State<ModelViewer>
           outlinedParts: widget.outlinedParts,
           outlineColor: widget.outlineColor ?? colors.error,
           outlineWidth: widget.outlineWidth,
-          clip: widget.clip,
-          clipTime: _clipTime,
-          pose: _pose,
+          markers: _markers,
+          markerPoints: _markerPoints,
+          markerColor: widget.markerColor ?? colors.error,
+          markerRadius: widget.markerRadius,
+          motionTime: _motionTime,
         ),
       ),
     );
