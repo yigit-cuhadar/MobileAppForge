@@ -1,0 +1,12 @@
+name: forge_motion
+description: Plays animation recipes on a skinned body (pose solver, gear, floor) in pure Dart.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.14.0
+dependencies:
+  vector_math: ^2.4.0
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.33.0
