@@ -28,7 +28,9 @@ class SectionCard extends StatelessWidget {
        tag = null,
        note = null,
        actionLabel = null,
-       onAction = null;
+       onAction = null,
+       icon = null,
+       warning = false;
 
   /// Shimmering skeleton bars while the content loads.
   const SectionCard.loading({
@@ -44,7 +46,9 @@ class SectionCard extends StatelessWidget {
        tag = null,
        note = null,
        actionLabel = null,
-       onAction = null;
+       onAction = null,
+       icon = null,
+       warning = false;
 
   /// Loading failed: [message] in danger and an outline Retry.
   const SectionCard.error({
@@ -60,7 +64,9 @@ class SectionCard extends StatelessWidget {
        tag = null,
        note = null,
        actionLabel = null,
-       onAction = null;
+       onAction = null,
+       icon = null,
+       warning = false;
 
   /// Nothing yet: one muted [message].
   const SectionCard.empty({
@@ -76,7 +82,9 @@ class SectionCard extends StatelessWidget {
        tag = null,
        note = null,
        actionLabel = null,
-       onAction = null;
+       onAction = null,
+       icon = null,
+       warning = false;
 
   /// Premium: the Premium [tag] (Tags) before the chevron and one muted
   /// [message]; [onTap] opens the paywall.
@@ -93,16 +101,22 @@ class SectionCard extends StatelessWidget {
        retryLabel = null,
        note = null,
        actionLabel = null,
-       onAction = null;
+       onAction = null,
+       icon = null,
+       warning = false;
 
   /// The [title] over [child], no chevron and no tap; an optional text
   /// action in accent ([actionLabel], such as "Edit") ends the header.
   /// Without [child] the card is the header alone. A [note] after the
   /// title says how to read the content; it is drawn whole, wrapping
-  /// rather than cut.
+  /// rather than cut. An [icon] leads the title; [warning] tints the card
+  /// in the warning colour, with the title and icon in its ink (a
+  /// caution).
   const SectionCard.plain({
     super.key,
     required this.title,
+    this.icon,
+    this.warning = false,
     this.note,
     this.child,
     this.actionLabel,
@@ -117,6 +131,8 @@ class SectionCard extends StatelessWidget {
        tag = null;
 
   final String title;
+  final ForgeIconData? icon;
+  final bool warning;
   final String? detail;
   final String? note;
   final VoidCallback? onTap;
@@ -162,7 +178,28 @@ class SectionCard extends StatelessWidget {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final titleText = Text(title, style: text.titleMedium);
+              // The warning ink is mixed toward ink, for 4.5:1 on the tint.
+              final titleInk = warning
+                  ? Color.lerp(colors.ink, colors.warning, 0.7)
+                  : null;
+              final titleLine = Text(
+                title,
+                style: text.titleMedium!.copyWith(color: titleInk),
+              );
+              final titleText = icon == null
+                  ? titleLine
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: Gap.sm,
+                      children: [
+                        ForgeIcon(
+                          icon!,
+                          size: 18,
+                          color: titleInk ?? colors.ink,
+                        ),
+                        Flexible(child: titleLine),
+                      ],
+                    );
               final trailing = [
                 if (note case final note?)
                   Expanded(
@@ -236,6 +273,7 @@ class SectionCard extends StatelessWidget {
     );
     if (action != null) card = TapBandArea(links: [action], child: card);
     return CardFrame(
+      tint: warning ? colors.warning : null,
       child: onTap == null ? card : InkWell(onTap: onTap, child: card),
     );
   }

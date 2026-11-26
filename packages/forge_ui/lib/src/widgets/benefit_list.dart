@@ -10,25 +10,39 @@ import '../theme/forge_style.dart';
 typedef DescribedBenefit = ({ForgeIconData icon, String title, String detail});
 
 /// A short list of benefits, one line each. [BenefitList.numbered] marks
-/// each line with its number in an accent-soft circle (a welcome);
+/// each line with its number in an accent-soft circle (a welcome), or a
+/// danger-tinted one with [danger] (a list of mistakes), and may end a line
+/// with its own [trailing] widget (a button);
 /// [BenefitList.checked] with a success check (a card's short list);
 /// [BenefitList.described] gives each an icon tile, a title and a muted
 /// line (a paywall header with few benefits).
 class BenefitList extends StatelessWidget {
-  const BenefitList.numbered(this.lines, {super.key})
-    : _numbered = true,
-      described = const [];
+  const BenefitList.numbered(
+    this.lines, {
+    super.key,
+    this.danger = false,
+    this.trailing = const {},
+  }) : _numbered = true,
+       described = const [];
 
   const BenefitList.checked(this.lines, {super.key})
     : _numbered = false,
+      danger = false,
+      trailing = const {},
       described = const [];
 
   const BenefitList.described(this.described, {super.key})
     : lines = const [],
+      danger = false,
+      trailing = const {},
       _numbered = false;
 
   final List<String> lines;
   final List<DescribedBenefit> described;
+  final bool danger;
+
+  /// The widget ending a line, by the line's index.
+  final Map<int, Widget> trailing;
   final bool _numbered;
 
   static const double _tile = 44;
@@ -97,11 +111,17 @@ class BenefitList extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: colors.accentSoft,
+                    color: danger
+                        ? Color.lerp(colors.surface, colors.danger, 0.12)
+                        : colors.accentSoft,
                   ),
                   child: Text(
                     '${i + 1}',
-                    style: style.data.copyWith(color: colors.onAccentSoft),
+                    style: style.data.copyWith(
+                      color: danger
+                          ? Color.lerp(colors.ink, colors.danger, 0.7)
+                          : colors.onAccentSoft,
+                    ),
                   ),
                 )
               else
@@ -112,6 +132,7 @@ class BenefitList extends StatelessWidget {
                   style: _numbered ? text.bodyLarge : text.bodyMedium,
                 ),
               ),
+              ?trailing[i],
             ],
           ),
       ],

@@ -252,6 +252,34 @@ void main() {
     );
   });
 
+  testWidgets('a plain warning card is tinted, with its icon before the '
+      'title', (tester) async {
+    await pump(
+      tester,
+      const SectionCard.plain(
+        title: 'Safety',
+        icon: ForgeIcons.warning,
+        warning: true,
+        child: Text('Body'),
+      ),
+    );
+
+    final p = colors(tester);
+    final ink = Color.lerp(p.ink, p.warning, 0.7);
+    expect(tester.widget<ForgeIcon>(find.byType(ForgeIcon)).color, ink);
+    expect(tester.widget<Text>(find.text('Safety')).style!.color, ink);
+    expect(
+      tester.getCenter(find.byType(ForgeIcon)).dx,
+      lessThan(tester.getTopLeft(find.text('Safety')).dx),
+    );
+    final card = tester.widget<Material>(
+      find
+          .ancestor(of: find.text('Body'), matching: find.byType(Material))
+          .first,
+    );
+    expect(card.color, Color.lerp(p.surface, p.warning, 0.12));
+  });
+
   testWidgets('the plain form without content is its header alone', (
     tester,
   ) async {

@@ -25,6 +25,7 @@ class ForgePalette {
     required this.onFeaturedAction,
     required this.success,
     required this.info,
+    required this.warning,
     required this.danger,
   });
 
@@ -74,6 +75,9 @@ class ForgePalette {
   /// Status colours are small marks: dots, bar fills, short text.
   final Color success;
   final Color info;
+
+  /// A caution that is not an error (a safety note).
+  final Color warning;
   final Color danger;
 
   static ForgePalette lerp(ForgePalette a, ForgePalette b, double t) {
@@ -100,6 +104,7 @@ class ForgePalette {
       onFeaturedAction: c((p) => p.onFeaturedAction),
       success: c((p) => p.success),
       info: c((p) => p.info),
+      warning: c((p) => p.warning),
       danger: c((p) => p.danger),
     );
   }
