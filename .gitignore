@@ -6,3 +6,5 @@ pubspec.lock
 *.iml
 /apps/
 .claude/settings.local.json
+/LOCAL.md
+/design/canvas/

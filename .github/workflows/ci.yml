@@ -18,6 +18,8 @@ jobs:
           # Pinned to the version used locally; upgrade deliberately.
           flutter-version: 3.50.1
           cache: true
+      - name: Studio page
+        run: python3 tools/studio_check.py design/studio.html
       - name: Packages
         run: tools/check.sh
       - name: Template scaffolds and analyzes
