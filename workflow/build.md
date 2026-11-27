@@ -7,8 +7,9 @@
 2. `tools/firebase_setup.sh <name> <project-id-base>` — creates `<base>-dev`
    and `<base>-prod`. Confirm the id base first; project ids are permanent.
 3. Enable what the spec needs in both projects:
-   - Firestore: `gcloud services enable firestore.googleapis.com --project <id>
-     --account <firebase login account>`, then `firebase firestore:databases:create
+   - Firestore: enable `firestore.googleapis.com` on the project (Service
+     Usage API with `tools/google_token.sh`, or the console), then
+     `firebase firestore:databases:create
      "(default)" --location <region> --project <id>` (ask for the region once;
      retry if the API is still propagating).
    - Auth and rules: add `"firestore": {"rules": "firestore.rules"}` and
@@ -25,6 +26,9 @@
    works end to end. Commit, push, tick nothing yet.
 
 ## Feature loop
+
+This loop is for code features. A feature whose notes in `SPEC.md` define
+their own procedure (content batches, for example) follows that procedure.
 
 Take the first unticked feature in `SPEC.md`, plus up to two more unticked
 ones that are independent of it and of each other, and run this loop for each
@@ -49,7 +53,8 @@ empty only when nothing independent is left, and say so. For each feature:
    dead or speculative code. Implementer fixes; repeat until clean.
 4. Run the app on the simulator and exercise the feature, including the
    failure and empty states.
-5. Open a PR, wait for CI, squash-merge, tick the feature in `SPEC.md`.
+5. Open a PR, wait for CI, squash-merge, tick the feature in `SPEC.md` and
+   bring its Now block and Open list up to date.
 
 After each feature group, show the user a short demo and get approval before
 the next group. Record scope changes in `SPEC.md` first, then build them.

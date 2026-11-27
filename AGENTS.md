@@ -6,6 +6,10 @@ into `apps/<name>` (gitignored here). Always work from this root.
 
 Talk to the user in their language. Code, comments and commits are English.
 
+Everything needed to continue is in the two repos and in `LOCAL.md`; nothing
+depends on one tool's memory or chat history. Any agent in any tool works
+from this file.
+
 ## Layout
 
 | Path | Purpose |
@@ -13,9 +17,11 @@ Talk to the user in their language. Code, comments and commits are English.
 | `workflow/` | One file per phase. Read only the phase you are in. |
 | `packages/` | The shared `forge_*` packages. Every app starts with `forge_core`, `forge_ui`, `forge_firebase` and `forge_auth`. |
 | `template/` | Overlay copied onto `flutter create` by `tools/new_app.sh`. |
-| `tools/` | `new_app.sh`, `firebase_setup.sh`, `secret.sh`, `check.sh`, `ios_upload.sh`. |
+| `tools/` | Scripts; each opens with its own usage. |
+| `design/studio.html` | MobileAppForge Studio, the shared components' design. An app's is `apps/<name>/design/studio.html`. |
 | `widgetbook/` | Widgetbook of the `forge_ui` components. Each app has its own in `apps/<name>/widgetbook`. |
 | `apps/<name>/SPEC.md` | The app's state. Resume any app from here. |
+| `LOCAL.md` | Gitignored notes of this machine and these accounts: ids, devices, how credentials are reached here. Read it when it exists. |
 
 ## Phases
 
@@ -23,15 +29,14 @@ Talk to the user in their language. Code, comments and commits are English.
 2. **Build** — `workflow/build.md`. Scaffold, then one feature at a time.
 3. **Design** — `workflow/design.md`. After every feature is ticked; a UX pass
    first when flows need rework.
-4. **Release** — `tools/ios_upload.sh` archives an iOS build, sends its
-   dSYMs to Crashlytics and uploads it to TestFlight. The rest (store
-   listing, submission, Android) is not automated yet: build it with the
-   first app that reaches it (App Store Connect API + Play Developer API),
-   then move it into `tools/`.
+4. **Release** — `workflow/release.md`. Credentials, device installs,
+   TestFlight. Store listing, submission and Android are not automated yet:
+   build them with the first app that reaches them, then move them into
+   `tools/`.
 
-To resume: read `apps/<name>/SPEC.md` down to Feature notes, find the first
-unticked feature or open question, read that phase's workflow file and the
-notes of the feature you will touch, continue.
+To resume: read `apps/<name>/SPEC.md` from the top through Open. Now says
+where the app stands and what is next; read only the sections it points to,
+and the workflow file of the phase that work belongs to.
 
 ## Working with the user
 
@@ -40,31 +45,13 @@ notes of the feature you will touch, continue.
   public or irreversible (creating repos/projects, publishing, deleting data).
   Offer 2-4 options with a recommendation first.
 - Put each such decision to the user as a question with options at the
-  moment it comes up (in Claude Code: the question dialog), one question per
+  moment it comes up, through the tool's question dialog, one question per
   decision. Never leave it as a note inside a status report or a sub-agent's
   summary. Work that does not depend on the answer goes on meanwhile.
 - Sub-agents never take these decisions: they stop and report each one with
   2-4 options and a recommendation, and the main session asks the user.
-- The owner decides from drawings. Every design-phase question (looks,
-  texts, flows, and any choice a board or an earlier answer leaves open) is
-  drawn before it is asked:
-  - One Design canvas artifact per batch (Artifact type "Design"), one
-    artboard row per decision, rows in one column in the order they will be
-    asked. A row is named "<code> · <short question>" with a one or two line
-    intro (in the owner's language) on what differs and why it is a decision.
-  - Columns, each a 390px phone drawn as a real screen in the studio's look
-    with every element present: first "Bugün" (what the code does now, or
-    "Pano" when only the board has it), then "A · …", "B · …" with a one-line
-    note. Exactly one option is "Öneri", with a green tag and border. Only the
-    option's difference changes between columns; nothing is clipped.
-  - Different states or aspects get separate rows, never rival bundles.
-  - Then ask in canvas order, one decision per question (up to four per
-    question dialog), recommendation first and labelled "(Önerilen)",
-    naming the row. Record each answer at once; an answer that adds
-    something new becomes a new drawn row before it is built.
-  - The app's SPEC links each batch's canvas under Design.
-- Colours stay muted: neutral grounds, one desaturated accent, colour only for
-  status.
+- In the design phase every question is drawn before it is asked
+  (`workflow/design.md`).
 - Decide the rest yourself and note it in `SPEC.md`: app-wide decisions under
   Decisions, how a feature behaves under Feature notes.
 - Never ask the user to do by hand what an API or CLI can do. If a credential
@@ -72,6 +59,19 @@ notes of the feature you will touch, continue.
   value never enters the chat) and then do the work yourself. Read secrets
   only as `$(tools/secret.sh get <NAME>)` inside a command; never print them.
 - Approval points: SPEC, data model, then a short demo after each feature group.
+
+## Where things are written
+
+- `SPEC.md` is the app's state: decisions with a one-line reason, behaviour
+  the code does not make obvious, external setup, open work. Keep its Now
+  block and Open list true in the same change that moves the work. It holds
+  no deliverables (store listings, legal text, mail and notification copy:
+  files of their own), no looks (the studio), nothing the code plainly says
+  and no story of how a decision was reached.
+- Rules for every app go here; a phase's procedure goes in its workflow file.
+- A fact about this machine or these accounts goes in `LOCAL.md`, never in a
+  repo: both repos may be public.
+- No other new `.md` files. Comment only what the code cannot say.
 
 ## Architecture
 
@@ -97,9 +97,7 @@ Clean Architecture, feature-first: `lib/features/<feature>/{domain,data,presenta
 - Small use cases of a feature share one `<feature>_usecases.dart`.
   `packages/forge_auth` is the reference implementation of all of the above.
 
-Keep it lean: no speculative options or unused parameters, in packages too,
-no new `.md` files (state goes in `SPEC.md`, rules go here). Comment only what
-the code cannot say.
+Keep it lean: no speculative options or unused parameters, in packages too.
 
 ## Shared packages
 
@@ -120,45 +118,17 @@ to the new tag's commit (`git rev-list -n1 vX.Y.Z`). While a package and an
 app are developed together, point the app and its `widgetbook/` at the local
 copy with a gitignored `pubspec_overrides.yaml` (`dependency_overrides` with
 a `path` to `packages/<name>`); merge and tag the package before the app PR
-that needs it.
+that needs it. When several app features change Forge at once they share that
+pin: test them from one integration branch and land them as one app PR.
 
-## Design studios
+## Design
 
-Each app's design lives in its studio artifact; MobileAppForge Studio holds
-the shared components. The studio is the only design source: an app's
-SPEC keeps design decisions and the studio links, never how things look.
-
-- Each thing is drawn once. A Forge component is drawn only in MobileAppForge
-  Studio; an app's studio lists the Forge components it uses with their
-  screens and links each to its card. A screen is a screen board, not also a
-  component card; a component's forms and states share one card; a rule
-  lives in one guide, and component looks live in their cards.
-- MobileAppForge Studio is app-free like the packages: neutral placeholder
-  content ("Item title", [VALUE]), sample pages with [APP NAME], neutral
-  state names (done, light, planned, missed, today) that apps map, and no
-  app's name or origin story. Its cards list usage inside Forge only.
-- Every drawn part names its component in the markup (`data-c="Name"`);
-  "uses" and "used in" notes are built from these tags, never kept by hand.
-- Before drawing a new part, pick its component; a part with no component
-  is a decision for the owner first, then a new component.
-- Every studio build checks the tags and stops on an untagged part or a tag
-  naming a missing component. A component used nowhere is allowed; it
-  sits last in its group.
-- Each studio is also kept in git as the page it publishes: MobileAppForge
-  Studio at `design/studio.html` in this repo, an app's studio at
-  `design/studio.html` in the app's repo. Change a studio by editing that
-  page's data (`<script id="data">`), publish it to the studio's link, and
-  commit the same file in the same change.
-
-## Widgetbook
-
-Every component built in code has Widgetbook use cases for the forms and
-states on its studio card: a Forge component in `widgetbook/`, an app
-component in `apps/<name>/widgetbook`. Use cases are `@UseCase` functions
-(widgetbook_generator); the catalog has the preset and brightness, device
-frame, text scale and 8px grid addons. Run it locally on the web
-(`flutter run -d chrome` in the catalog's folder); CI generates and builds
-both catalogs on every PR.
+The studio pages are the only design source: `design/studio.html` here for
+the shared components, `apps/<name>/design/studio.html` for an app. Each is
+one self-contained page that opens in any browser. An app's SPEC keeps design
+decisions as a table, never how things look. Colours stay muted. Every
+component built in code has Widgetbook use cases. The rules for drawing,
+asking, studios and Widgetbook are in `workflow/design.md`.
 
 ## Tests
 
@@ -169,12 +139,17 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
 
 ## Git
 
-- `gh` CLI for everything on GitHub. Forge: `yigit-cuhadar/MobileAppForge`
-  (public). Apps: `yigit-cuhadar/<name>` (get_workout is public).
+- `gh` CLI for everything on GitHub. The forge and each app are separate
+  repos under one owner (`gh repo view` in each names it).
 - Never commit to `main`. One branch and PR per feature; squash-merge when CI
   is green. Commit messages: imperative, what and why.
 - Before every commit: `dart format`, `flutter analyze`, `flutter test` in the
   package or app you touched. CI repeats this on every PR.
+- The two main checkouts, this root and `apps/<name>`, stay on `main`: pull
+  them before reading or starting anything, and do no work in them. Work
+  happens in a git worktree beside them (`git worktree add`), which is
+  removed with its local branch when its PR is merged. A worktree left behind
+  is unfinished work: its branch name says what.
 
 ## Machine limits (M1, 16 GB)
 
@@ -197,11 +172,13 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
 ## Roles
 
 The workflow is written in roles so it runs in any tool. A tool without
-sub-agents plays all roles itself, in order.
+sub-agents plays all roles itself, in order. Where a tool has sub-agents,
+give the Architect the strongest model and the Scaffolder the cheapest;
+Claude Code's definitions are in `.claude/agents/`.
 
-| Role | Does | Claude Code |
-|---|---|---|
-| Architect | Discovery, data model, feature breakdown, hard bugs, final call | main session, Fable |
-| Implementer | One feature end to end, with tests | `implementer` agent, Opus |
-| Reviewer | Reviews each feature diff against this file and the spec | `reviewer` agent, Opus |
-| Scaffolder | Mechanical work: scaffolding, renames, test boilerplate, config | `scaffolder` agent, Sonnet |
+| Role | Does |
+|---|---|
+| Architect | Discovery, data model, feature breakdown, hard bugs, every device check, final call. The main session. |
+| Implementer | One feature end to end, with tests |
+| Reviewer | Reviews each feature diff against this file and the spec |
+| Scaffolder | Mechanical work: scaffolding, renames, test boilerplate, config |
