@@ -27,8 +27,9 @@ before it is asked.
 
 - One canvas per batch: a page of phone drawings, one row per decision, rows
   in one column in the order they will be asked. In Claude it is a Design
-  canvas artifact; in another tool, a self-contained HTML page written to the
-  gitignored `design/canvas/` and opened in the browser. A row is named
+  canvas artifact; in another tool, a self-contained HTML page written to
+  `design/canvas/` of the repo being designed (gitignored) and opened in
+  the browser. A row is named
   "<code> · <short question>" with a one or two line intro (in the owner's
   language) on what differs and why it is a decision.
 - Columns, each a 390px phone drawn as a real screen in the studio's look
@@ -53,9 +54,11 @@ shared components. The page in git is the source: `design/studio.html` in
 this repo, `design/studio.html` in the app's repo. It is one self-contained
 file that opens in any browser.
 
-- Change a studio by editing the page's data (`<script id="data">`), run
-  `tools/studio_check.py <page>` (`--fix` rebuilds the lists below), and
-  commit. The claude.ai link of a studio (in the app's SPEC under Design) is
+- Change a studio by editing the page's data (`<script id="data">`, one
+  long line of JSON: edit it by script, never by hand).
+  `tools/studio_check.py <page> --list` names the components and screens,
+  `--get <name>` prints one item's `html` and `--set <name> <file>` replaces
+  it; then run the check (`--fix` rebuilds the lists below) and commit. The claude.ai link of a studio (in the app's SPEC under Design) is
   a published copy for the owner to open anywhere: a Claude session
   republishes the file to it in the same change; another tool says in its
   report that the link is behind.

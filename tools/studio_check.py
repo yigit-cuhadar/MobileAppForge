@@ -2,6 +2,13 @@
 """Checks a design studio page: every drawn part names a component.
 
   tools/studio_check.py <studio.html> [--fix]
+  tools/studio_check.py <studio.html> --list
+  tools/studio_check.py <studio.html> --get <item name>
+  tools/studio_check.py <studio.html> --set <item name> <html file>
+
+`--list` names the page's components and screens; `--get` prints one item's
+`html` and `--set` replaces it with a file's content, so the page's single
+line of data never has to be opened.
 
 The page's data (`<script id="data">`) lists components (`groups[].items[]`)
 and screens (`screens[].items[]`), each with an `html` fragment. In a screen,
@@ -55,7 +62,7 @@ class Parts(HTMLParser):
 def main():
     args = [a for a in sys.argv[1:] if a != "--fix"]
     fix = "--fix" in sys.argv[1:]
-    if len(args) != 1:
+    if not args:
         sys.exit(__doc__)
     page = open(args[0], encoding="utf-8").read()
     found = re.search(r'(<script[^>]*id="data"[^>]*>)(.*?)(</script>)', page, re.S)
@@ -64,6 +71,30 @@ def main():
     data = json.loads(found.group(2))
     components = [item for group in data.get("groups", []) for item in group["items"]]
     screens = [item for group in data.get("screens", []) for item in group["items"]]
+
+    def write():
+        text = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+        open(args[0], "w", encoding="utf-8").write(page[: found.start(2)] + text + page[found.end(2) :])
+
+    if args[1:2] == ["--list"]:
+        for kind, items in (("component", components), ("screen", screens)):
+            for item in items:
+                print(kind, item["name"], sep="\t")
+        return
+    if args[1:2] in (["--get"], ["--set"]):
+        item = next((i for i in components + screens if i["name"] == args[2]), None) if len(args) > 2 else None
+        if item is None:
+            sys.exit(f"no item named {args[2] if len(args) > 2 else ''!r}; see --list")
+        if args[1] == "--get":
+            print(item.get("html", ""))
+        elif len(args) == 4:
+            item["html"] = open(args[3], encoding="utf-8").read().removesuffix("\n")
+            write()
+        else:
+            sys.exit(__doc__)
+        return
+    if len(args) != 1:
+        sys.exit(__doc__)
     own = {c["name"] for c in components}
     forge = data.get("forgeIndex", {}).get("items", [])
     known = own | PLAIN | {i["name"] for i in forge}
@@ -95,8 +126,7 @@ def main():
             else:
                 problems.append(f"{item.get('name') or item.get('title')}: `{key}` does not match the tags (run with --fix)")
     if fix and stale:
-        text = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
-        open(args[0], "w", encoding="utf-8").write(page[: found.start(2)] + text + page[found.end(2) :])
+        write()
     for line in problems:
         print(line)
     print(f"{args[0]}: {len(components)} components, {len(screens)} screens, {len(problems)} problems" + (f", {stale} lists rewritten" if fix and stale else ""))

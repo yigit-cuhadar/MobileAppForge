@@ -34,9 +34,10 @@ from this file.
    build them with the first app that reaches them, then move them into
    `tools/`.
 
-To resume: read `apps/<name>/SPEC.md` from the top through Open. Now says
-where the app stands and what is next; read only the sections it points to,
-and the workflow file of the phase that work belongs to.
+To resume: read Now and Open in `apps/<name>/SPEC.md`. Now says where the
+app stands and what is next; read only the sections it points to (Decisions
+and Features included), and the workflow file of the phase that work
+belongs to.
 
 ## Working with the user
 
@@ -45,7 +46,8 @@ and the workflow file of the phase that work belongs to.
   public or irreversible (creating repos/projects, publishing, deleting data).
   Offer 2-4 options with a recommendation first.
 - Put each such decision to the user as a question with options at the
-  moment it comes up, through the tool's question dialog, one question per
+  moment it comes up, through the tool's question dialog (in a tool without
+  one, a numbered question with its options in the chat), one question per
   decision. Never leave it as a note inside a status report or a sub-agent's
   summary. Work that does not depend on the answer goes on meanwhile.
 - Sub-agents never take these decisions: they stop and report each one with
@@ -147,8 +149,10 @@ Packages test their widgets' behaviour (gestures, callbacks) with widget tests.
   package or app you touched. CI repeats this on every PR.
 - The two main checkouts, this root and `apps/<name>`, stay on `main`: pull
   them before reading or starting anything, and do no work in them. Work
-  happens in a git worktree beside them (`git worktree add`), which is
-  removed with its local branch when its PR is merged. A worktree left behind
+  happens in a git worktree (`git worktree add`): `.worktrees/<topic>` for
+  the forge, `apps/<name>_<topic>` for an app, so paths that reach the forge
+  root keep working. It is removed with its local branch when its PR is
+  merged. A worktree left behind
   is unfinished work: its branch name says what.
 
 ## Machine limits (M1, 16 GB)
