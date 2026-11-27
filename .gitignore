@@ -8,3 +8,4 @@ pubspec.lock
 .claude/settings.local.json
 /LOCAL.md
 /design/canvas/
+/.worktrees/
