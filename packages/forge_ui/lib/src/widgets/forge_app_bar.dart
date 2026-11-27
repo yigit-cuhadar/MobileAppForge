@@ -246,7 +246,8 @@ class ForgeAppBarAction extends StatelessWidget {
       excludeSemantics: true,
       child: InkResponse(
         onTap: onPressed,
-        radius: ForgeTheme.tapMin / 2,
+        containedInkWell: true,
+        customBorder: const CircleBorder(),
         child: SizedBox.square(
           dimension: ForgeTheme.tapMin,
           child: Stack(
