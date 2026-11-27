@@ -129,8 +129,8 @@ class ForgeIconButton extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkResponse(
           onTap: onPressed,
-          radius: ForgeTheme.tapMin / 2,
-          highlightShape: BoxShape.circle,
+          containedInkWell: true,
+          customBorder: const CircleBorder(),
           child: SizedBox.square(
             dimension: ForgeTheme.tapMin,
             child: Center(

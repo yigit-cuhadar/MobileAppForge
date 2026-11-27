@@ -22,6 +22,23 @@ void main() {
   ForgeIcon icon(WidgetTester tester) =>
       tester.widget<ForgeIcon>(find.byType(ForgeIcon));
 
+  testWidgets('keeps its ink inside a 44px circle', (tester) async {
+    await pump(
+      tester,
+      ForgeIconButton.text(
+        '0.5×',
+        label: 'Speed',
+        fill: ForgeIconButtonFill.surface,
+        onPressed: () {},
+      ),
+    );
+
+    final ink = tester.widget<InkResponse>(find.byType(InkResponse));
+    expect(ink.containedInkWell, isTrue);
+    expect(ink.customBorder, const CircleBorder());
+    expect(tester.getSize(find.byType(InkResponse)), const Size(44, 44));
+  });
+
   testWidgets('a 20px icon on a 44px target that takes taps', (tester) async {
     var taps = 0;
     await pump(

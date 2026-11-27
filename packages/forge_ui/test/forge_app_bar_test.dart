@@ -140,6 +140,33 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('an icon action keeps its ink inside a 44px circle', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      ForgeAppBar(
+        title: 'Item list',
+        actions: [
+          ForgeAppBarAction.icon(
+            icon: ForgeIcons.tune,
+            label: 'Filters',
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+
+    final ink = tester.widget<InkResponse>(
+      find.descendant(
+        of: find.byType(ForgeAppBarAction),
+        matching: find.byType(InkResponse),
+      ),
+    );
+    expect(ink.containedInkWell, isTrue);
+    expect(ink.customBorder, const CircleBorder());
+  });
+
   testWidgets('a toggled icon is ink-muted outline off and filled accent on', (
     tester,
   ) async {
